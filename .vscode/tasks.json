@@ -1,0 +1,17 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "austin",
+            "file": "src/neural_net_predictor.py",
+            "label": "Profile neural_net_predictor.py",
+            "problemMatcher": []
+        },
+        {
+            "type": "austin",
+            "file": "${file}",
+            "label": "Profile Current File",
+            "problemMatcher": []
+        }
+    ]
+}

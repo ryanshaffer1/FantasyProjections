@@ -1,0 +1,16 @@
+{
+    "pylint.args": [
+        "--disable=C0114",
+        "--disable=C0115",
+        "--disable=C0116",
+        "--disable=C0301"
+    ],
+    "black-formatter.args": ["--line-length", "100"],
+    "editor.defaultFormatter": "mikoz.black-py",
+    "notebook.defaultFormatter": "mikoz.black-py",
+    "editor.defaultFoldingRangeProvider": "mikoz.black-py",
+    "editor.formatOnSave": true,
+    "files.saveConflictResolution": "overwriteFileOnDisk",
+    "austin.path": "C:\\Users\\rshaf\\OneDrive\\Documents\\Projects\\FantasyProjections\\.venv\\Scripts\\austin.exe",
+
+}
