@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from nn_helper_functions import stats_to_fantasy_points
-from nn_plot_functions import plot_test_results
+from nn_plot_functions import gen_scatterplots
 
 
 def train(dataloader, model, device, loss_fn, optimizer):
@@ -79,7 +79,7 @@ def results_eval(stat_predicts, stat_truths, dataset):
                          'slice': {'Position': ['QB']},
                          'subtitle': 'Passing Stats',
                          'histograms': True})
-    plots_kwargs.append({'columns': ['Pass Att', 'Pass Cmp', 'Pass Yds', 'Pass TD', 'Int'],
+    plots_kwargs.append({'columns': ['Pass Att', 'Pass Cmp', 'Pass Yds', 'Pass TD'],
                          'legend_slice': {'Position': [['QB'], ['RB', 'WR', 'TE']]},
                          'subtitle': 'Passing Stats',
                          })
@@ -98,4 +98,4 @@ def results_eval(stat_predicts, stat_truths, dataset):
 
     # Generate scatter plots
     for plot_kwargs in plots_kwargs:
-        plot_test_results(stat_truths, stat_predicts, data_ids, **plot_kwargs)
+        gen_scatterplots(stat_truths, stat_predicts, data_ids, **plot_kwargs)

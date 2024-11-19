@@ -1,40 +1,136 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
-import scipy
-from nn_helper_functions import stats_to_fantasy_points
+from scipy.stats import linregress
+
+# Bold text on everything
+plt.rcParams['font.weight'] = 'bold'
+plt.rcParams["axes.labelweight"] = "bold"
+
+def gen_scatterplots(result, **kwargs):
+    # Handle keyword arguments
+    columns = kwargs.get('columns', None)
+    plot_slice = kwargs.get('slice', {})
+    legend_slice = kwargs.get('legend_slice', {})
+    subtitle = kwargs.get('subtitle', None)
+    histograms = kwargs.get('histograms', False)
+
+    # Copy dataframes (to preserve original object attributes)
+    # And trim content to only the data spec'd in plot_slice/legend_slice
+    [truth_dfs,predict_dfs] = data_slice_to_plot(result,plot_slice,legend_slice)[0:2]
+
+    # Determine arrangement of subplots needed
+    num_subplots = len(columns)
+    numrows = int(np.floor(np.sqrt(num_subplots)))
+    numcols = int(np.ceil(num_subplots / numrows))
+
+    # Set up figure with subplots
+    fig, axs = plt.subplots(nrows=numrows, ncols=numcols, layout='constrained')
+    axs = np.array(axs) if num_subplots == 1 else axs
+
+    for ax, column in zip(axs.transpose().flat,columns):
+        # Create scatter plot with optional histograms on x/y axes
+        ideal_line,bestfit_line = scatter_hist(
+            truth_dfs,
+            predict_dfs,
+            ax,
+            column=column,
+            legend_slice=legend_slice,
+            histograms=histograms)
+
+    # Make any remaining unused subplots invisible
+    for i in range(num_subplots, numrows * numcols):
+        axs.flat[i].set_axis_off()
+
+    # Add legend (if trendlines were plotted on at least one of the subplots)
+    if ideal_line:
+        if num_subplots > 1:
+            fig.legend([ideal_line, bestfit_line], [
+                       'Ideal Trendline', 'Actual Trendline'], loc='lower right')
+        else:
+            axs.flat[0].legend([ideal_line, bestfit_line], [
+                      'Ideal Trendline', 'Actual Trendline'], loc='lower right')
+
+    # Figure title with optional subtitle
+    title = f'{result.predictor_name} Performance: Predictions vs Truth'
+    # Optional subtitle, with info on slices included
+    if subtitle:
+        title += '\n' + subtitle + \
+            ''.join(['\n ' + key + ': ' + ', '.join(plot_slice[key])
+                    for key in list(plot_slice.keys())])
+    fig.suptitle(title, weight='bold')
+
+    # "Display" plot (won't really be displayed until plt.show is called again without block=False)
+    plt.show(block=False)
 
 
-def scatter_hist(x, y, ax, ax_histx, ax_histy, alpha):
-    # Configure axis ticks and tick labels for histograms
-    ax_histx.tick_params(axis='x', labelbottom=True, bottom=True)
-    ax_histx.tick_params(axis='y', labelleft=False, left=False)
-    ax_histy.tick_params(axis='y', labelleft=True, left=True)
-    ax_histy.tick_params(axis='x', labelbottom=False, bottom=False)
+def scatter_hist(truth_dfs, predict_dfs, ax, column, legend_slice, histograms=True):
+    if histograms:
+        # Axes for histograms
+        ax_histx = ax.inset_axes([0, -0.15, 1, 0.15], sharex=ax)
+        ax_histy = ax.inset_axes([-0.15, 0, 0.15, 1], sharey=ax)
+        # Axis labels
+        ax_histx.set_xlabel(f'True {column}')
+        ax_histy.set_ylabel(f'Predicted {column}')
+        # Configure axis ticks and tick labels for histograms
+        ax_histx.tick_params(axis='x', labelbottom=True, bottom=True)
+        ax_histx.tick_params(axis='y', labelleft=False, left=False)
+        ax_histy.tick_params(axis='y', labelleft=True, left=True)
+        ax_histy.tick_params(axis='x', labelbottom=False, bottom=False)
+        # Remove tick labels on scatterplot
+        ax.tick_params(axis='x', labelbottom=False, bottom=False)
+        ax.tick_params(axis='y', labelleft=False, left=False)
+    else:
+        # Axis labels
+        ax.set_xlabel(f'True {column}')
+        ax.set_ylabel(f'Predicted {column}')
 
-    # Scatter plot (with no tick labels)
-    ax.scatter(x, y, alpha=alpha)
-    ax.tick_params(axis='x', labelbottom=False, bottom=False)
-    ax.tick_params(axis='y', labelleft=False, left=False)
+    # Plot each set of data (broken up by legend entries)
+    for (x, y) in zip(truth_dfs, predict_dfs):
+        x,y = x[column],y[column]
+        # Set alpha based on data size (threshold set empirically by what has looked good)
+        alpha = 0.1 if x.shape[0] > 2000 else 0.5
 
-    # Get axis limits
-    min_lim = min(np.concat((ax.get_xlim(),ax.get_ylim())))
-    max_lim = max(np.concat((ax.get_xlim(),ax.get_ylim())))
-    lim_vals = np.linspace(min_lim, max_lim, num=2)
-    # Set axis limits
-    ax.set_xlim(lim_vals[0], lim_vals[-1])
-    ax.set_ylim(lim_vals[0], lim_vals[-1])
+        # Create scatterplot
+        ax.scatter(x, y, alpha=alpha)
 
+        # Get and set axis limits for equal axes
+        lim_vals = np.linspace(min(np.concat((ax.get_xlim(),ax.get_ylim()))),
+                                max(np.concat((ax.get_xlim(),ax.get_ylim()))),
+                                num=2)
+        ax.set_xlim(lim_vals[0], lim_vals[-1])
+        ax.set_ylim(lim_vals[0], lim_vals[-1])
+
+        # Add optional histograms
+        if histograms:
+            # Set bins to use in histogram
+            bins = set_hist_bins(ax,num_bins_per_tick=4)
+
+            # Histograms
+            ax_histx.hist(x, bins=bins, edgecolor='k')
+            ax_histy.hist(y, bins=bins, edgecolor='k', orientation='horizontal')
+
+    # Legend (if legend slice was set)
+    if legend_slice:
+        leg = ax.legend([', '.join(val)
+                        for key in legend_slice for val in legend_slice[key]])
+        for lh in leg.legend_handles:
+            lh.set_alpha(1)
+
+    # Draw ideal line of best fit and actual line of best fit
+    ideal_line,bestfit_line = draw_regression_lines(truth_dfs,predict_dfs,column,lim_vals,ax)
+
+    return ideal_line, bestfit_line
+
+
+def set_hist_bins(ax,num_bins_per_tick=4):
     # Set bins based on x-axis tickmarks
-    num_bins_per_tick = 4
     ticks = ax.get_xticks()
     tickspacing = ticks[1] - ticks[0]
     bins = np.arange(ticks[0], ticks[-1], step=tickspacing / num_bins_per_tick)
     bins -= tickspacing / num_bins_per_tick / 2
-
-    # Histograms
-    ax_histx.hist(x, bins=bins, edgecolor='k')
-    ax_histy.hist(y, bins=bins, edgecolor='k', orientation='horizontal')
+    return bins
 
 
 def check_df_for_slice(x,key,slice_var,slice_type='dict'):
@@ -48,215 +144,175 @@ def check_df_for_slice(x,key,slice_var,slice_type='dict'):
             return x[key] in slice_var
 
 
-def plot_test_results(truth_df, predict_df, id_df, **kwargs):
-    # Handle keyword arguments
-    columns = kwargs.get('columns', None)
-    plot_slice = kwargs.get('slice', {})
-    legend_slice = kwargs.get('legend_slice', {})
-    subtitle = kwargs.get('subtitle', None)
-    histograms = kwargs.get('histograms', False)
-
-    # Bold text
-    plt.rcParams['font.weight'] = 'bold'
-    plt.rcParams["axes.labelweight"] = "bold"
+def data_slice_to_plot(result, plot_slice, legend_slice, return_lists=True):
+    # Copy results dataframes so that the result object's attributes are unmodified
+    id_df = result.id_df.copy()
+    dfs_to_slice = [getattr(result,df_name) for df_name in ['truths','predicts','pbp_df'] if hasattr(result,df_name)]
 
     # Slice data based on optional input
     if plot_slice:
         for key in plot_slice:
             indices_to_keep = id_df.apply(
                 check_df_for_slice, args=(key,plot_slice), axis=1)
-            truth_df = truth_df[indices_to_keep]
-            predict_df = predict_df[indices_to_keep]
             id_df = id_df[indices_to_keep]
+            for i,df in enumerate(dfs_to_slice):
+                dfs_to_slice[i] = df[indices_to_keep]
 
     # Break up into multiple x/y data sets if legend slices are input
     if legend_slice:
-        truth_dfs = []
-        predict_dfs = []
+        df_lists = [[] for df in dfs_to_slice]
         for key in legend_slice:
             for val in legend_slice[key]:
                 indices_to_keep = id_df.apply(check_df_for_slice, args=(key,val,'list'), axis=1)
-                truth_dfs.append(truth_df[indices_to_keep])
-                predict_dfs.append(predict_df[indices_to_keep])
+                for df_list,df in zip(df_lists,dfs_to_slice):
+                    df_list.append(df[indices_to_keep])
     else:
-        truth_dfs = [truth_df]
-        predict_dfs = [predict_df]
-
-    # Determine arrangement of subplots needed
-    num_subplots = len(columns)
-    numrows = int(np.floor(np.sqrt(num_subplots)))
-    numcols = int(np.ceil(num_subplots / numrows))
-
-    # Set up figure with subplots
-    fig, axs = plt.subplots(nrows=numrows, ncols=numcols, layout='constrained')
-
-    plot_ind = -1 # Initialize loop variable, since it will be used outside of the loop
-    for plot_ind, column in enumerate(columns):
-
-        # Configure subplot
-        ax = axs.transpose().flat[plot_ind] if num_subplots > 1 else axs
-        # ax.set(aspect=1) # Doesn't seem to do anything
-        if histograms:
-            ax_histx = ax.inset_axes([0, -0.15, 1, 0.15], sharex=ax)
-            ax_histy = ax.inset_axes([-0.15, 0, 0.15, 1], sharey=ax)
-            # Axis labels
-            ax_histx.set_xlabel(f'True {column}')
-            ax_histy.set_ylabel(f'Predicted {column}')
+        df_lists = []
+        if return_lists:
+            for df in dfs_to_slice:
+                df_lists.append([df])
         else:
-            # Axis labels
-            ax.set_xlabel(f'True {column}')
-            ax.set_ylabel(f'Predicted {column}')
+            for df in dfs_to_slice:
+                df_lists.append(df)
 
-        # Plot each set of data (broken up by legend entries)
-        for (sliced_truth_df, sliced_predict_df) in zip(
-                truth_dfs, predict_dfs):
-            sliced_truth_data = sliced_truth_df[column]
-            sliced_predict_data = sliced_predict_df[column]
-            # Set alpha based on data size (threshold set empirically by what
-            # has looked good)
-            alpha = 0.1 if sliced_truth_data.shape[0] > 2000 else 0.5
-
-            if histograms:
-                # Plot data on scatter plot with histograms axes
-                scatter_hist(
-                    sliced_truth_data,
-                    sliced_predict_data,
-                    ax,
-                    ax_histx,
-                    ax_histy,
-                    alpha)
-            else:
-                # Plot data on scatter plot with NO histograms axes
-                ax.scatter(sliced_truth_data, sliced_predict_data, alpha=alpha)
-
-        # Legend (if legend slice was set)
-        if legend_slice:
-            leg = ax.legend([', '.join(val)
-                            for val in legend_slice[key] for key in legend_slice])
-            for lh in leg.legend_handles:
-                lh.set_alpha(1)
-
-        # Get axis limits
-        min_lim = min(np.concat((ax.get_xlim(),ax.get_ylim())))
-        max_lim = max(np.concat((ax.get_xlim(),ax.get_ylim())))
-        lim_vals = np.linspace(min_lim, max_lim, num=2)
-
-        # Trendlines: ideal trendline, and line of best fit
-        # Re-consolidate x,y datasets
-        truth_data = truth_df[column]
-        predict_data = predict_df[column]
-        if len(truth_data.unique(
-        )) > 1:  # Only plot trendlines if there is more than one unique value on the x axis
-            # Draw line along y=x (values should clump along this line for a
-            # well-performing model)
-            ideal_line, = ax.plot(lim_vals, lim_vals, '--', color='0.4')
-            # Draw line of best fit, display r-squared as text on figure
-            slope, intercept, r_value = scipy.stats.linregress(
-                truth_data, predict_data)[0:3]
-            bestfit_line, = ax.plot(
-                lim_vals, slope * lim_vals + intercept, 'k--')
-            ax.text(lim_vals[-1],
-                    slope * lim_vals[-1] + intercept,
-                    f'$R^2 = {(r_value**2):>0.3f}$ ',
-                    horizontalalignment='right',
-                    verticalalignment=('bottom' if r_value > 0 else 'top'))
-
-        # Set axis limits
-        ax.set_xlim(lim_vals[0], lim_vals[-1])
-        ax.set_ylim(lim_vals[0], lim_vals[-1])
-
-    # Make any remaining unused subplots invisible
-    for i in range(plot_ind + 1, numrows * numcols):
-        ax = axs.flat[i]
-        ax.set_axis_off()
-
-    # Add legend (if trendlines were plotted on at least one of the subplots)
-    if 'ideal_line' in locals():
-        if num_subplots > 1:
-            fig.legend([ideal_line, bestfit_line], [
-                       'Ideal Trendline', 'Actual Trendline'], loc='lower right')
-        else:
-            ax.legend([ideal_line, bestfit_line], [
-                      'Ideal Trendline', 'Actual Trendline'], loc='lower right')
-
-    # Figure title with optional subtitle
-    title = 'Neural Net Performance: Predictions vs Truth'
-    # Optional subtitle, with info on slices included
-    if subtitle:
-        title += '\n' + subtitle + \
-            ''.join(['\n ' + key + ': ' + ', '.join(plot_slice[key])
-                    for key in list(plot_slice.keys())])
-    fig.suptitle(title, weight='bold')
-
-    # "Display" plot (won't really be displayed until plt.show is called again without block=False)
-    plt.show(block=False)
+    return df_lists
 
 
-def plot_game_timeline(game_id, id_df, pbp_df, predict_df, truth_df):
-    # Filter to only the desired game/player
-    for key in list(game_id.keys()):
-        indices_to_keep = id_df.apply(check_df_for_slice, args=(key,game_id), axis=1)
-        pbp_df = pbp_df[indices_to_keep]
-        truth_df = truth_df[indices_to_keep]
-        predict_df = predict_df[indices_to_keep]
-        id_df = id_df[indices_to_keep]
+def draw_regression_lines(truth_dfs, predict_dfs, column, lim_vals, ax):
+    # Trendlines: ideal trendline, and line of best fit
+    # Re-consolidate x,y datasets
+    truth_data = pd.concat(truth_dfs)[column]
+    predict_data = pd.concat(predict_dfs)[column]
+    if len(truth_data.unique()) > 1:
+        # Only plot trendlines if there is more than one unique value on the x axis
+        # Draw line along y=x (values should clump along this line for a
+        # well-performing model)
+        ideal_line, = ax.plot(lim_vals, lim_vals, '--', color='0.4')
+        # Draw line of best fit, display r-squared as text on figure
+        slope, intercept, r_value = linregress(truth_data, predict_data)[0:3]
+        bestfit_line, = ax.plot(lim_vals, slope * lim_vals + intercept, 'k--')
+        ax.text(lim_vals[-1],
+                slope * lim_vals[-1] + intercept,
+                f'$R^2 = {(r_value**2):>0.3f}$ ',
+                horizontalalignment='right',
+                verticalalignment=('bottom' if r_value > 0 else 'top'))
+    else:
+        ideal_line = None
+        bestfit_line = None
+    return ideal_line, bestfit_line
 
-    ax = plt.subplots()[1]
+
+def plot_game_timeline(result, game_id, fig=None):
+    # Copy dataframes (to preserve original object attributes)
+    # And trim content to only the data spec'd in game_id
+    [truth_df,predict_df,pbp_df] = data_slice_to_plot(result, game_id, None, return_lists=False)
+
+    # Generate new figure if not plotting on a pre-existing fig
+    if not fig:
+        fig = plt.subplots()[0]
+
+    # Plot fantasy points over time
+    ax = fig.axes[0]
     ax.plot(pbp_df['Elapsed Time'], pbp_df['Fantasy Points'])
     ax.plot(pbp_df['Elapsed Time'], predict_df['Fantasy Points'])
     ax.plot(pbp_df['Elapsed Time'], truth_df['Fantasy Points'], 'k--')
     ax.legend(['Live Fantasy Score',
-               'Neural Net Predicted Final Fantasy Score',
+               f'{result.predictor_name} Final Fantasy Score',
                'True Final Fantasy Score'])
     ax.set_title(
         f'Fantasy Score, {
             game_id['Player']}, {
             game_id['Year']} Week {
-                game_id['Week']}')
+            game_id['Week']}'
+    )
     ax.set_xlabel('Elapsed Game Time (min)')
     ax.set_ylabel('Fantasy Points')
 
 
-def eval_single_games(predict_df, truth_df, dataset, game_ids=None, n_random=0):
-    # Handle optional input of specific games/players
-    if game_ids is None:
-        game_ids = []
+def plot_error_dist(stat_predicts,stat_truths):
+    fp_diff = [abs(predict - truth)
+                for predict, truth in zip(stat_predicts['Fantasy Points'], stat_truths['Fantasy Points'])]
+    ax = plt.subplots()[1]
+    ax.hist(fp_diff, bins=30, density=True, alpha=0.6)
+    ax.set_xlabel('Fantasy Score Absolute Prediction Error')
+    ax.set_ylabel('Density')
+    ax.set_title('Fantasy Score Prediction Error Distribution Plot')
 
-    # ID (player, week, year, team, position, etc) for each data point
-    id_df = dataset.__getids__().reset_index(drop=True)
+    plt.show(block=False)
 
-    # Play-by-play data (used as x [input] data in NN)
-    pbp_df = pd.DataFrame(dataset.x_data, columns=dataset.x_data_labels)
-    # Add fantasy points to play-by-play
-    cols_to_keep = [
-        'Elapsed Time',
-        'Pass Att',
-        'Pass Cmp',
-        'Pass Yds',
-        'Pass TD',
-        'Int',
-        'Rush Att',
-        'Rush Yds',
-        'Rush TD',
-        'Rec',
-        'Rec Yds',
-        'Rec TD',
-        'Fmb']
-    pbp_df = stats_to_fantasy_points(pbp_df.loc[:, cols_to_keep], normalized=True)
 
-    # (Optionally) Add random players/games to plot
-    for _ in range(n_random):
-        valid_new_entry = False
-        while not valid_new_entry:
-            ind = np.random.randint(id_df.shape[0])
-            game_dict = {col: id_df.iloc[ind][col]
-                         for col in ['Player', 'Week', 'Year']}
-            if game_dict not in game_ids:
-                game_ids.append(game_dict)
-                valid_new_entry = True
+def plot_grid_search_results(filename,param_set,variables=None):
+    # Caution: this will only work for linear or log-scale variables
 
-    for game_id in game_ids:
-        plot_game_timeline(game_id, id_df, pbp_df, predict_df, truth_df)
+    hp_label_dict = {
+        'learning_rate': r'Learning Rate ($\eta$)',
+        'lmbda': r'Regularization ($\lambda$)'
+    }
 
-    # "Display" plot (won't really be displayed until plt.show is called again without block=False)
+    # Read values and performance from file
+    grid_df = pd.read_csv(filename,index_col=0)
+
+
+    # Drop duplicates
+    grid_df = grid_df.drop_duplicates(subset=['mini_batch_size','learning_rate','lmbda','loss_fn']).reset_index(drop=True)
+
+    # Add edge coloring to best performing data point
+    grid_df['Edge Color'] = 'w'
+    grid_df.loc[int(np.nanargmin(grid_df['Model Performance'])),'Edge Color'] = 'g'
+
+    # Obtain info on scale used for each variable
+    param_set_names = [hp.name for hp in param_set.hyper_parameters]
+    param_set_scales = [hp.val_scale for hp in param_set.hyper_parameters]
+    variable_scales = [param_set_scales[param_set_names.index(var_name)] for var_name in variables]
+
+    # Scatter plot with customized colorbar
+    colorbar_scale = 'linear'
+    min_color_val = np.nanmin(grid_df['Model Performance'])
+    max_color_val = np.nanmax(grid_df['Model Performance'])
+    match colorbar_scale:
+        case 'log':
+            norm = mpl.colors.Normalize(vmin=np.log10(min_color_val),vmax=np.log10(max_color_val))
+            cbar_ticks = np.log10(np.logspace(np.log10(min_color_val),np.log10(max_color_val),3))
+            cbar_tick_labels = np.round(10**np.array(cbar_ticks))
+            grid_df['ColorVal'] = np.log10(grid_df['Model Performance'])
+        case 'linear':
+            norm = mpl.colors.Normalize(vmin=min_color_val,vmax=max_color_val)
+            cbar_ticks = np.linspace(min_color_val,max_color_val,3)
+            cbar_tick_labels = np.round(cbar_ticks)
+            grid_df['ColorVal'] = grid_df['Model Performance']
+    ax = plt.subplots()[1]
+    cmap = 'plasma'
+    marker_by_layer = ['o','s','h','p']
+    scats = []
+    search_layers = grid_df['Grid Search Layer'].unique()
+    for layer in grid_df['Grid Search Layer'].unique():
+        data = grid_df[grid_df['Grid Search Layer']==layer]
+        scat = ax.scatter(data[variables[0]],data[variables[1]],
+                        s=400*1/np.sqrt(data['Model Performance'].fillna(100).clip(lower=1,upper=100)), # size varies w/ sqrt
+                        #   s=2000*1/data['Model Performance'].fillna(100).clip(lower=1,upper=100), # size varies linearly
+                        # s=200*1/np.log10(data['Model Performance'].fillna(100)), # size varies logarithmically
+                        c=data['ColorVal'], marker=marker_by_layer[layer],
+                        edgecolors=data['Edge Color'], linewidth=2,
+                        cmap=cmap,norm=norm,plotnonfinite=True)
+        scat.cmap.set_bad()
+        scats.append(scat)
+    cbar = ax.figure.colorbar(mpl.cm.ScalarMappable(norm=norm,cmap=cmap),
+                       ax=ax,label='Avg. Fantasy Score Error')
+    cbar.set_ticks(cbar_ticks,labels=cbar_tick_labels)
+
+    # Legend for multiple search layers
+    if len(search_layers) > 1:
+        new_handles = [ax.plot(np.nan,marker=marker_by_layer[i],ls='',mfc='w',mec='k',ms=10)[0] for i in range(len(search_layers))]
+        ax.legend(handles=new_handles,labels=[f'Grid Search Layer {layer+1}' for layer in search_layers],
+                #   bbox_to_anchor=(0.5,1.01),loc='upper center',ncols=len(search_layers))
+                bbox_to_anchor=(0.06,0.94),loc='upper left'
+        )
+
+    # Format plot axes/labels
+    ax.set_xscale(variable_scales[0])
+    ax.set_yscale(variable_scales[1])
+    ax.set_xlabel(hp_label_dict[variables[0]])
+    ax.set_ylabel(hp_label_dict[variables[1]])
+    ax.set_title('Hyper-Parameter Grid Search Results',weight='bold')
+    ax.grid(which='major')
     plt.show(block=False)

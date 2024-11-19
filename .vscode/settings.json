@@ -9,7 +9,7 @@
     "editor.defaultFormatter": "mikoz.black-py",
     "notebook.defaultFormatter": "mikoz.black-py",
     "editor.defaultFoldingRangeProvider": "mikoz.black-py",
-    "editor.formatOnSave": true,
+    "editor.formatOnSave": false,
     "files.saveConflictResolution": "overwriteFileOnDisk",
     "austin.path": "C:\\Users\\rshaf\\OneDrive\\Documents\\Projects\\FantasyProjections\\.venv\\Scripts\\austin.exe",
 

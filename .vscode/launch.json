@@ -4,19 +4,22 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        
         {
-            "name": "neural_net_predictor.py: Python Debug",
+            "name": "fantasy_predictor.py: Python Debug",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/NN_predictor.py",
-            "console": "integratedTerminal"
+            "program": "${workspaceFolder}/src/fantasy_predictor.py",
+            "console": "integratedTerminal",
+            "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"}
         },
         {
             "name": "Current File: Python Debug",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"}
         }
     ]
 }

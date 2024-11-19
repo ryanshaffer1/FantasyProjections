@@ -5,8 +5,9 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-from nn_helper_functions import end_learning
+from nn_helper_functions import end_learning, save_hp_tuning_results
 from nn_model_functions import train, test, results_eval
+from nn_plot_functions import plot_grid_search_results
 from hyper_tuner import HyperParameter, HyperParameterSet
 from dataset import CustomDataset
 from neural_network import NeuralNetwork
@@ -41,36 +42,37 @@ program_start_time = datetime.now()
 
 
 # User Preferences (don't affect the actual process)
-DISP_RUN_TIMES = True
+DISP_RUN_TIMES = False
 
 # Parameters affecting the outcome of the run, not automatically tuned
-OPTIMIZE_HYPERS = False
-HYPER_TUNER_LAYERS = 1
-HYPER_TUNER_STEPS_PER_DIM = 2
+OPTIMIZE_HYPERS = True
+HYPER_TUNER_LAYERS = 2
+HYPER_TUNER_STEPS_PER_DIM = 5
 MAX_EPOCHS = 100
 N_EPOCHS_TO_STOP = 5
 SCALE_EPOCHS_OVER_LAYERS = True # If True, max_epochs and n_epochs_to_stop will double with each layer of the hyperparameter grid search
 
 # Hyper-parameters (automatically tuned if optimize_hypers = True)
 mini_batch_size = HyperParameter('mini_batch_size',
-                                 optimizable=True,
+                                 optimizable=False,
                                  init_value=1000,
-                                 val_range = [1000,10000],
-                                #  val_range=[1,10000],
-                                 val_scale='log',
-                                 num_steps=HYPER_TUNER_STEPS_PER_DIM)
+                                #  val_range = [1000,10000],
+                                #  val_range=[100,10000],
+                                #  val_scale='log',
+                                #  num_steps=HYPER_TUNER_STEPS_PER_DIM
+                                )
 learning_rate = HyperParameter('learning_rate',
                                optimizable=True,
                                init_value=50,
-                               val_range=[5,50],
-                            #    val_range=[5e-3,50],
+                            #    val_range=[5,50],
+                               val_range=[1e-2,100],
                                val_scale='log',
                                num_steps=HYPER_TUNER_STEPS_PER_DIM)
 lmbda = HyperParameter('lmbda',
                        optimizable=True,
                        init_value=0,
-                       val_range=[1e-7,1e-5],
-                    #    val_range=[1e-5,0.1],
+                    #    val_range=[1e-7,1e-5],
+                       val_range=[1e-7,1e-3],
                        val_scale='log',
                        num_steps=HYPER_TUNER_STEPS_PER_DIM)
 loss_fn = HyperParameter('loss_fn',
@@ -80,8 +82,7 @@ loss_fn = HyperParameter('loss_fn',
                          )
 
 # Set of all hyper-parameters (collected so that they can be varied/optimized together)
-paramSet = HyperParameterSet((mini_batch_size,learning_rate,lmbda,loss_fn),optimize=OPTIMIZE_HYPERS)
-
+param_set = HyperParameterSet((mini_batch_size,learning_rate,lmbda,loss_fn),optimize=OPTIMIZE_HYPERS)
 
 # ---------------------
 # Data Setup
@@ -107,6 +108,11 @@ for (dataset_name,dataset) in zip(('Training Data','Validataion Data','Test Data
 
 # Output file
 model_file = f'models/model_{datetime.strftime(datetime.now(),'%m%d%Y%H%M%S')}.pth'
+hp_gridpoints_file = f'models/hyper_grid_{datetime.strftime(datetime.now(),'%m%d%Y%H%M%S')}.csv'
+
+filename = 'models/hyper_grid_11142024164752.csv'
+plot_grid_search_results(filename,param_set,variables=('learning_rate','lmbda'))
+plt.show()
 
 # ---------------------
 # One-Time Setup
@@ -121,18 +127,23 @@ DEVICE = (
 )
 print(f'Using {DEVICE} device')
 
+# Adjust variables if not optimizing hyper-parameters
+if not OPTIMIZE_HYPERS:
+    HYPER_TUNER_LAYERS = 1
+
 # ---------------------
 # Iterate through HyperParameter tuning loop
 # ---------------------
+hyper_tuning_table = [] # Array to keep track of all hyperparameter gridpoints run
 for tune_layer in range(HYPER_TUNER_LAYERS):
     print(f'\nOptimization Round {tune_layer+1} of {HYPER_TUNER_LAYERS}\n-------------------------------')
     # Iterate through all combinations of hyperparameters
     gridpoint_model_perf = [] # List of model performance values for all combos of hyperparameter values
-    for grid_ind in range(paramSet.total_gridpoints):
+    for grid_ind in range(param_set.total_gridpoints):
         # Set and display hyperparameters for current run
-        paramSet.set_values(grid_ind)
-        print(f'\nHP Grid Point {grid_ind+1} of {paramSet.total_gridpoints}: -------------------- ')
-        for hp in paramSet.hyper_parameters:
+        param_set.set_values(grid_ind)
+        print(f'\nHP Grid Point {grid_ind+1} of {param_set.total_gridpoints}: -------------------- ')
+        for hp in param_set.hyper_parameters:
             print(f"\t{hp.name} = {hp.value}")
 
         # Configure data loaders
@@ -186,16 +197,18 @@ for tune_layer in range(HYPER_TUNER_LAYERS):
 
 
     min_grid_index = np.nanargmin(gridpoint_model_perf)
-    print(
-        f'Layer {tune_layer+1} '
-        f'Complete. Optimal performance: '
-        f'{gridpoint_model_perf[min_grid_index]}. '
-        f'Hyper-parameters used: '
-        )
-    for hp in paramSet.hyper_parameters:
-        print(f"\t{hp.name} = {hp.values[min_grid_index]}")
+    if OPTIMIZE_HYPERS:
+        hyper_tuning_table = save_hp_tuning_results(param_set,gridpoint_model_perf,hyper_tuning_table,tune_layer,hp_gridpoints_file)
+        print(
+            f'Layer {tune_layer+1} '
+            f'Complete. Optimal performance: '
+            f'{gridpoint_model_perf[min_grid_index]}. '
+            f'Hyper-parameters used: '
+            )
+        for hp in param_set.hyper_parameters:
+            print(f"\t{hp.name} = {hp.values[min_grid_index]}")
     if tune_layer < HYPER_TUNER_LAYERS-1:
-        paramSet.refine_grid(min_grid_index)
+        param_set.refine_grid(min_grid_index)
         if SCALE_EPOCHS_OVER_LAYERS:
             MAX_EPOCHS*= 2
             N_EPOCHS_TO_STOP*= 2
@@ -219,6 +232,8 @@ if DISP_RUN_TIMES:
 # Evaluate Test Results
 evalStartTime = datetime.now()
 results_eval(stat_predicts,stat_truths,test_data)
+if len(hyper_tuning_table) > 0:
+    plot_grid_search_results(hp_gridpoints_file,param_set)
 if DISP_RUN_TIMES:
     print(f'Eval Time: {datetime.now()-evalStartTime}')
 
