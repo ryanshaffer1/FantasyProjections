@@ -186,5 +186,5 @@ def gen_random_games(id_df, n_random, game_ids=None):
             if game_dict not in game_ids:
                 game_ids.append(game_dict)
                 valid_new_entry = True
-                
+
     return game_ids

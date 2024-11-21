@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 from sleeper_wrapper import Stats, Players
 from nn_helper_functions import end_learning, stats_to_fantasy_points, assign_device, print_model, reformat_sleeper_stats
-from nn_plot_functions import plot_grid_search_results
+# from nn_plot_functions import plot_grid_search_results
 from neural_network import NeuralNetwork
 from prediction_result import PredictionResult
 
@@ -55,67 +55,78 @@ class NeuralNetPredictor(FantasyPredictor):
             self.model = NeuralNetwork().to(self.device)
             self.optimizer = torch.optim.SGD(self.model.parameters())
 
-    def train_and_tune(self,param_tuner,training_data,validation_data):
-        param_set = param_tuner.param_set
+    def configure_for_training(self, param_tuner, training_data, validation_data):
+        # Configure data loaders
+        train_dataloader = DataLoader(training_data, batch_size=int(param_tuner.param_set.get('mini_batch_size').value), shuffle=False)
+        validation_dataloader = DataLoader(validation_data, batch_size=int(validation_data.x_data.shape[0]), shuffle=False)
 
-        # ---------------------
-        # Iterate through HyperParameter tuning loop
-        # ---------------------
-        for tune_layer in range(param_tuner.hyper_tuner_layers):
-            print(f'\nOptimization Round {tune_layer+1} of {param_tuner.hyper_tuner_layers}\n-------------------------------')
-            # Iterate through all combinations of hyperparameters
-            for grid_ind in range(param_set.total_gridpoints):
-                # Set and display hyperparameters for current run
-                param_set.set_values(grid_ind)
-                print(f'\nHP Grid Point {grid_ind+1} of {param_set.total_gridpoints}: -------------------- ')
-                for hp in param_set.hyper_parameters:
-                    print(f"\t{hp.name} = {hp.value}")
+        # Initialize Neural Network object, configure optimizer, optionally print info on model
+        self.model = NeuralNetwork().to(self.device)
+        self.optimizer = torch.optim.SGD(self.model.parameters(),
+                                         lr=param_tuner.param_set.get('learning_rate').value,
+                                         weight_decay=param_tuner.param_set.get('lmbda').value)
+        if not param_tuner.optimize_hypers:
+            print_model(self.model)
 
-                # Configure data loaders
-                train_dataloader = DataLoader(training_data, batch_size=int(param_set.get('mini_batch_size').value), shuffle=False)
-                validation_dataloader = DataLoader(validation_data, batch_size=int(validation_data.x_data.shape[0]), shuffle=False)
+        return train_dataloader, validation_dataloader
 
-                # Initialize Neural Network object, configure optimizer, optionally print info on model
-                self.model = NeuralNetwork().to(self.device)
-                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=param_set.get('learning_rate').value,weight_decay=param_set.get('lmbda').value)
-                if not param_tuner.optimize_hypers:
-                    print_model(self.model)
+    def train_and_validate(self, param_tuner, train_dataloader, validation_dataloader):
+        # Training/validation loop
+        val_perfs = []
+        for t in range(self.max_epochs):
+            print(f'Training Epoch {t+1} ------------- ')
+            # Train
+            self.train(train_dataloader, param_tuner.param_set.get('loss_fn').value)
 
-                # ---------------------
-                # Model Training and Validation Testing
-                # ---------------------
-                # Training/validation loop
-                val_perfs = []
-                for t in range(self.max_epochs):
-                    print(f'Training Epoch {t+1} ------------- ')
-                    # Train
-                    self.train(train_dataloader, param_set.get('loss_fn').value)
+            # Validation
+            val_result = self.eval_model(eval_dataloader=validation_dataloader)
+            val_perfs.append(np.mean(val_result.avg_diff(absolute=True)))
 
-                    # Validation
-                    val_result = self.eval_model(eval_dataloader=validation_dataloader)
-                    val_perfs.append(np.mean(val_result.avg_diff(absolute=True)))
+            # Check stopping condition
+            if end_learning(val_perfs,self.n_epochs_to_stop): # Check stopping condition
+                print('Learning has stopped, terminating training process')
+                break
 
-                    # Check stopping condition
-                    stop_training = end_learning(val_perfs,self.n_epochs_to_stop) # Check stopping condition
-                    if stop_training:
-                        print('Learning has stopped, terminating training process')
-                        break
+        return val_perfs
 
-                # Track validation performance for the set of hyperparameters used
-                param_tuner.gridpoint_model_perf.append(val_perfs[-1])
-                # Save the model if it is the best performing so far
-                if grid_ind == np.nanargmin(param_tuner.gridpoint_model_perf):
-                    self.save_model()
+    # def train_and_tune(self, param_tuner, training_data, validation_data):
+    #     param_set = param_tuner.param_set
 
-            # Print some results, determine whether to perform another layer of grid search, and if so, refine the mesh
-            param_tuner.next_hp_layer(self,tune_layer)
+    #     # ---------------------
+    #     # Iterate through HyperParameter tuning loop
+    #     # ---------------------
+    #     for tune_layer in range(param_tuner.hyper_tuner_layers):
+    #         print(f'\nOptimization Round {tune_layer+1} of {param_tuner.hyper_tuner_layers}\n-------------------------------')
+    #         # Iterate through all combinations of hyperparameters
+    #         for grid_ind in range(param_set.total_gridpoints):
+    #             # Set and display hyperparameters for current run
+    #             param_set.set_values(grid_ind)
+    #             print(f'\nHP Grid Point {grid_ind+1} of {param_set.total_gridpoints}: -------------------- ')
+    #             for hp in param_set.hyper_parameters:
+    #                 print(f"\t{hp.name} = {hp.value}")
 
-        # After grid search finishes, plot results
-        if len(param_tuner.hyper_tuning_table) > 0 and param_tuner.plot_grid_results:
-            plot_grid_search_results(param_tuner.save_file,param_tuner.param_set,variables=('learning_rate','lmbda'))
+    #             train_dataloader, validation_dataloader = self.configure_for_training(param_tuner, training_data, validation_data)
 
-        # Set the model back to the highest performing config
-        self.model = self.load_model(self.save_file,print_loaded_model=False)
+    #             # ---------------------
+    #             # Model Training and Validation Testing
+    #             # ---------------------
+    #             val_perfs = self.train_and_validate(param_tuner, train_dataloader, validation_dataloader)
+
+    #             # Track validation performance for the set of hyperparameters used
+    #             param_tuner.model_perf_list.append(val_perfs[-1])
+    #             # Save the model if it is the best performing so far
+    #             if grid_ind == np.nanargmin(param_tuner.model_perf_list):
+    #                 self.save_model()
+
+    #         # Print some results, determine whether to perform another layer of grid search, and if so, refine the mesh
+    #         param_tuner.next_hp_layer(self,tune_layer)
+
+    #     # After grid search finishes, plot results
+    #     if len(param_tuner.hyper_tuning_table) > 0 and param_tuner.plot_tuning_results:
+    #         plot_grid_search_results(param_tuner.save_file,param_tuner.param_set,variables=('learning_rate','lmbda'))
+
+    #     # Set the model back to the highest performing config
+    #     self.model = self.load_model(self.save_file,print_loaded_model=False)
 
 
     def train(self, dataloader, loss_fn, print_losses=True):
@@ -139,7 +150,7 @@ class NeuralNetPredictor(FantasyPredictor):
                 print(f"\tloss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
 
-    def eval_model(self,eval_data=None,eval_dataloader=None):
+    def eval_model(self, eval_data=None, eval_dataloader=None):
         # Create dataloader if only a dataset is passed as input
         if not eval_dataloader:
             eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
@@ -156,11 +167,11 @@ class NeuralNetPredictor(FantasyPredictor):
         # Convert outputs into un-normalized statistics/fantasy points
         stat_predicts = stats_to_fantasy_points(pred, stat_indices='default', normalized=True)
         stat_truths = stats_to_fantasy_points(y_matrix, stat_indices='default', normalized=True)
-        result = self.gen_prediction_result(stat_predicts, stat_truths, eval_data)
+        result = self.gen_prediction_result(stat_predicts, stat_truths, eval_dataloader.dataset)
 
         return result
 
-    def load_model(self, model_file,print_loaded_model=False):
+    def load_model(self, model_file, print_loaded_model=False):
         # Establish shape of the model based on data within file
         state_dict = torch.load(model_file, weights_only=True)
         shape = {
@@ -246,7 +257,7 @@ class SleeperPredictor(FantasyPredictor):
 
         return player_to_sleeper_id
 
-    def remove_game_duplicates(self,eval_data):
+    def remove_game_duplicates(self, eval_data):
         duplicated_rows_eval_data = eval_data.id_data.reset_index().duplicated(subset=[
             'Player', 'Year', 'Week'])
         eval_data.y_data = eval_data.y_data[np.logical_not(duplicated_rows_eval_data)]

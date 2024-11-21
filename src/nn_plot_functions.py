@@ -91,6 +91,7 @@ def scatter_hist(truth_dfs, predict_dfs, ax, column, legend_slice, histograms=Tr
         x,y = x[column],y[column]
         # Set alpha based on data size (threshold set empirically by what has looked good)
         alpha = 0.1 if x.shape[0] > 2000 else 0.5
+        alpha = 1
 
         # Create scatterplot
         ax.scatter(x, y, alpha=alpha)
@@ -114,7 +115,8 @@ def scatter_hist(truth_dfs, predict_dfs, ax, column, legend_slice, histograms=Tr
     # Legend (if legend slice was set)
     if legend_slice:
         leg = ax.legend([', '.join(val)
-                        for key in legend_slice for val in legend_slice[key]])
+                        for key in legend_slice for val in legend_slice[key]],
+                               bbox_to_anchor=(0.1,0.9),loc='upper left')
         for lh in leg.legend_handles:
             lh.set_alpha(1)
 
@@ -223,7 +225,8 @@ def plot_game_timeline(result, game_id, fig=None):
         f'Fantasy Score, {
             game_id['Player']}, {
             game_id['Year']} Week {
-            game_id['Week']}'
+            game_id['Week']}',
+            weight='bold'
     )
     ax.set_xlabel('Elapsed Game Time (min)')
     ax.set_ylabel('Fantasy Points')

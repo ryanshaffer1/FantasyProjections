@@ -110,7 +110,7 @@ class PredictionResult():
             game_ids = []
 
         # Generate random games to display (as well as any pre-defined games in game_ids)
-        gen_random_games(self.id_df, n_random, game_ids=game_ids)
+        game_ids = gen_random_games(self.id_df, n_random, game_ids=game_ids)
 
         for game_id in game_ids:
             plot_game_timeline(self, game_id, fig=fig)
