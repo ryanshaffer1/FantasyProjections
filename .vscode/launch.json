@@ -6,10 +6,10 @@
     "configurations": [
         
         {
-            "name": "fantasy_predictor.py: Python Debug",
+            "name": "fantasy_projections.py: Python Debug",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/fantasy_predictor.py",
+            "program": "${workspaceFolder}/src/fantasy_projections.py",
             "console": "integratedTerminal",
             "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"}
         },

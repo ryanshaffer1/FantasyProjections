@@ -5,6 +5,8 @@ from torch.utils.data import Dataset
 
 
 class CustomDataset(Dataset):
+    # CONSTRUCTOR
+
     def __init__(self, pbp_df, boxscore_df,
                  id_df, **kwargs):
         # Handle optional inputs and assign default values not passed
@@ -45,44 +47,8 @@ class CustomDataset(Dataset):
             self.y_data = self.y_data[indices]
             self.id_data = self.id_data.iloc[indices]
 
-    def __len__(self):
-        return self.x_data.shape[0]
 
-    def __getitem__(self, idx):
-        return self.x_data[idx], self.y_data[idx]
-
-    def __getid__(self, idx):
-        return self.id_data.iloc[idx]
-
-    def __getids__(self):
-        return self.id_data
-
-    def slice_by_criteria(self,inplace=True,**kwargs):
-        criteria_var_to_col = {
-            'weeks': 'Week',
-            'years': 'Year',
-            'teams': 'Team',
-            'players': 'Player',
-            'elapsed_time': 'Elapsed Time'}
-        df_query = ' & '.join(
-            [f'`{criteria_var_to_col[crit]}` in @kwargs["{crit}"]'
-                for crit in self.valid_criteria if kwargs.get(crit)])
-        indices = self.id_data.query(df_query).index.values
-
-        if inplace:
-            self.x_data = self.x_data[indices]
-            self.y_data = self.y_data[indices]
-            self.id_data = self.id_data.loc[indices]
-        else:
-            new_dataset = CustomDataset(
-                self.x_df,
-                self.y_df,
-                self.id_data)
-            new_dataset.x_data = new_dataset.x_data[indices]
-            new_dataset.y_data = new_dataset.y_data[indices]
-            new_dataset.id_data = new_dataset.id_data.loc[indices]
-            return new_dataset
-        return None
+    # PUBLIC METHODS
 
     def concat(self, other, inplace=True):
         # Check that data labels match each other
@@ -113,3 +79,47 @@ class CustomDataset(Dataset):
             new_dataset.id_data = joined_id_data
             return new_dataset
         return None
+
+
+    def slice_by_criteria(self,inplace=True,**kwargs):
+        criteria_var_to_col = {
+            'weeks': 'Week',
+            'years': 'Year',
+            'teams': 'Team',
+            'players': 'Player',
+            'elapsed_time': 'Elapsed Time'}
+        df_query = ' & '.join(
+            [f'`{criteria_var_to_col[crit]}` in @kwargs["{crit}"]'
+                for crit in self.valid_criteria if kwargs.get(crit)])
+        indices = self.id_data.query(df_query).index.values
+
+        if inplace:
+            self.x_data = self.x_data[indices]
+            self.y_data = self.y_data[indices]
+            self.id_data = self.id_data.loc[indices]
+        else:
+            new_dataset = CustomDataset(
+                self.x_df,
+                self.y_df,
+                self.id_data)
+            new_dataset.x_data = new_dataset.x_data[indices]
+            new_dataset.y_data = new_dataset.y_data[indices]
+            new_dataset.id_data = new_dataset.id_data.loc[indices]
+            return new_dataset
+        return None
+
+
+    def __len__(self):
+        return self.x_data.shape[0]
+
+
+    def __getitem__(self, idx):
+        return self.x_data[idx], self.y_data[idx]
+
+
+    def __getid__(self, idx):
+        return self.id_data.iloc[idx]
+
+
+    def __getids__(self):
+        return self.id_data

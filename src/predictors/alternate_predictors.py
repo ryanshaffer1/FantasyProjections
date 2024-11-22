@@ -1,16 +1,49 @@
+from dataclasses import dataclass
 import numpy as np
 import torch
 from misc.nn_helper_functions import stats_to_fantasy_points, remove_game_duplicates
 from .fantasypredictor import FantasyPredictor
 
-
+@dataclass
 class LastNPredictor(FantasyPredictor):
-    def __init__(self, name, n=1):
-        # Initialize FantasyPredictor
-        super().__init__(name)
-        self.n = n
+    # CONSTRUCTOR
+    n: int = 1
 
-    def link_previous_games(self, all_data):
+
+    # PUBLIC METHODS
+
+    def eval_model(self, eval_data, all_data):
+        # Drop all the duplicated rows that are for the same game, and only
+        # dependent on elapsed game time - that variable is irrelevant here, so we
+        # can greatly simplify
+        eval_data = remove_game_duplicates(eval_data)
+        all_data = remove_game_duplicates(all_data)
+
+        # For every row in all_data, find the index in all_data that contains the previous game played by the same player
+        all_ids = self.__link_previous_games(all_data)
+
+        # Get the stats for each previous game, in order
+        all_ids['tensor'] = self.__stats_from_past_games(all_ids, all_data.y_data, n=self.n)
+
+        # Grab stats for each game in the evaluation data
+        prev_game_stats_df = eval_data.id_data.apply(
+            lambda x: all_ids.loc[(x['Player'], x['Year'], x['Week']), 'tensor'], axis=1)
+        prev_game_stats = torch.tensor(prev_game_stats_df.to_list())
+
+        # Un-normalize and compute Fantasy score
+        stat_predicts = stats_to_fantasy_points(
+            prev_game_stats, stat_indices='default', normalized=True)
+        # True stats from eval data
+        stat_truths = self.eval_truth(eval_data)
+
+        # Create result object
+        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_data)
+
+        return result
+
+    # PRIVATE METHODS
+
+    def __link_previous_games(self, all_data):
         # Variables needed to search for previous games and convert stats to
         # fantasy points
         first_year_in_dataset = min(all_data.id_data['Year'])
@@ -53,37 +86,8 @@ class LastNPredictor(FantasyPredictor):
 
         return all_ids
 
-    def eval_model(self, eval_data, all_data):
-        # Drop all the duplicated rows that are for the same game, and only
-        # dependent on elapsed game time - that variable is irrelevant here, so we
-        # can greatly simplify
-        eval_data = remove_game_duplicates(eval_data)
-        all_data = remove_game_duplicates(all_data)
 
-        # For every row in all_data, find the index in all_data that contains the previous game played by the same player
-        all_ids = self.link_previous_games(all_data)
-
-        # Get the stats for each previous game, in order
-        all_ids['tensor'] = self.stats_from_past_games(all_ids, all_data.y_data, n=self.n)
-
-        # Grab stats for each game in the evaluation data
-        prev_game_stats_df = eval_data.id_data.apply(
-            lambda x: all_ids.loc[(x['Player'], x['Year'], x['Week']), 'tensor'], axis=1)
-        prev_game_stats = torch.tensor(prev_game_stats_df.to_list())
-
-        # Un-normalize and compute Fantasy score
-        stat_predicts = stats_to_fantasy_points(
-            prev_game_stats, stat_indices='default', normalized=True)
-        # True stats from eval data
-        stat_truths = self.eval_truth(eval_data)
-
-        # Create result object
-        result = self.gen_prediction_result(stat_predicts, stat_truths, eval_data)
-
-        return result
-
-
-    def stats_from_past_games(self,all_ids, y_data, n=1):
+    def __stats_from_past_games(self,all_ids, y_data, n=1):
         # Collect game stats from y_data over the last n games
         # Where all_ids contains the "linked list" to previous games
         answer = []
@@ -108,7 +112,13 @@ class LastNPredictor(FantasyPredictor):
                 answer.append([np.nan] * y_data.shape[1])
         return answer
 
+@dataclass
 class PerfectPredictor(FantasyPredictor):
+    # CONSTRUCTOR
+    # N/A - Fully constructed by parent __init__()
+
+    # PUBLIC METHODS
+
     def eval_model(self, eval_data):
         # True stats from eval data
         stat_truths = self.eval_truth(eval_data)
@@ -116,6 +126,6 @@ class PerfectPredictor(FantasyPredictor):
         stat_predicts = stat_truths
 
         # Create result object
-        result = self.gen_prediction_result(stat_predicts, stat_truths, eval_data)
+        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_data)
 
         return result

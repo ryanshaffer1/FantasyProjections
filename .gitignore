@@ -3,6 +3,7 @@ data/
 archive/
 graphics/
 models/
+.VSCodeCounter
 
 # Python Standard .gitignore:
 # Byte-compiled / optimized / DLL files

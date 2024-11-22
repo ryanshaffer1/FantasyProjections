@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import numpy as np
 import torch
 from torch import nn
@@ -5,87 +6,64 @@ from torch.utils.data import DataLoader
 from misc.nn_helper_functions import stats_to_fantasy_points
 from .fantasypredictor import FantasyPredictor
 
-
+@dataclass
 class NeuralNetPredictor(FantasyPredictor):
-    def __init__(self,name,nn_settings=None,**kwargs):
-        # Initialize FantasyPredictor
-        super().__init__(name)
+    # CONSTRUCTOR
+    save_file: str = None
+    load_file: str = None
+    max_epochs: int = 100
+    n_epochs_to_stop: int = 5
 
-        # Handle optional inputs
-        if not nn_settings:
-            nn_settings = {}
-        self.save_file = kwargs.get('save_file', None)
-        self.load_file = kwargs.get('load_file', None)
-        self.max_epochs = nn_settings.get('max_epochs',100)
-        self.n_epochs_to_stop = nn_settings.get('n_epochs_to_stop',5)
-
-        # Assign attributes
-        self.device = assign_device()
-
+    def __post_init__(self):
+        self.device = self.__assign_device()
         # Initialize model
         if self.load_file:
-            self.model = self.load_model(self.load_file,print_loaded_model=True)
+            self.model = self.load(self.load_file,print_loaded_model=True)
             self.optimizer = torch.optim.SGD(self.model.parameters()) # Can modify this to read a saved optimizer
         else:
             self.model = NeuralNetwork().to(self.device)
             self.optimizer = torch.optim.SGD(self.model.parameters())
 
 
-    def configure_for_training(self, param_tuner, training_data, validation_data):
+    # def __init__(self,name,nn_settings=None,**kwargs):
+    #     # Initialize FantasyPredictor
+    #     super().__init__(name)
+
+    #     # Handle optional inputs
+    #     if not nn_settings:
+    #         nn_settings = {}
+    #     self.save_file = kwargs.get('save_file', None)
+    #     self.load_file = kwargs.get('load_file', None)
+    #     self.max_epochs = nn_settings.get('max_epochs',100)
+    #     self.n_epochs_to_stop = nn_settings.get('n_epochs_to_stop',5)
+
+    #     # Assign attributes
+    #     self.device = self.__assign_device()
+
+    #     # Initialize model
+    #     if self.load_file:
+    #         self.model = self.load(self.load_file,print_loaded_model=True)
+    #         self.optimizer = torch.optim.SGD(self.model.parameters()) # Can modify this to read a saved optimizer
+    #     else:
+    #         self.model = NeuralNetwork().to(self.device)
+    #         self.optimizer = torch.optim.SGD(self.model.parameters())
+
+    # PUBLIC METHODS
+
+    def configure_for_training(self, param_set, training_data, validation_data, print_model_flag=False):
         # Configure data loaders
-        train_dataloader = DataLoader(training_data, batch_size=int(param_tuner.param_set.get('mini_batch_size').value), shuffle=False)
+        train_dataloader = DataLoader(training_data, batch_size=int(param_set.get('mini_batch_size').value), shuffle=False)
         validation_dataloader = DataLoader(validation_data, batch_size=int(validation_data.x_data.shape[0]), shuffle=False)
 
         # Initialize Neural Network object, configure optimizer, optionally print info on model
         self.model = NeuralNetwork().to(self.device)
         self.optimizer = torch.optim.SGD(self.model.parameters(),
-                                         lr=param_tuner.param_set.get('learning_rate').value,
-                                         weight_decay=param_tuner.param_set.get('lmbda').value)
-        if not param_tuner.optimize_hypers:
-            print_model(self.model)
+                                         lr=param_set.get('learning_rate').value,
+                                         weight_decay=param_set.get('lmbda').value)
+        if print_model_flag:
+            self.print(self.model)
 
         return train_dataloader, validation_dataloader
-
-
-    def train_and_validate(self, param_tuner, train_dataloader, validation_dataloader):
-        # Training/validation loop
-        val_perfs = []
-        for t in range(self.max_epochs):
-            print(f'Training Epoch {t+1} ------------- ')
-            # Train
-            self.train(train_dataloader, param_tuner.param_set.get('loss_fn').value)
-
-            # Validation
-            val_result = self.eval_model(eval_dataloader=validation_dataloader)
-            val_perfs.append(np.mean(val_result.avg_diff(absolute=True)))
-
-            # Check stopping condition
-            if end_learning(val_perfs,self.n_epochs_to_stop): # Check stopping condition
-                print('Learning has stopped, terminating training process')
-                break
-
-        return val_perfs
-
-
-    def train(self, dataloader, loss_fn, print_losses=True):
-        size = len(dataloader.dataset)
-        num_batches = int(np.ceil(size / dataloader.batch_size))
-        self.model.train()
-        for batch, (x_matrix, y_matrix) in enumerate(dataloader):
-            x_matrix, y_matrix = x_matrix.to(self.device), y_matrix.to(self.device)
-
-            # Compute prediction error
-            pred = self.model(x_matrix)
-            loss = loss_fn(pred, y_matrix)
-
-            # Backpropagation
-            loss.backward()
-            self.optimizer.step()
-            self.optimizer.zero_grad()
-
-            if print_losses and batch % int(num_batches / 10) == 0:
-                loss, current = loss.item(), (batch + 1) * len(x_matrix)
-                print(f"\tloss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
 
     def eval_model(self, eval_data=None, eval_dataloader=None):
@@ -105,12 +83,12 @@ class NeuralNetPredictor(FantasyPredictor):
         # Convert outputs into un-normalized statistics/fantasy points
         stat_predicts = stats_to_fantasy_points(pred, stat_indices='default', normalized=True)
         stat_truths = stats_to_fantasy_points(y_matrix, stat_indices='default', normalized=True)
-        result = self.gen_prediction_result(stat_predicts, stat_truths, eval_dataloader.dataset)
+        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_dataloader.dataset)
 
         return result
 
 
-    def load_model(self, model_file, print_loaded_model=False):
+    def load(self, model_file, print_loaded_model=False):
         # Establish shape of the model based on data within file
         state_dict = torch.load(model_file, weights_only=True)
         shape = {
@@ -139,19 +117,93 @@ class NeuralNetPredictor(FantasyPredictor):
         # Print model
         if print_loaded_model:
             print(f'Loaded model from file {model_file}')
-            print_model(model)
+            self.print(model)
 
         return model
 
 
-    def save_model(self):
+    def print(self,model):
+        model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+        total_params = sum([np.prod(p.size()) for p in model_parameters])
+        print('')
+        print(model)
+        print(f'Total tunable parameters: {total_params}')
+
+
+    def save(self):
         torch.save(self.model.state_dict(), self.save_file)
         # torch.save(self.optimizer,self.save_file)
         print(f'Saved PyTorch Model State to {self.save_file}')
 
 
-def index_range(prev_range, length):
-    return range(max(prev_range) + 1, max(prev_range) + 1 + length)
+    def train_and_validate(self, param_set, train_dataloader, validation_dataloader):
+        # Training/validation loop
+        val_perfs = []
+        for t in range(self.max_epochs):
+            print(f'Training Epoch {t+1} ------------- ')
+            # Train
+            self.__train(train_dataloader, param_set.get('loss_fn').value)
+
+            # Validation
+            val_result = self.eval_model(eval_dataloader=validation_dataloader)
+            val_perfs.append(np.mean(val_result.avg_diff(absolute=True)))
+
+            # Check stopping condition
+            if self.__end_learning(val_perfs,self.n_epochs_to_stop): # Check stopping condition
+                print('Learning has stopped, terminating training process')
+                break
+
+        return val_perfs
+
+
+    # PRIVATE METHODS
+    def __assign_device(self, print_device=True):
+        # Get cpu, gpu or mps device for training.
+        device = (
+            'cuda'
+            if torch.cuda.is_available()
+            else 'mps'
+            if torch.backends.mps.is_available()
+            else 'cpu'
+        )
+        if print_device:
+            print(f'Using {device} device')
+
+        return device
+
+
+    def __end_learning(self,perfs, n_epochs_to_stop, improvement_threshold=0.01):
+        # Determines whether to stop training (if test performance has stagnated)
+        # Returns true if learning should be stopped
+        # If n_epochs_to_stop is less than zero, this feature is turned off
+        # (always returns False)
+        # Performance must improve by this factor in n_epochs_to_stop in order to
+        # continue training
+
+        return (len(perfs) > n_epochs_to_stop > 0
+                and perfs[-1] - perfs[-n_epochs_to_stop - 1] >= -improvement_threshold * perfs[-1])
+
+
+    def __train(self, dataloader, loss_fn, print_losses=True):
+        size = len(dataloader.dataset)
+        num_batches = int(np.ceil(size / dataloader.batch_size))
+        self.model.train()
+        for batch, (x_matrix, y_matrix) in enumerate(dataloader):
+            x_matrix, y_matrix = x_matrix.to(self.device), y_matrix.to(self.device)
+
+            # Compute prediction error
+            pred = self.model(x_matrix)
+            loss = loss_fn(pred, y_matrix)
+
+            # Backpropagation
+            loss.backward()
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+
+            if print_losses and batch % int(num_batches / 10) == 0:
+                loss, current = loss.item(), (batch + 1) * len(x_matrix)
+                print(f"\tloss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+
 
 # Shape of neural network (can be reconfigured during object initialization)
 default_shape = {
@@ -167,6 +219,8 @@ default_shape = {
 }
 
 class NeuralNetwork(nn.Module):
+    # CONSTRUCTOR
+
     def __init__(self,shape=None):
         super().__init__()
 
@@ -179,10 +233,10 @@ class NeuralNetwork(nn.Module):
                     shape[key] = val
         # Indices of input vector that correspond to each "category" (needed bc they are embedded separately)
         self.stats_inds = range(0, shape['stats_input'])
-        self.position_inds = index_range(self.stats_inds, shape['positions_input'])
-        self.players_inds = index_range(self.position_inds, shape['players_input'])
-        self.teams_inds = index_range(self.players_inds, shape['teams_input'])
-        self.opponents_inds = index_range(self.teams_inds, shape['teams_input'])
+        self.position_inds = self.__index_range(self.stats_inds, shape['positions_input'])
+        self.players_inds = self.__index_range(self.position_inds, shape['players_input'])
+        self.teams_inds = self.__index_range(self.players_inds, shape['teams_input'])
+        self.opponents_inds = self.__index_range(self.teams_inds, shape['teams_input'])
 
         self.embedding_player = nn.Sequential(
             nn.Linear(shape['players_input'], shape['embedding_player'], dtype=float),
@@ -204,6 +258,8 @@ class NeuralNetwork(nn.Module):
             nn.Sigmoid()
         )
 
+    # PUBLIC METHODS
+
     def forward(self, x):
         player_embedding = self.embedding_player(x[:, self.players_inds])
         team_embedding = self.embedding_team(x[:, self.teams_inds])
@@ -218,37 +274,7 @@ class NeuralNetwork(nn.Module):
         return logits
 
 
-def end_learning(perfs, n_epochs_to_stop, improvement_threshold=0.01):
-    # Determines whether to stop training (if test performance has stagnated)
-    # Returns true if learning should be stopped
-    # If n_epochs_to_stop is less than zero, this feature is turned off
-    # (always returns False)
-    # Performance must improve by this factor in n_epochs_to_stop in order to
-    # continue training
+    # PRIVATE METHODS
 
-    return (n_epochs_to_stop > 0
-            and len(perfs) > n_epochs_to_stop
-            and perfs[-1] - perfs[-n_epochs_to_stop - 1] >= -improvement_threshold * perfs[-1])
-
-
-def assign_device(print_device=True):
-    # Get cpu, gpu or mps device for training.
-    device = (
-        'cuda'
-        if torch.cuda.is_available()
-        else 'mps'
-        if torch.backends.mps.is_available()
-        else 'cpu'
-    )
-    if print_device:
-        print(f'Using {device} device')
-
-    return device
-
-
-def print_model(model):
-    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
-    total_params = sum([np.prod(p.size()) for p in model_parameters])
-    print('')
-    print(model)
-    print(f'Total tunable parameters: {total_params}')
+    def __index_range(self, prev_range, length):
+        return range(max(prev_range) + 1, max(prev_range) + 1 + length)

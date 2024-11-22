@@ -3,8 +3,8 @@
     "tasks": [
         {
             "type": "austin",
-            "file": "src/fantasy_predictor.py",
-            "label": "Profile fantasy_predictor.py",
+            "file": "src/fantasy_projections.py",
+            "label": "Profile fantasy_projections.py",
             "problemMatcher": []
         },
         {

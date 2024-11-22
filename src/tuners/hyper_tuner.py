@@ -1,23 +1,29 @@
+from dataclasses import dataclass, field, InitVar
 import numpy as np
 import pandas as pd
 
-
+@dataclass
 class HyperParameter():
-    def __init__(self, name, optimizable=False, init_value=0,
-                 val_range=None, val_scale='none', num_steps=1):
-        if not val_range:
-            val_range = [0, 0]
-        self.name = name
-        self.value = init_value
-        self.values = init_value # This may be overwritten by a HyperParameterSet object, if optimizing
-        self.optimizable = optimizable
-        self.val_range = val_range
-        self.val_scale = val_scale
-        self.num_steps = num_steps
+    # CONSTRUCTOR
+    name: str
+    optimizable: InitVar[bool | None]
+    value: float = 0
+    values: list = field(init=False)
+    val_range: list = None
+    val_scale: str = 'none'
+    num_steps: int = 1
+
+    def __post_init__(self, optimizable):
+        self.values = [self.value] # This may be overwritten by a HyperParameterSet object, if optimizing
+        if not self.val_range or not optimizable:
+            self.val_range = [self.value]
         self.gen_gridpoints()
 
+
+    # PUBLIC METHODS
+
     def gen_gridpoints(self):
-        if self.optimizable:
+        if len(self.val_range) > 1:
             match self.val_scale:
                 case 'linear':
                     self.gridpoints = np.interp(range(self.num_steps), [
@@ -40,43 +46,31 @@ class HyperParameter():
             self.gridpoints = [self.value]
             self.num_steps = 1
 
+
     def set_value(self, i):
         self.value = self.values[i]
 
-
+@dataclass
 class HyperParameterSet():
-    def __init__(self, hyper_parameters, optimize=True):
-        self.hyper_parameters = hyper_parameters
-        self.optimize = optimize
+    hyper_parameters: tuple
+    optimize: bool = True
+
+    def __post_init__(self):
         if self.optimize:
-            self.gen_grid()
+            self.__gen_grid()
         else:
             self.total_gridpoints = 1
             for hp in self.hyper_parameters:
                 hp.values = [hp.value]
+
+
+    # PUBLIC METHODS
 
     def get(self,hp_name):
         # Returns the hyper-parameter in the set with the provided name.
         hp_names = [hp.name for hp in self.hyper_parameters]
         return self.hyper_parameters[hp_names.index(hp_name)]
 
-    def gen_grid(self):
-        # For each hyperparameter in the set, generates a list of all values to use in order.
-        # The values are organized such that every index in the list represents a unique combination
-        # of values across all the hyperparamters (ie a unique point on the
-        # n-dimensional grid of hyperparameters)
-        self.total_gridpoints = 1
-        for ind, hp in enumerate(self.hyper_parameters):
-            hp.values = np.repeat(hp.gridpoints, self.total_gridpoints)
-            for prev in self.hyper_parameters[:ind]:
-                prev.values = np.array(list(prev.values) * hp.num_steps)
-
-            self.total_gridpoints *= hp.num_steps
-
-    def set_values(self, ind):
-        if self.optimize:
-            for hp in self.hyper_parameters:
-                hp.set_value(ind)
 
     def refine_grid(self, ind):
         # "Zoom in" on the area of interest and generate new gridpoints closer to the provided index
@@ -125,31 +119,67 @@ class HyperParameterSet():
             hp.gen_gridpoints()
 
         # After refining gridpoints, generate new array of points
-        self.gen_grid()
+        self.__gen_grid()
 
 
+    def set_values(self, ind):
+        if self.optimize:
+            for hp in self.hyper_parameters:
+                hp.set_value(ind)
+
+
+    # PRIVATE METHODS
+
+    def __gen_grid(self):
+        # For each hyperparameter in the set, generates a list of all values to use in order.
+        # The values are organized such that every index in the list represents a unique combination
+        # of values across all the hyperparamters (ie a unique point on the
+        # n-dimensional grid of hyperparameters)
+        self.total_gridpoints = 1
+        for ind, hp in enumerate(self.hyper_parameters):
+            hp.values = np.repeat(hp.gridpoints, self.total_gridpoints)
+            for prev in self.hyper_parameters[:ind]:
+                prev.values = np.array(list(prev.values) * hp.num_steps)
+
+            self.total_gridpoints *= hp.num_steps
+
+@dataclass
 class HyperParamTuner():
-    def __init__(self, param_set, save_file, settings):
-        self.param_set = param_set
-        self.save_file = save_file
-        # Assign settings common to all tuners
-        self.optimize_hypers = settings.get('optimize_hypers',False)
-        self.plot_tuning_results = settings.get('plot_tuning_results',False)
+    param_set: HyperParameterSet
+    save_file: str
+    optimize_hypers: bool = False
+    plot_tuning_results: bool = False
 
+    def __post_init__(self):
         # Initialize attributes to use later in tuning
         self.model_perf_list = [] # List of model performance values for all combos of hyperparameter values
         self.hyper_tuning_table = []
 
 
-    def save_hp_tuning_results(self,layer=0,filename=None):
+    # PUBLIC METHODS
+
+    # PROTECTED METHODS
+
+    def _save_hp_tuning_results(self, addl_columns=None, filename=None):
+        # Handle additional columns input
+        if not addl_columns:
+            addl_columns = {}
+        else:
+            for key, val in addl_columns.items():
+                addl_columns[key] = [val] if not hasattr(val,'__iter__') else val
+
         # Create array of all hyperparameter values in current run ("layer") of grid search
         curr_results_table = []
         for hp in self.param_set.hyper_parameters:
             curr_results_table.append(hp.values)
         # Add performance of the model to the array
         curr_results_table.append(self.model_perf_list)
-        # Add layer number to array
-        curr_results_table.append([layer]*len(self.model_perf_list))
+        # Add additional data to array
+        for val in addl_columns.values():
+            if len(val) == 1:
+                curr_results_table.append(val*len(self.model_perf_list))
+            elif len(val) == len(self.model_perf_list):
+                curr_results_table.append(val)
 
         # Append the transpose of the curr_results_table to the results_array
         self.hyper_tuning_table = self.hyper_tuning_table + list(map(list, zip(*curr_results_table)))
@@ -157,5 +187,5 @@ class HyperParamTuner():
         if filename:
             # Convert to dataframe (in order to add column labels) and save to file
             column_names = [hp.name for hp in self.param_set.hyper_parameters]
-            column_names.extend(['Model Performance','Grid Search Layer'])
+            column_names.extend(['Model Performance'] + list(addl_columns.keys()))
             pd.DataFrame(self.hyper_tuning_table,columns=column_names).to_csv(filename)

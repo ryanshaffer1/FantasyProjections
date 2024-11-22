@@ -2,10 +2,13 @@ from datetime import datetime
 import pandas as pd
 from torch import nn
 import matplotlib.pyplot as plt
+
 from misc.dataset import CustomDataset
 from misc.prediction_result import PredictionResultGroup, PredictionResult
+
 from tuners.hyper_tuner import HyperParameter, HyperParameterSet
 from tuners.grid_search_tuner import GridSearchTuner
+
 from predictors.neural_net_predictor import NeuralNetPredictor
 from predictors.sleeper_predictor import SleeperPredictor
 from predictors.alternate_predictors import LastNPredictor, PerfectPredictor
@@ -89,7 +92,7 @@ nn_settings = {
 # Hyper-parameters (automatically tuned if optimize_hypers = True)
 mini_batch_size = HyperParameter('mini_batch_size',
                                 optimizable=False,
-                                init_value=1000,
+                                value=1000,
                                 #  val_range = [1000,10000],
                                 #  val_range=[100,10000],
                                 #  val_scale='log',
@@ -97,27 +100,27 @@ mini_batch_size = HyperParameter('mini_batch_size',
                                 )
 learning_rate = HyperParameter('learning_rate',
                             optimizable=True,
-                            init_value=50,
+                            value=50,
                             # val_range=[5,50],
                             val_range=[1e-2,100],
                             val_scale='log',
                             num_steps=hp_tuner_settings['hyper_tuner_steps_per_dim'])
 lmbda = HyperParameter('lmbda',
                     optimizable=True,
-                    init_value=0,
+                    value=0,
                     # val_range=[1e-7,1e-5],
                     val_range=[1e-7,1e-3],
                     val_scale='log',
                     num_steps=hp_tuner_settings['hyper_tuner_steps_per_dim'])
 loss_fn = HyperParameter('loss_fn',
                         optimizable=False,
-                        init_value=nn.MSELoss()
+                        value=nn.MSELoss()
                         # if optimizable, add kwargs: ,val_range=[nn.MSELoss(),nn.CrossEntropyLoss()],val_scale='selection')
                         )
 
 # Set of all hyper-parameters (collected so that they can be varied/optimized together)
 param_set = HyperParameterSet((mini_batch_size,learning_rate,lmbda,loss_fn),optimize=hp_tuner_settings['optimize_hypers'])
-param_tuner = GridSearchTuner(param_set,hp_gridpoints_file,hp_tuner_settings)
+param_tuner = GridSearchTuner(param_set,hp_gridpoints_file,**hp_tuner_settings)
 
 # Configure scatter plots
 scatter_plot_settings = []
@@ -147,34 +150,34 @@ scatter_plot_settings.append({'columns': ['Fantasy Points'],
                     })
 
 # Initialize and train neural net
-# neural_net1 = NeuralNetPredictor('Bad Neural Net', nn_settings, load_file=BAD_FILE)
-neural_net = NeuralNetPredictor('Neural Net', nn_settings, load_file=GOOD_FILE)
-# neural_net = NeuralNetPredictor('Neural Net', nn_settings, save_file=model_file)
-# param_tuner.tune_neural_net(neural_net, training_data, validation_data)
+# neural_net1 = NeuralNetPredictor(name='Bad Neural Net', load_file=BAD_FILE, **nn_settings)
+# neural_net = NeuralNetPredictor(name='Neural Net', load_file=GOOD_FILE, **nn_settings)
+neural_net = NeuralNetPredictor(name='Neural Net', save_file=model_file, **nn_settings)
+param_tuner.tune_neural_net(neural_net, training_data, validation_data)
 
 # Create Sleeper prediction model
-sleeper_predictor = SleeperPredictor('Sleeper',
-                                     SLEEPER_PLAYER_DICT_FILE,
-                                     SLEEPER_PROJ_DICT_FILE,
+sleeper_predictor = SleeperPredictor(name='Sleeper',
+                                     player_dict_file=SLEEPER_PLAYER_DICT_FILE,
+                                     proj_dict_file=SLEEPER_PROJ_DICT_FILE,
                                      update_players=False)
 
 # Create Naive prediction model
-naive_predictor = LastNPredictor('Naive: Previous Game', n=3)
+naive_predictor = LastNPredictor(name='Naive: Previous Game', n=3)
 
 # Create Perfect prediction model
-perfect_predictor = PerfectPredictor('Perfect Predictor')
+perfect_predictor = PerfectPredictor(name='Perfect Predictor')
 
 # Evaluate Model(s) against Test Data
 nn_result = neural_net.eval_model(eval_data=test_data_pregame)
 sleeper_result = sleeper_predictor.eval_model(eval_data=test_data_pregame)
 naive_result = naive_predictor.eval_model(eval_data=test_data_pregame, all_data=all_data)
-# perfect_result = perfect_predictor.eval_model(eval_data=test_data)
+perfect_result = perfect_predictor.eval_model(eval_data=test_data)
 
 # Plot evaluation results
-all_results = PredictionResultGroup((nn_result,sleeper_result,naive_result))
+all_results = PredictionResultGroup((nn_result, sleeper_result, naive_result))
 all_results.plot_all(PredictionResult.plot_error_dist, together=True, absolute=True)
-# all_results.plot_all(PredictionResult.plot_single_games, n_random=0)
-# all_results.plot_all(PredictionResult.plot_scatters, scatter_plot_settings)
+all_results.plot_all(PredictionResult.plot_single_games, n_random=0)
+all_results.plot_all(PredictionResult.plot_scatters, scatter_plot_settings)
 
 
 plt.show()
