@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-from data_helper_functions import calc_time_elapsed
-from data_helper_functions import stats_to_fantasy_points
-import team_abbreviations
+from data_pipeline import team_abbreviations
+from .data_helper_functions import calc_time_elapsed
+from .data_helper_functions import stats_to_fantasy_points
 
 def check_stat_for_player(game_df,player_df,comparisons,bools=None,operator='and'):
     if not bools:
@@ -177,7 +177,7 @@ def assign_stats_from_plays_v2(player_stat_df,game_df,player_df,team_abbrev):
 
     return player_stat_df
 
-def parse_play_by_play(full_team_name, game_df, roster_df,
+def parse_play_by_play(full_team_name, pbp_df, roster_df,
                     game_info_ser, game_times='all'):
     # Re-format optional inputs
     if game_times != 'all':
@@ -187,23 +187,23 @@ def parse_play_by_play(full_team_name, game_df, roster_df,
     week = game_info_ser.name[2]
 
     # Make a copy of the input play-by-play df
-    game_df = game_df.copy()
+    pbp_df = pbp_df.copy()
 
     # Re-organize the play-by-play dataframe
     # Filter to only the game of interest (using game_id)
     game_id = str(year) + '_' + str(week).zfill(2) + '_' + \
         team_abbreviations.pbp_abbrevs[game_info_ser['Away Team Name']] + \
         '_' + team_abbreviations.pbp_abbrevs[game_info_ser['Home Team Name']]
-    game_df = game_df[game_df['game_id'] == game_id]
+    pbp_df = pbp_df[pbp_df['game_id'] == game_id]
 
     # Elapsed time
-    game_df['Elapsed Time'] = game_df.apply(calc_time_elapsed, axis=1)
+    pbp_df['Elapsed Time'] = pbp_df.apply(calc_time_elapsed, axis=1)
     # Sort by ascending elapsed time
-    game_df = game_df.set_index('Elapsed Time').sort_index(ascending=True)
+    pbp_df = pbp_df.set_index('Elapsed Time').sort_index(ascending=True)
 
     # Game info
     team_abbrev = team_abbreviations.pbp_abbrevs[full_team_name]
-    game_site = 'Home' if (game_df.reset_index(
+    game_site = 'Home' if (pbp_df.reset_index(
     ).loc[0, 'home_team'] == team_abbrev) else 'Away'
     opp_game_site = ['Home', 'Away'][(['Home', 'Away'].index(game_site) + 1) % 2]
     opp_team_name = game_info_ser['Away Team Name'] if game_site == 'Home' else game_info_ser['Home Team Name']
@@ -221,20 +221,20 @@ def parse_play_by_play(full_team_name, game_df, roster_df,
         # Set up dataframe covering player's contributions each play
         player_stats_df = pd.DataFrame()  # Output array
         # Game time elapsed
-        player_stats_df['Elapsed Time'] = game_df.reset_index()['Elapsed Time']
+        player_stats_df['Elapsed Time'] = pbp_df.reset_index()['Elapsed Time']
         player_stats_df = player_stats_df.set_index('Elapsed Time')
         # Possession
-        player_stats_df['Possession'] = game_df['posteam'] == team_abbrev
+        player_stats_df['Possession'] = pbp_df['posteam'] == team_abbrev
         # Field Position
-        player_stats_df['Field Position'] = game_df.apply(lambda x: x['yardline_100'] if (
+        player_stats_df['Field Position'] = pbp_df.apply(lambda x: x['yardline_100'] if (
             x['posteam'] == team_abbrev) else 100 - x['yardline_100'], axis=1)
         # Score
-        player_stats_df['Team Score'] = game_df[f'total_{game_site.lower()}_score']
-        player_stats_df['Opp Score'] = game_df[f'total_{opp_game_site.lower()}_score']
+        player_stats_df['Team Score'] = pbp_df[f'total_{game_site.lower()}_score']
+        player_stats_df['Opp Score'] = pbp_df[f'total_{opp_game_site.lower()}_score']
 
 
         # Assign stats to player (e.g. passing yards, rushing TDs, etc.)
-        player_stats_df = assign_stats_from_plays(player_stats_df,game_df,player_df,team_abbrev)
+        player_stats_df = assign_stats_from_plays(player_stats_df,pbp_df,player_df,team_abbrev)
 
         # Clean up the player dataframe
         player_stats_df = player_stats_df[['Team Score',

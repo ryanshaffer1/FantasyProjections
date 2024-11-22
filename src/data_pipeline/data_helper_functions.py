@@ -74,42 +74,47 @@ def swap_team_names(year, dictionary, year_threshold, before_name, after_name):
     return dictionary
 
 
-def adjust_team_names(dictionary, year):
+def adjust_team_names(dictionaries, year):
     # Note: the team name changes must be included below in reverse
     # chronological order (most important for teams w/ multiple changes, e.g.
     # Washington)
 
-    # 2022: Washington Football Team -> Washington Commanders
-    dictionary = swap_team_names(
-        year, dictionary, 2021.5, "Washington Football Team", "Washington Commanders"
-    )
+    # Handle edge case of singular dict being input
+    if isinstance(dictionaries,dict):
+        dictionaries = [dictionaries]
 
-    # 2020: Washington Redskins -> Washington Football Team
-    dictionary = swap_team_names(
-        year, dictionary, 2019.5, "Washington Redskins", "Washington Football Team"
-    )
+    for dictionary in dictionaries:
+        # 2022: Washington Football Team -> Washington Commanders
+        dictionary = swap_team_names(
+            year, dictionary, 2021.5, "Washington Football Team", "Washington Commanders"
+        )
 
-    # 2020: Oakland Raiders -> Las Vegas Raiders
-    dictionary = swap_team_names(
-        year, dictionary, 2019.5, "Oakland Raiders", "Las Vegas Raiders"
-    )
-    # also need to make a value (abbreviation) swap for this one
-    if "Oakland Raiders" in dictionary.keys() and dictionary["Oakland Raiders"] in [
-        "LV",
-        "LVR",
-    ]:
-        dictionary["Oakland Raiders"] = "OAK"
-    if (
-        "Las Vegas Raiders" in dictionary.keys()
-        and dictionary["Las Vegas Raiders"] == "OAK"
-    ):
-        # Swapping from Oakland to Las Vegas. One of the dictionaries needs "LV", one needs "LVR".
-        # This helper function doesn't natively know which dict it is working with.
-        # Using a hack where we see what Kansas City has as its value, and make
-        # the change accordingly...
-        if dictionary["Kansas City Chiefs"] == "KC":
-            dictionary["Las Vegas Raiders"] = "LV"
-        else:
-            dictionary["Las Vegas Raiders"] = "LVR"
+        # 2020: Washington Redskins -> Washington Football Team
+        dictionary = swap_team_names(
+            year, dictionary, 2019.5, "Washington Redskins", "Washington Football Team"
+        )
 
-    return dictionary
+        # 2020: Oakland Raiders -> Las Vegas Raiders
+        dictionary = swap_team_names(
+            year, dictionary, 2019.5, "Oakland Raiders", "Las Vegas Raiders"
+        )
+        # also need to make a value (abbreviation) swap for this one
+        if "Oakland Raiders" in dictionary.keys() and dictionary["Oakland Raiders"] in [
+            "LV",
+            "LVR",
+        ]:
+            dictionary["Oakland Raiders"] = "OAK"
+        if (
+            "Las Vegas Raiders" in dictionary.keys()
+            and dictionary["Las Vegas Raiders"] == "OAK"
+        ):
+            # Swapping from Oakland to Las Vegas. One of the dictionaries needs "LV", one needs "LVR".
+            # This helper function doesn't natively know which dict it is working with.
+            # Using a hack where we see what Kansas City has as its value, and make
+            # the change accordingly...
+            if dictionary["Kansas City Chiefs"] == "KC":
+                dictionary["Las Vegas Raiders"] = "LV"
+            else:
+                dictionary["Las Vegas Raiders"] = "LVR"
+
+    return dictionaries

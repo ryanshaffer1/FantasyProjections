@@ -102,3 +102,6 @@ roster_website_abbrevs = {
     'Tennessee Titans': 'oti',
     'Washington Commanders': 'was'
 }
+
+def invert(dictionary):
+    return {v: k for k, v in dictionary.items()}

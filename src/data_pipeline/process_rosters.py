@@ -1,14 +1,8 @@
-import math
-from datetime import datetime
+import dateutil.parser as dateparse
 import pandas as pd
 
 
-def process_rosters(year, weeks, roster_filter_file=None):
-
-    # Read file of all players in NFL during season
-    roster_file = f'data/inputs/rosters/roster_weekly_{year}.csv'
-    all_rosters_df = pd.read_csv(roster_file)
-
+def process_rosters(all_rosters_df, weeks, roster_filter_file=None):
     # Filter to only the desired weeks
     all_rosters_df = all_rosters_df[all_rosters_df.apply(
         lambda x: x['week'] in weeks, axis=1)]
@@ -32,9 +26,11 @@ def process_rosters(year, weeks, roster_filter_file=None):
 
 
     # Compute age based on birth date
-    all_rosters_df['Age'] = all_rosters_df.apply(lambda x:
-        math.floor((datetime.now() - datetime.strptime(x['birth_date'], '%m/%d/%Y')).days/365)
-        if isinstance(x['birth_date'],str) else 0, axis=1)
+    all_rosters_df['Age'] = all_rosters_df['season'] - all_rosters_df['birth_date'].apply(
+                                lambda x: dateparse.parse(x).year)
+    # all_rosters_df['Age'] = all_rosters_df.apply(lambda x:
+    #     math.floor((datetime.now() - dateparse.parse(x['birth_date'])).days/365)
+    #     if isinstance(x['birth_date'],str) else 0, axis=1)
 
     # Trim to just the fields that are useful
     all_rosters_df=all_rosters_df[['team',
