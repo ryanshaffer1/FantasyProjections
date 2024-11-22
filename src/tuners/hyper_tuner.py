@@ -146,7 +146,7 @@ class HyperParameterSet():
 @dataclass
 class HyperParamTuner():
     param_set: HyperParameterSet
-    save_file: str
+    save_folder: str
     optimize_hypers: bool = False
     plot_tuning_results: bool = False
 

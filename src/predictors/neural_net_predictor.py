@@ -4,49 +4,26 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from misc.nn_helper_functions import stats_to_fantasy_points
+from misc.manage_files import create_folder
 from .fantasypredictor import FantasyPredictor
 
 @dataclass
 class NeuralNetPredictor(FantasyPredictor):
     # CONSTRUCTOR
-    save_file: str = None
-    load_file: str = None
+    save_folder: str = None
+    load_folder: str = None
     max_epochs: int = 100
     n_epochs_to_stop: int = 5
 
     def __post_init__(self):
         self.device = self.__assign_device()
         # Initialize model
-        if self.load_file:
-            self.model = self.load(self.load_file,print_loaded_model=True)
-            self.optimizer = torch.optim.SGD(self.model.parameters()) # Can modify this to read a saved optimizer
+        if self.load_folder:
+            self.model, self.optimizer = self.load(self.load_folder,print_loaded_model=True)
         else:
             self.model = NeuralNetwork().to(self.device)
             self.optimizer = torch.optim.SGD(self.model.parameters())
 
-
-    # def __init__(self,name,nn_settings=None,**kwargs):
-    #     # Initialize FantasyPredictor
-    #     super().__init__(name)
-
-    #     # Handle optional inputs
-    #     if not nn_settings:
-    #         nn_settings = {}
-    #     self.save_file = kwargs.get('save_file', None)
-    #     self.load_file = kwargs.get('load_file', None)
-    #     self.max_epochs = nn_settings.get('max_epochs',100)
-    #     self.n_epochs_to_stop = nn_settings.get('n_epochs_to_stop',5)
-
-    #     # Assign attributes
-    #     self.device = self.__assign_device()
-
-    #     # Initialize model
-    #     if self.load_file:
-    #         self.model = self.load(self.load_file,print_loaded_model=True)
-    #         self.optimizer = torch.optim.SGD(self.model.parameters()) # Can modify this to read a saved optimizer
-    #     else:
-    #         self.model = NeuralNetwork().to(self.device)
-    #         self.optimizer = torch.optim.SGD(self.model.parameters())
 
     # PUBLIC METHODS
 
@@ -88,7 +65,9 @@ class NeuralNetPredictor(FantasyPredictor):
         return result
 
 
-    def load(self, model_file, print_loaded_model=False):
+    def load(self, model_folder, print_loaded_model=False):
+        model_file = model_folder + 'model.pth'
+        opt_file = model_folder + 'opt.pth'
         # Establish shape of the model based on data within file
         state_dict = torch.load(model_file, weights_only=True)
         shape = {
@@ -114,12 +93,17 @@ class NeuralNetPredictor(FantasyPredictor):
         # Load weights/biases into model
         model.load_state_dict(state_dict)
 
+        # Initialize optimizer, then load state dict from file
+        optimizer = torch.optim.SGD(model.parameters())
+        opt_state_dict = torch.load(opt_file, weights_only=True)
+        optimizer.load_state_dict(opt_state_dict)
+
         # Print model
         if print_loaded_model:
             print(f'Loaded model from file {model_file}')
             self.print(model)
 
-        return model
+        return model, optimizer
 
 
     def print(self,model):
@@ -131,9 +115,14 @@ class NeuralNetPredictor(FantasyPredictor):
 
 
     def save(self):
-        torch.save(self.model.state_dict(), self.save_file)
-        # torch.save(self.optimizer,self.save_file)
-        print(f'Saved PyTorch Model State to {self.save_file}')
+        # Check that folder exists, and set filenames
+        create_folder(self.save_folder)
+        model_save_file = self.save_folder + 'model.pth'
+        opt_save_file = self.save_folder + 'opt.pth'
+        # Save Neural Net model and optimizer
+        torch.save(self.model.state_dict(), model_save_file)
+        torch.save(self.optimizer.state_dict(),opt_save_file)
+        print(f'Saved PyTorch Model State to {model_save_file}')
 
 
     def train_and_validate(self, param_set, train_dataloader, validation_dataloader):

@@ -40,12 +40,10 @@ from predictors.alternate_predictors import LastNPredictor, PerfectPredictor
 # ---------------------
 
 
-# User Preferences (don't affect the actual process)
-DISP_RUN_TIMES = False
-
 # Output files
-model_file = f'models/model_{datetime.strftime(datetime.now(),'%m%d%Y%H%M%S')}.pth'
-hp_gridpoints_file = f'models/hyper_grid_{datetime.strftime(datetime.now(),'%m%d%Y%H%M%S')}.csv'
+FOLDER_PREFIX = ''
+save_folder = f'models/{FOLDER_PREFIX}{datetime.strftime(datetime.now(),'%m%d%Y%H%M%S')}/'
+LOAD_FOLDER = 'models/11222024003003/'
 GOOD_FILE = 'models/model_11142024164752.pth'
 BAD_FILE = 'models/model_11182024223717.pth'
 
@@ -80,7 +78,7 @@ for (dataset_name,dataset) in zip(('Training Data','Validataion Data','Test Data
 hp_tuner_settings = {
     'optimize_hypers': False,
     'hyper_tuner_layers': 2,
-    'hyper_tuner_steps_per_dim': 5,
+    'hyper_tuner_steps_per_dim': 2,
     'scale_epochs_over_layers': True, # If True, max_epochs and n_epochs_to_stop will double with each layer of the hyperparameter grid search
     'plot_tuning_results': True,
 }
@@ -120,7 +118,7 @@ loss_fn = HyperParameter('loss_fn',
 
 # Set of all hyper-parameters (collected so that they can be varied/optimized together)
 param_set = HyperParameterSet((mini_batch_size,learning_rate,lmbda,loss_fn),optimize=hp_tuner_settings['optimize_hypers'])
-param_tuner = GridSearchTuner(param_set,hp_gridpoints_file,**hp_tuner_settings)
+param_tuner = GridSearchTuner(param_set,save_folder,**hp_tuner_settings)
 
 # Configure scatter plots
 scatter_plot_settings = []
@@ -151,8 +149,8 @@ scatter_plot_settings.append({'columns': ['Fantasy Points'],
 
 # Initialize and train neural net
 # neural_net1 = NeuralNetPredictor(name='Bad Neural Net', load_file=BAD_FILE, **nn_settings)
-# neural_net = NeuralNetPredictor(name='Neural Net', load_file=GOOD_FILE, **nn_settings)
-neural_net = NeuralNetPredictor(name='Neural Net', save_file=model_file, **nn_settings)
+neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, save_folder=save_folder, **nn_settings)
+# neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_settings)
 param_tuner.tune_neural_net(neural_net, training_data, validation_data)
 
 # Create Sleeper prediction model
@@ -174,7 +172,7 @@ naive_result = naive_predictor.eval_model(eval_data=test_data_pregame, all_data=
 perfect_result = perfect_predictor.eval_model(eval_data=test_data)
 
 # Plot evaluation results
-all_results = PredictionResultGroup((nn_result, sleeper_result, naive_result))
+all_results = PredictionResultGroup((nn_result,))
 all_results.plot_all(PredictionResult.plot_error_dist, together=True, absolute=True)
 all_results.plot_all(PredictionResult.plot_single_games, n_random=0)
 all_results.plot_all(PredictionResult.plot_scatters, scatter_plot_settings)

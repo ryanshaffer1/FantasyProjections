@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import numpy as np
+from misc.manage_files import create_folder
 from .plot_grid_search_results import plot_grid_search_results
 from .hyper_tuner import HyperParamTuner
 
@@ -11,6 +12,7 @@ class GridSearchTuner(HyperParamTuner):
 
     def __post_init__(self):
         super().__post_init__()
+        self.save_file = self.save_folder + 'hyper_grid.csv'
         # Adjust variables if not optimizing hyper-parameters
         if not self.optimize_hypers:
             self.hyper_tuner_layers = 1
@@ -50,7 +52,7 @@ class GridSearchTuner(HyperParamTuner):
             plot_grid_search_results(self.save_file,self.param_set,variables=('learning_rate','lmbda'))
 
         # Set the model back to the highest performing config
-        net.model = net.load(net.save_file,print_loaded_model=False)
+        net.model, net.optimizer = net.load(net.save_folder,print_loaded_model=False)
 
 
     # PRIVATE METHODS
@@ -58,7 +60,10 @@ class GridSearchTuner(HyperParamTuner):
     def __next_hp_layer(self,neural_net,tune_layer):
         min_grid_index = np.nanargmin(self.model_perf_list)
         if self.optimize_hypers:
+            # Save the results of the previous layer
+            create_folder(self.save_folder)
             self._save_hp_tuning_results(addl_columns={'Grid Search Layer': tune_layer}, filename=self.save_file)
+            # Print out optimal performance
             print(
                 f'Layer {tune_layer+1} '
                 f'Complete. Optimal performance: '
@@ -67,6 +72,7 @@ class GridSearchTuner(HyperParamTuner):
                 )
             for hp in self.param_set.hyper_parameters:
                 print(f"\t{hp.name} = {hp.values[min_grid_index]}")
+
         if tune_layer < self.hyper_tuner_layers-1:
             self.param_set.refine_grid(min_grid_index)
             if self.scale_epochs_over_layers:
