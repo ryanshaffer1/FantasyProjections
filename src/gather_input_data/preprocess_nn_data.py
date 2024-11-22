@@ -1,5 +1,5 @@
 import pandas as pd
-from nn_helper_functions import normalize_stat
+from ..misc.nn_helper_functions import normalize_stat
 
 SAVE_DATA = True
 

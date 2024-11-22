@@ -2,10 +2,13 @@ from datetime import datetime
 import pandas as pd
 from torch import nn
 import matplotlib.pyplot as plt
-from dataset import CustomDataset
-from hyper_tuner import HyperParameter, HyperParameterSet, GridSearchTuner
-from predictors import NeuralNetPredictor, SleeperPredictor, NaivePredictor, PerfectPredictor
-from prediction_result import PredictionResultGroup, PredictionResult
+from misc.dataset import CustomDataset
+from misc.prediction_result import PredictionResultGroup, PredictionResult
+from tuners.hyper_tuner import HyperParameter, HyperParameterSet
+from tuners.grid_search_tuner import GridSearchTuner
+from predictors.neural_net_predictor import NeuralNetPredictor
+from predictors.sleeper_predictor import SleeperPredictor
+from predictors.alternate_predictors import LastNPredictor, PerfectPredictor
 
 # To Do:
 # - add as a variable in x: depth chart position (ie WR1 vs WR4 on roster) - makes it easier for model. Especially for people coming on and off the bench
@@ -145,9 +148,9 @@ scatter_plot_settings.append({'columns': ['Fantasy Points'],
 
 # Initialize and train neural net
 # neural_net1 = NeuralNetPredictor('Bad Neural Net', nn_settings, load_file=BAD_FILE)
-# neural_net2 = NeuralNetPredictor('Improved Neural Net', nn_settings, load_file=GOOD_FILE)
-neural_net = NeuralNetPredictor('Neural Net', nn_settings, save_file=model_file)
-param_tuner.tune_neural_net(neural_net, training_data, validation_data)
+neural_net = NeuralNetPredictor('Neural Net', nn_settings, load_file=GOOD_FILE)
+# neural_net = NeuralNetPredictor('Neural Net', nn_settings, save_file=model_file)
+# param_tuner.tune_neural_net(neural_net, training_data, validation_data)
 
 # Create Sleeper prediction model
 sleeper_predictor = SleeperPredictor('Sleeper',
@@ -156,23 +159,22 @@ sleeper_predictor = SleeperPredictor('Sleeper',
                                      update_players=False)
 
 # Create Naive prediction model
-naive_predictor = NaivePredictor('Naive: Previous Game')
+naive_predictor = LastNPredictor('Naive: Previous Game', n=3)
 
 # Create Perfect prediction model
 perfect_predictor = PerfectPredictor('Perfect Predictor')
 
 # Evaluate Model(s) against Test Data
-nn_result = neural_net.eval_model(eval_data=test_data)
-# sleeper_result = sleeper_predictor.eval_model(eval_data=test_data_pregame)
-# naive_result = naive_predictor.eval_model(eval_data=test_data_pregame, all_data=all_data)
+nn_result = neural_net.eval_model(eval_data=test_data_pregame)
+sleeper_result = sleeper_predictor.eval_model(eval_data=test_data_pregame)
+naive_result = naive_predictor.eval_model(eval_data=test_data_pregame, all_data=all_data)
 # perfect_result = perfect_predictor.eval_model(eval_data=test_data)
 
 # Plot evaluation results
-# all_results = PredictionResultGroup((nn_result, sleeper_result, naive_result, perfect_result))
-all_results = PredictionResultGroup((nn_result,))
+all_results = PredictionResultGroup((nn_result,sleeper_result,naive_result))
 all_results.plot_all(PredictionResult.plot_error_dist, together=True, absolute=True)
 # all_results.plot_all(PredictionResult.plot_single_games, n_random=0)
-all_results.plot_all(PredictionResult.plot_scatters, scatter_plot_settings)
+# all_results.plot_all(PredictionResult.plot_scatters, scatter_plot_settings)
 
 
 plt.show()

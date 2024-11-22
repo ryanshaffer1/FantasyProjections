@@ -3,8 +3,8 @@
     "tasks": [
         {
             "type": "austin",
-            "file": "src/neural_net_predictor.py",
-            "label": "Profile neural_net_predictor.py",
+            "file": "src/fantasy_predictor.py",
+            "label": "Profile fantasy_predictor.py",
             "problemMatcher": []
         },
         {

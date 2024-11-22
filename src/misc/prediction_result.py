@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
-from nn_helper_functions import stats_to_fantasy_points, gen_random_games
-from nn_plot_functions import gen_scatterplots, plot_game_timeline
+from misc.nn_helper_functions import stats_to_fantasy_points, gen_random_games
+from .result_plots import gen_scatterplots, plot_game_timeline, plot_error_histogram
 
 class PredictionResultGroup():
     def __init__(self, results):
@@ -85,19 +85,8 @@ class PredictionResult():
 
 
     def plot_error_dist(self, absolute=False, fig=None):
-        # Generate new figure if not plotting on a pre-existing fig
-        if not fig:
-            fig = plt.subplots()[0]
-
-        # Generate histogram
-        ax = fig.axes[0]
-        ax.hist(self.avg_diff(absolute=absolute), bins=40, density=True, alpha=0.6)
-        ax.set_xlabel(f'Fantasy Score{' Absolute' if absolute else ''} Prediction Error')
-        ax.set_ylabel('Density')
-        ax.set_title('Fantasy Score Prediction Error Distribution Plot', weight='bold')
-
-        plt.show(block=False)
-
+        # Call plotting function
+        plot_error_histogram(self, absolute=absolute, fig=fig)
 
     def plot_single_games(self, **kwargs):
         # kwargs
@@ -115,5 +104,5 @@ class PredictionResult():
         for game_id in game_ids:
             plot_game_timeline(self, game_id, fig=fig)
 
-        # "Display" plot (won't really be displayed until plt.show is called again without block=False)
-        plt.show(block=False)
+        # # "Display" plot (won't really be displayed until plt.show is called again without block=False)
+        # plt.show(block=False)

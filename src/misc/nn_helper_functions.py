@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import torch
 
 thresholds = {
     "Elapsed Time": [0, 60],
@@ -114,63 +113,13 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False):
     return stat_line
 
 
-def end_learning(perfs, n_epochs_to_stop):
-    # Determines whether to stop training (if test performance has stagnated)
-    # Returns true if learning should be stopped
-    # If n_epochs_to_stop is less than zero, this feature is turned off
-    # (always returns False)
-    # Performance must improve by this factor in n_epochs_to_stop in order to
-    # continue training
-    improvement_threshold = 0.01
-    return (n_epochs_to_stop > 0
-            and len(perfs) > n_epochs_to_stop
-            and perfs[-1] - perfs[-n_epochs_to_stop - 1] >= -improvement_threshold * perfs[-1])
-
-
-def reformat_sleeper_stats(stat_dict):
-    stat_indices_df_to_sleeper = {
-        'Pass Att': 'pass_att',
-        'Pass Cmp': 'pass_cmp',
-        'Pass Yds': 'pass_yd',
-        'Pass TD': 'pass_td',
-        'Int': 'pass_int',
-        'Rush Att': 'rush_att',
-        'Rush Yds': 'rush_yd',
-        'Rush TD': 'rush_td',
-        'Rec': 'rec',
-        'Rec Yds': 'rec_yd',
-        'Rec TD': 'rec_td',
-        'Fmb': 'fum_lost'
-    }
-    stat_line = []
-    for sleeper_stat_label in stat_indices_df_to_sleeper.values():
-        stat_value = stat_dict.get(sleeper_stat_label, 0)
-        stat_line.append(stat_value)
-
-    return stat_line
-
-
-def assign_device(print_device=True):
-    # Get cpu, gpu or mps device for training.
-    device = (
-        'cuda'
-        if torch.cuda.is_available()
-        else 'mps'
-        if torch.backends.mps.is_available()
-        else 'cpu'
-    )
-    if print_device:
-        print(f'Using {device} device')
-
-    return device
-
-
-def print_model(model):
-    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
-    total_params = sum([np.prod(p.size()) for p in model_parameters])
-    print('')
-    print(model)
-    print(f'Total tunable parameters: {total_params}')
+def remove_game_duplicates(eval_data):
+    duplicated_rows_eval_data = eval_data.id_data.reset_index().duplicated(subset=[
+        'Player', 'Year', 'Week'])
+    eval_data.y_data = eval_data.y_data[np.logical_not(duplicated_rows_eval_data)]
+    eval_data.id_data = eval_data.id_data.reset_index(
+        drop=True).loc[np.logical_not(duplicated_rows_eval_data)].reset_index(drop=True)
+    return eval_data
 
 
 def gen_random_games(id_df, n_random, game_ids=None):
