@@ -4,7 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import team_abbreviations
-from data_helper_functions import stats_to_fantasy_points
+from misc.nn_helper_functions import stats_to_fantasy_points
 
 # Timing inputs (global variables) used to prevent network overload/shutoff
 last_req_time = datetime.now()
@@ -67,11 +67,7 @@ def scrape_box_score(stats_html, full_team_name):
 
         box_score_df = pd.concat([box_score_df, box_score], axis=1)
 
-    # Format output df
-    box_score_df = box_score_df.transpose().set_index('Player')
-
-    # Add fantasy points
-    box_score_df['Fantasy Score'] = box_score_df.apply(
-        stats_to_fantasy_points, axis=1)
+    # Format output df and add Fantasy Points
+    box_score_df = stats_to_fantasy_points(box_score_df.transpose().set_index('Player'))
 
     return box_score_df

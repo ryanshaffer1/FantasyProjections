@@ -105,3 +105,8 @@ roster_website_abbrevs = {
 
 def invert(dictionary):
     return {v: k for k, v in dictionary.items()}
+
+def convert_abbrev(abbrev, dict1, dict2):
+    team_name = invert(dict1)[abbrev]
+    new_abbrev = dict2[team_name]
+    return new_abbrev

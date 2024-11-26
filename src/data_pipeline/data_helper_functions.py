@@ -1,54 +1,21 @@
 import pandas as pd
+from data_pipeline import team_abbreviations
 
 
-def stats_to_fantasy_points(stat_line, indices=None):
-    # Scoring rules in fantasy format
-    fantasy_rules = {
-        "pass_ypp": 25,
-        "pass_td": 4,
-        "int": -2,
-        "rush_ypp": 10,
-        "rush_td": 6,
-        "ppr": 1,
-        "rec_ypp": 10,
-        "rec_td": 6,
-        "fmb": -2,
-    }
-
-    if indices:
-        stat_line = pd.Series(stat_line, index=indices)
-
-    # Passing
-    pass_points = (
-        stat_line["Pass Yds"] / fantasy_rules["pass_ypp"]
-        + stat_line["Pass TD"] * fantasy_rules["pass_td"]
-        + stat_line["Int"] * fantasy_rules["int"]
-    )
-
-    # Rushing
-    rush_points = (
-        stat_line["Rush Yds"] / fantasy_rules["rush_ypp"]
-        + stat_line["Rush TD"] * fantasy_rules["rush_td"]
-    )
-
-    # Receiving
-    rec_points = (
-        stat_line["Rec"] * fantasy_rules["ppr"]
-        + stat_line["Rec Yds"] / fantasy_rules["rec_ypp"]
-        + stat_line["Rec TD"] * fantasy_rules["rec_td"]
-    )
-
-    # Misc.
-    misc_points = stat_line["Fmb"] * fantasy_rules["fmb"]
-
-    return pass_points + rush_points + rec_points + misc_points
-
-
-def calc_time_elapsed(data):
+def calc_game_time_elapsed(data):
     # Calculates game-time elapsed, given a DataFrame with columns for qtr and
     # time
-    qtr = data["qtr"]
-    time = data["time"]
+    if isinstance(data,pd.Series):
+        qtr = data["qtr"]
+        time = data["time"]
+    elif isinstance(data,pd.DataFrame):
+        qtr = data.loc[:,"qtr"]
+        time = data.loc[:,"time"]
+    else:
+        print('Must input data as pd.Series or pd.DataFrame')
+        qtr = None
+        time = None
+
     if isinstance(time, float):
         minutes = "15"
         seconds = "0"
@@ -118,3 +85,47 @@ def adjust_team_names(dictionaries, year):
                 dictionary["Las Vegas Raiders"] = "LVR"
 
     return dictionaries
+
+def filter_team_weeks(all_game_info_df, all_rosters_df, full_team_name, year):
+# All regular season weeks where games have been played by the team
+    # (excludes byes, future weeks)
+    weeks_with_games = list(all_game_info_df.loc[(full_team_name, year)].index)
+    weeks_with_players = (
+        all_rosters_df.loc[(team_abbreviations.pbp_abbrevs[full_team_name])]
+        .index.unique()
+        .to_list()
+    )
+
+    return weeks_with_games, weeks_with_players
+
+
+def cleanup_data(midgame_df, final_stats_df, list_of_stats='default'):
+    # Default stat list
+    if list_of_stats == 'default':
+        list_of_stats = [
+            "Pass Att",
+            "Pass Cmp",
+            "Pass Yds",
+            "Pass TD",
+            "Int",
+            "Rush Att",
+            "Rush Yds",
+            "Rush TD",
+            "Rec",
+            "Rec Yds",
+            "Rec TD",
+            "Fmb",
+        ]
+
+    # Organize dfs
+    midgame_df = midgame_df.reset_index().set_index(
+        ["Player", "Year", "Week", "Elapsed Time"]
+    )
+
+    final_stats_df = (
+        final_stats_df.reset_index().set_index(["Player", "Year", "Week"]).sort_index()
+    )
+
+    final_stats_df = final_stats_df[["Team", "Opponent", "Position", "Age"] + list_of_stats]
+
+    return midgame_df, final_stats_df

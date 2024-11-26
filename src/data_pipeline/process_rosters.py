@@ -1,15 +1,13 @@
 import dateutil.parser as dateparse
-import pandas as pd
 
 
-def process_rosters(all_rosters_df, weeks, roster_filter_file=None):
+def process_rosters(all_rosters_df, weeks, filter_df=None):
     # Filter to only the desired weeks
     all_rosters_df = all_rosters_df[all_rosters_df.apply(
         lambda x: x['week'] in weeks, axis=1)]
 
     # Optionally filter based on subset of desired players
-    if roster_filter_file:
-        filter_df = pd.read_csv(roster_filter_file)
+    if filter_df:
         all_rosters_df = all_rosters_df[all_rosters_df.apply(
             lambda x: x['full_name'] in filter_df['Name'].to_list(), axis=1)]
 
@@ -27,10 +25,7 @@ def process_rosters(all_rosters_df, weeks, roster_filter_file=None):
 
     # Compute age based on birth date
     all_rosters_df['Age'] = all_rosters_df['season'] - all_rosters_df['birth_date'].apply(
-                                lambda x: dateparse.parse(x).year)
-    # all_rosters_df['Age'] = all_rosters_df.apply(lambda x:
-    #     math.floor((datetime.now() - dateparse.parse(x['birth_date'])).days/365)
-    #     if isinstance(x['birth_date'],str) else 0, axis=1)
+                                parse_birthdate)
 
     # Trim to just the fields that are useful
     all_rosters_df=all_rosters_df[['team',
@@ -52,3 +47,10 @@ def process_rosters(all_rosters_df, weeks, roster_filter_file=None):
         }).set_index(['Team','Week']).sort_index()
 
     return all_rosters_df
+
+def parse_birthdate(x):
+    try:
+        output = dateparse.parse(x).year
+    except TypeError:
+        output = 2000 # whatever man
+    return output
