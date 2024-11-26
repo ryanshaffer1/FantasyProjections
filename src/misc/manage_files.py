@@ -1,5 +1,10 @@
 import os
+import logging
+import shutil
 import pandas as pd
+
+# Set up logger
+logger = logging.getLogger('log')
 
 def create_folders(folders):
     # Handle case of single folder being passed
@@ -9,7 +14,7 @@ def create_folders(folders):
     for folder in folders:
         if not os.path.exists(folder):
             os.makedirs(folder)
-            print(f'Created folder {folder}')
+            logger.info(f'Created folder {folder}')
 
 
 def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_avail=False):
@@ -38,14 +43,14 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
             if online_avail:
                 for name in local_file_paths:
                     # Read from online filepath
-                    print(f'Downloading {name} from {online_file_paths[name].format(year)}')
+                    logger.info(f'Downloading {name} from {online_file_paths[name].format(year)}')
                     df = pd.read_csv(online_file_paths[name].format(year), low_memory=False)
                     yearly_dfs = yearly_dfs + (df,)
                     # Save locally
                     df.to_csv(local_file_paths[name].format(year))
-                    print(f'Saved {name} to {local_file_paths[name].format(year)}')
+                    logger.info(f'Saved {name} to {local_file_paths[name].format(year)}')
             else:
-                print('Warning! Not all weeks are present in the dfs, and could not download from online')
+                logger.warning('Warning! Not all weeks are present in the dfs, and could not download from online')
 
         all_dfs.append(yearly_dfs)
 
@@ -64,3 +69,12 @@ def collect_roster_filter(filter_roster, update_filter, roster_filter_file):
         load_success = False
 
     return filter_df, load_success
+
+def move_logfile(curr_filepath,new_folder):
+    # Create folder if it does not exist
+    create_folders(new_folder)
+
+    # Move file to new path
+    filename = curr_filepath.split('/')[-1]
+    new_filepath = new_folder + filename
+    shutil.move(curr_filepath, new_filepath)

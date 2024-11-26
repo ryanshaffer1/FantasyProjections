@@ -1,8 +1,12 @@
 from dataclasses import dataclass
+import logging
 import numpy as np
-from misc.manage_files import create_folder
+from misc.manage_files import create_folders
 from .plot_grid_search_results import plot_grid_search_results
 from .hyper_tuner import HyperParamTuner
+
+# Set up logger
+logger = logging.getLogger('log')
 
 @dataclass
 class GridSearchTuner(HyperParamTuner):
@@ -22,14 +26,14 @@ class GridSearchTuner(HyperParamTuner):
 
     def tune_neural_net(self, net, training_data, validation_data):
         for tune_layer in range(self.hyper_tuner_layers):
-            print(f'\nOptimization Round {tune_layer+1} of {self.hyper_tuner_layers}\n-------------------------------')
+            logger.info(f'Optimization Round {tune_layer+1} of {self.hyper_tuner_layers} -------------------------------')
             # Iterate through all combinations of hyperparameters
             for grid_ind in range(self.param_set.total_gridpoints):
                 # Set and display hyperparameters for current run
                 self.param_set.set_values(grid_ind)
-                print(f'\nHP Grid Point {grid_ind+1} of {self.param_set.total_gridpoints}: -------------------- ')
+                logger.info(f'HP Grid Point {grid_ind+1} of {self.param_set.total_gridpoints}: -------------------- ')
                 for hp in self.param_set.hyper_parameters:
-                    print(f"\t{hp.name} = {hp.value}")
+                    logger.info(f"\t{hp.name} = {hp.value}")
 
                 train_dataloader, validation_dataloader = net.configure_for_training(self.param_set, training_data, validation_data)
 
@@ -61,17 +65,17 @@ class GridSearchTuner(HyperParamTuner):
         min_grid_index = np.nanargmin(self.model_perf_list)
         if self.optimize_hypers:
             # Save the results of the previous layer
-            create_folder(self.save_folder)
+            create_folders(self.save_folder)
             self._save_hp_tuning_results(addl_columns={'Grid Search Layer': tune_layer}, filename=self.save_file)
             # Print out optimal performance
-            print(
+            logger.info(
                 f'Layer {tune_layer+1} '
                 f'Complete. Optimal performance: '
                 f'{self.model_perf_list[min_grid_index]}. '
                 f'Hyper-parameters used: '
                 )
             for hp in self.param_set.hyper_parameters:
-                print(f"\t{hp.name} = {hp.values[min_grid_index]}")
+                logger.info(f"\t{hp.name} = {hp.values[min_grid_index]}")
 
         if tune_layer < self.hyper_tuner_layers-1:
             self.param_set.refine_grid(min_grid_index)
@@ -79,6 +83,6 @@ class GridSearchTuner(HyperParamTuner):
                 neural_net.max_epochs*= 2
                 neural_net.n_epochs_to_stop*= 2
             self.model_perf_list = []
-            print('Beginning next hyper-parameter optimization iteration.')
+            logger.info('Beginning next hyper-parameter optimization iteration.')
         else:
-            print('Model Training Complete!')
+            logger.info('Model Training Complete!')

@@ -1,9 +1,13 @@
 from dataclasses import dataclass
 import json
+import logging
 import torch
 from sleeper_wrapper import Stats, Players
 from misc.nn_helper_functions import stats_to_fantasy_points, remove_game_duplicates
 from .fantasypredictor import FantasyPredictor
+
+# Set up logger
+logger = logging.getLogger('log')
 
 @dataclass
 class SleeperPredictor(FantasyPredictor):
@@ -24,21 +28,6 @@ class SleeperPredictor(FantasyPredictor):
             self.player_to_sleeper_id = self.__load_players()
         # Initialize attributes defined later (dependent on eval data used)
         self.all_proj_dict = {}
-
-    # def __init__(self, name, player_dict_file, proj_dict_file, update_players=False):
-    #     # Initialize FantasyPredictor
-    #     super().__init__(name)
-    #     # Files with data from Sleeper
-    #     self.player_dict_file = player_dict_file
-    #     self.proj_dict_file = proj_dict_file
-    #     # Generate dictionary mapping player names to IDs
-    #     if update_players:
-    #         self.player_to_sleeper_id = self.refresh_players()
-    #     else:
-    #         self.player_to_sleeper_id = self.__load_players()
-    #     # Initialize attributes defined later (dependent on eval data used)
-    #     self.all_proj_dict = {}
-
 
     # PUBLIC METHODS
 
@@ -92,7 +81,7 @@ class SleeperPredictor(FantasyPredictor):
             if player_name:
                 player_to_sleeper_id[player_name] = sleeper_id
             else:
-                print(f'Warning: {player} not added to player dictionary')
+                logger.warning(f'Warning: {player} not added to player dictionary')
 
         # Save player dictionary to JSON file for use next time
         with open(self.player_dict_file, 'w', encoding='utf-8') as file:
@@ -121,7 +110,7 @@ class SleeperPredictor(FantasyPredictor):
                     week_proj = stats.get_week_projections(
                         'regular', int(year), int(week))
                     all_proj_dict[year_week] = week_proj
-                    print(
+                    logger.info(
                         f'Adding Year-Week {year_week} to Sleeper projections dictionary: {self.proj_dict_file}')
             # Save player dictionary to JSON file for use next time
             with open(self.proj_dict_file, 'w', encoding='utf-8') as file:

@@ -4,7 +4,8 @@
         "--disable=C0115",
         "--disable=C0116",
         "--disable=C0301",
-        "--disable=E0401"
+        "--disable=E0401",
+        "--disable=W1203"
     ],
     "black-formatter.args": ["--line-length", "100"],
     "editor.defaultFormatter": "mikoz.black-py",

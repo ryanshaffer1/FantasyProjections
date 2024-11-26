@@ -1,5 +1,9 @@
+import logging
 import numpy as np
 import pandas as pd
+
+# Set up logger
+logger = logging.getLogger('log')
 
 thresholds = {
     "Elapsed Time": [0, 60],
@@ -50,7 +54,7 @@ def normalize_stat(col):
         col = (col - lwr) / (upr - lwr)
         col = col.clip(0, 1)
     else:
-        print(f'Warning: {col.name} not explicitly normalized')
+        logger.warning(f'Warning: {col.name} not explicitly normalized')
 
     return col
 
@@ -62,7 +66,7 @@ def unnormalize_stat(col):
         [lwr, upr] = thresholds[col.name]
         col = col * (upr - lwr) + lwr
     else:
-        print(f'Warning: {col.name} not explicitly normalized')
+        logger.warning(f'Warning: {col.name} not explicitly normalized')
 
     return col
 

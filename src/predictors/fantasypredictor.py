@@ -1,18 +1,15 @@
 from dataclasses import dataclass
+import logging
 import numpy as np
 from misc.nn_helper_functions import stats_to_fantasy_points
 from misc.prediction_result import PredictionResult
 
+# Set up logger
+logger = logging.getLogger('log')
+
 @dataclass
 class FantasyPredictor():
     name: str = ''
-
-# class FantasyPredictor():
-#     # CONSTRUCTOR
-
-#     def __init__(self,name):
-#         self.name = name
-
 
     # PUBLIC METHODS
 
@@ -28,6 +25,6 @@ class FantasyPredictor():
         result = PredictionResult(self, stat_predicts, stat_truths, eval_data)
 
         # Compute/display average absolute error
-        print(f"{self.name} Test Error: Avg. Abs. Fantasy Points Different = {(np.mean(result.avg_diff(absolute=True))):>0.2f}")
+        logger.info(f'{self.name} {eval_data.name} Error: Avg. Abs. Fantasy Points Different = {(np.mean(result.avg_diff(absolute=True))):>0.2f}')
 
         return result

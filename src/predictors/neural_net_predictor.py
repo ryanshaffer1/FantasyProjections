@@ -1,11 +1,15 @@
 from dataclasses import dataclass
+import logging
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from misc.nn_helper_functions import stats_to_fantasy_points
-from misc.manage_files import create_folder
+from misc.manage_files import create_folders
 from .fantasypredictor import FantasyPredictor
+
+# Set up logger
+logger = logging.getLogger('log')
 
 @dataclass
 class NeuralNetPredictor(FantasyPredictor):
@@ -37,8 +41,9 @@ class NeuralNetPredictor(FantasyPredictor):
         self.optimizer = torch.optim.SGD(self.model.parameters(),
                                          lr=param_set.get('learning_rate').value,
                                          weight_decay=param_set.get('lmbda').value)
+
         if print_model_flag:
-            self.print(self.model)
+            self.print(self.model, log=True)
 
         return train_dataloader, validation_dataloader
 
@@ -100,36 +105,39 @@ class NeuralNetPredictor(FantasyPredictor):
 
         # Print model
         if print_loaded_model:
-            print(f'Loaded model from file {model_file}')
-            self.print(model)
+            logger.info(f'Loaded model from file {model_file}')
+            self.print(model, log=True)
 
         return model, optimizer
 
 
-    def print(self,model):
+    def print(self, model, log=False):
         model_parameters = filter(lambda p: p.requires_grad, model.parameters())
         total_params = sum([np.prod(p.size()) for p in model_parameters])
-        print('')
-        print(model)
-        print(f'Total tunable parameters: {total_params}')
-
+        if log:
+            logger.info(model)
+            logger.info(f'Total tunable parameters: {total_params}')
+        else:
+            print('')
+            print(model)
+            print(f'Total tunable parameters: {total_params}')
 
     def save(self):
         # Check that folder exists, and set filenames
-        create_folder(self.save_folder)
+        create_folders(self.save_folder)
         model_save_file = self.save_folder + 'model.pth'
         opt_save_file = self.save_folder + 'opt.pth'
         # Save Neural Net model and optimizer
         torch.save(self.model.state_dict(), model_save_file)
         torch.save(self.optimizer.state_dict(),opt_save_file)
-        print(f'Saved PyTorch Model State to {model_save_file}')
+        logger.info(f'Saved PyTorch Model State to {model_save_file}')
 
 
     def train_and_validate(self, param_set, train_dataloader, validation_dataloader):
         # Training/validation loop
         val_perfs = []
         for t in range(self.max_epochs):
-            print(f'Training Epoch {t+1} ------------- ')
+            logger.info(f'Training Epoch {t+1}:')
             # Train
             self.__train(train_dataloader, param_set.get('loss_fn').value)
 
@@ -139,7 +147,7 @@ class NeuralNetPredictor(FantasyPredictor):
 
             # Check stopping condition
             if self.__end_learning(val_perfs,self.n_epochs_to_stop): # Check stopping condition
-                print('Learning has stopped, terminating training process')
+                logger.info('Learning has stopped, terminating training process')
                 break
 
         return val_perfs
@@ -156,7 +164,7 @@ class NeuralNetPredictor(FantasyPredictor):
             else 'cpu'
         )
         if print_device:
-            print(f'Using {device} device')
+            logger.info(f'Using {device} device')
 
         return device
 
@@ -191,7 +199,7 @@ class NeuralNetPredictor(FantasyPredictor):
 
             if print_losses and batch % int(num_batches / 10) == 0:
                 loss, current = loss.item(), (batch + 1) * len(x_matrix)
-                print(f"\tloss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
+                logger.debug(f'\tloss: {loss:>7f}  [{current:>5d}/{size:>5d}]')
 
 
 # Shape of neural network (can be reconfigured during object initialization)

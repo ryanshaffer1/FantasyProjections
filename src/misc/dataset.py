@@ -1,3 +1,4 @@
+import logging
 import random
 import pandas as pd
 import torch
@@ -7,7 +8,7 @@ from torch.utils.data import Dataset
 class CustomDataset(Dataset):
     # CONSTRUCTOR
 
-    def __init__(self, pbp_df, boxscore_df,
+    def __init__(self, name, pbp_df, boxscore_df,
                  id_df, **kwargs):
         # Handle optional inputs and assign default values not passed
         start_index = kwargs.get('start_index', 0)
@@ -16,7 +17,10 @@ class CustomDataset(Dataset):
         # Other valid kwargs that are not currently initialized to default
         # values: weeks, years, teams, players, elapsed_time
 
-        # Read data from file; convert numeric data (inputs "x" and desired
+        # Name
+        self.name = name
+
+        # Process DFs; convert numeric data (inputs "x" and desired
         # outputs "y") to tensors
         self.x_df = pbp_df
         self.x_data_labels = list(self.x_df.columns)
@@ -53,9 +57,9 @@ class CustomDataset(Dataset):
     def concat(self, other, inplace=True):
         # Check that data labels match each other
         if self.x_data_labels != other.x_data_labels:
-            print('Warning: x data labels do not match')
+            logging.warning(f'Warning: x data labels do not match for Datasets {self.name} and {other.name}')
         if self.y_data_labels != other.y_data_labels:
-            print('Warning: y data labels do not match')
+            logging.warning(f'Warning: y data labels do not match for Datasets {self.name} and {other.name}')
 
         # Concatenate data structures
         joined_x_data = torch.cat((self.x_data, other.x_data))
@@ -71,6 +75,7 @@ class CustomDataset(Dataset):
         # Return new object
         else:
             new_dataset = CustomDataset(
+                self.name,
                 self.x_df,
                 self.y_df,
                 self.id_data)
@@ -99,6 +104,7 @@ class CustomDataset(Dataset):
             self.id_data = self.id_data.loc[indices]
         else:
             new_dataset = CustomDataset(
+                self.name,
                 self.x_df,
                 self.y_df,
                 self.id_data)

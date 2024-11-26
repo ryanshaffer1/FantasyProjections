@@ -1,9 +1,13 @@
 from datetime import datetime
+import logging
+import logging.config
 import pandas as pd
 from torch import nn
 import matplotlib.pyplot as plt
 
+from config.log_config import LOGGING_CONFIG
 from misc.dataset import CustomDataset
+from misc.manage_files import move_logfile
 from misc.prediction_result import PredictionResultGroup, PredictionResult
 
 from tuners.hyper_tuner import HyperParameter, HyperParameterSet
@@ -42,7 +46,7 @@ from predictors.alternate_predictors import LastNPredictor, PerfectPredictor
 
 # Output files
 FOLDER_PREFIX = ''
-save_folder = f'models/{FOLDER_PREFIX}{datetime.strftime(datetime.now(),'%m%d%Y%H%M%S')}/'
+save_folder = f'models/{FOLDER_PREFIX}{datetime.strftime(datetime.now(),'%Y%m%d_%H%M%S')}/'
 LOAD_FOLDER = 'models/11222024003003/'
 GOOD_FILE = 'models/model_11142024164752.pth'
 BAD_FILE = 'models/model_11182024223717.pth'
@@ -51,27 +55,40 @@ BAD_FILE = 'models/model_11182024223717.pth'
 # Data Setup
 # ---------------------
 # Neural Net Data files
-PBP_DATAFILE = 'data/for_nn/pbp_data_to_nn.csv'
-BOXSCORE_DATAFILE = 'data/for_nn/boxscore_data_to_nn.csv'
-ID_DATAFILE = 'data/for_nn/data_ids.csv'
-pbp_df = pd.read_csv(PBP_DATAFILE)
-boxscore_df = pd.read_csv(BOXSCORE_DATAFILE)
-id_df = pd.read_csv(ID_DATAFILE)
+PBP_DATAFILE = 'data2/to_nn/midgame_data_to_nn.csv'
+BOXSCORE_DATAFILE = 'data2/to_nn/final_stats_to_nn.csv'
+ID_DATAFILE = 'data2/to_nn/data_ids.csv'
 
 # Sleeper Data files
 SLEEPER_PLAYER_DICT_FILE = 'data/misc/sleeper_player_dict.json'
 SLEEPER_PROJ_DICT_FILE = 'data/misc/sleeper_projections_dict.json'
 
-# Training, validation, and test datasets
-all_data = CustomDataset(pbp_df, boxscore_df, id_df)
-training_data = CustomDataset(pbp_df, boxscore_df, id_df, years=range(2021,2022))
-training_data.concat(CustomDataset(pbp_df, boxscore_df, id_df, years=[2023], weeks=range(1,12)))
-validation_data = CustomDataset(pbp_df, boxscore_df, id_df, years=[2023], weeks=range(12,15))
-test_data = CustomDataset(pbp_df, boxscore_df, id_df, years=[2023], weeks=range(15,18))
-test_data_pregame = test_data.slice_by_criteria(inplace=False,elapsed_time=[0])
+# Set up logger
+logging.config.dictConfig(LOGGING_CONFIG)
+logger = logging.getLogger('log')
 
-for (dataset_name,dataset) in zip(('Training Data','Validataion Data','Test Data'),(training_data,validation_data,test_data)):
-    print(f'{dataset_name} size: {dataset.x_data.shape[0]}')
+# Start
+logger.info('Starting Program')
+
+# Read data files
+pbp_df = pd.read_csv(PBP_DATAFILE)
+boxscore_df = pd.read_csv(BOXSCORE_DATAFILE)
+id_df = pd.read_csv(ID_DATAFILE)
+logger.info('Input files read')
+for name,file in zip(['pbp','boxscore','IDs'],[PBP_DATAFILE, BOXSCORE_DATAFILE, ID_DATAFILE]):
+    logger.debug(f'{name}: {file}')
+
+# Training, validation, and test datasets
+all_data = CustomDataset('All', pbp_df, boxscore_df, id_df)
+training_data = CustomDataset('Training', pbp_df, boxscore_df, id_df, years=range(2021,2022))
+training_data.concat(CustomDataset('', pbp_df, boxscore_df, id_df, years=[2023], weeks=range(1,12)))
+validation_data = CustomDataset('Validation', pbp_df, boxscore_df, id_df, years=[2023], weeks=range(12,15))
+test_data = CustomDataset('Test', pbp_df, boxscore_df, id_df, years=[2023], weeks=range(15,18))
+test_data_pregame = test_data.slice_by_criteria(inplace=False,elapsed_time=[0])
+test_data_pregame.name = 'Test (Pre-Game)'
+
+for dataset in (training_data,validation_data,test_data):
+    logger.info(f'{dataset.name} Dataset size: {dataset.x_data.shape[0]}')
 
 
 # Parameters affecting the outcome of the run, not automatically tuned
@@ -151,7 +168,7 @@ scatter_plot_settings.append({'columns': ['Fantasy Points'],
 # neural_net1 = NeuralNetPredictor(name='Bad Neural Net', load_file=BAD_FILE, **nn_settings)
 neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, save_folder=save_folder, **nn_settings)
 # neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_settings)
-param_tuner.tune_neural_net(neural_net, training_data, validation_data)
+# param_tuner.tune_neural_net(neural_net, training_data, validation_data)
 
 # Create Sleeper prediction model
 sleeper_predictor = SleeperPredictor(name='Sleeper',
@@ -166,7 +183,7 @@ naive_predictor = LastNPredictor(name='Naive: Previous Game', n=3)
 perfect_predictor = PerfectPredictor(name='Perfect Predictor')
 
 # Evaluate Model(s) against Test Data
-nn_result = neural_net.eval_model(eval_data=test_data_pregame)
+nn_result = neural_net.eval_model(eval_data=test_data)
 sleeper_result = sleeper_predictor.eval_model(eval_data=test_data_pregame)
 naive_result = naive_predictor.eval_model(eval_data=test_data_pregame, all_data=all_data)
 perfect_result = perfect_predictor.eval_model(eval_data=test_data)
@@ -177,6 +194,11 @@ all_results.plot_all(PredictionResult.plot_error_dist, together=True, absolute=T
 all_results.plot_all(PredictionResult.plot_single_games, n_random=0)
 all_results.plot_all(PredictionResult.plot_scatters, scatter_plot_settings)
 
+# Move logfile to the correct folder
+logger.info(f'Saving logfile to {save_folder}')
+logging.shutdown()
+move_logfile('logfile.log',save_folder)
 
+# Display plots
 plt.show()
-print('done')
+print('Program Complete')
