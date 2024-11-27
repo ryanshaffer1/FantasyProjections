@@ -1,3 +1,11 @@
+"""Creates multiple Fantasy Football stat predictors (using various prediction algorithms), evaluates their predictions for a user-configurable
+    set of past NFL games, and logs/visualizes the results in multiple user-configurable plots.
+    Many user settings for the Neural Network Predictor, which is the most custom (and most important) type of predictor in the project.
+    
+    This module is a script to be run alone. Before running, the packages in requirements.txt must be installed. Use the following terminal command:
+    > pip install -u requirements.txt
+"""
+
 from datetime import datetime
 import logging
 import logging.config
@@ -6,7 +14,7 @@ from torch import nn
 import matplotlib.pyplot as plt
 
 from config.log_config import LOGGING_CONFIG
-from misc.dataset import CustomDataset
+from misc.dataset import StatsDataset
 from misc.manage_files import move_logfile
 from misc.prediction_result import PredictionResultGroup, PredictionResult
 
@@ -71,19 +79,19 @@ logger = logging.getLogger('log')
 logger.info('Starting Program')
 
 # Read data files
-pbp_df = pd.read_csv(PBP_DATAFILE)
-boxscore_df = pd.read_csv(BOXSCORE_DATAFILE)
-id_df = pd.read_csv(ID_DATAFILE)
+pbp_df = pd.read_csv(PBP_DATAFILE, engine='pyarrow')
+boxscore_df = pd.read_csv(BOXSCORE_DATAFILE, engine='pyarrow')
+id_df = pd.read_csv(ID_DATAFILE, engine='pyarrow')
 logger.info('Input files read')
 for name,file in zip(['pbp','boxscore','IDs'],[PBP_DATAFILE, BOXSCORE_DATAFILE, ID_DATAFILE]):
     logger.debug(f'{name}: {file}')
 
 # Training, validation, and test datasets
-all_data = CustomDataset('All', pbp_df, boxscore_df, id_df)
-training_data = CustomDataset('Training', pbp_df, boxscore_df, id_df, years=range(2021,2022))
-training_data.concat(CustomDataset('', pbp_df, boxscore_df, id_df, years=[2023], weeks=range(1,12)))
-validation_data = CustomDataset('Validation', pbp_df, boxscore_df, id_df, years=[2023], weeks=range(12,15))
-test_data = CustomDataset('Test', pbp_df, boxscore_df, id_df, years=[2023], weeks=range(15,18))
+all_data = StatsDataset('All', pbp_df, boxscore_df, id_df)
+training_data = StatsDataset('Training', pbp_df, boxscore_df, id_df, years=range(2021,2022))
+training_data.concat(StatsDataset('', pbp_df, boxscore_df, id_df, years=[2023], weeks=range(1,12)))
+validation_data = StatsDataset('Validation', pbp_df, boxscore_df, id_df, years=[2023], weeks=range(12,15))
+test_data = StatsDataset('Test', pbp_df, boxscore_df, id_df, years=[2023], weeks=range(15,18))
 test_data_pregame = test_data.slice_by_criteria(inplace=False,elapsed_time=[0])
 test_data_pregame.name = 'Test (Pre-Game)'
 

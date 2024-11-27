@@ -141,3 +141,42 @@ def gen_random_games(id_df, n_random, game_ids=None):
                 valid_new_entry = True
 
     return game_ids
+
+
+def linear_regression(x_data, y_data):
+    """Performs Simple Linear Regression on x_data and y_data to determine line of best fit (slope, intercept) and coefficient of determination (r_squared)
+    
+        Equations taken from:
+        https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/images/Regression_and_Correlation.pdf (p. 6)
+        https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/regression-and-correlation/coefficient-of-determination-r-squared.html
+
+        Function has been tested against scipy.stats.linregress and is accurate to within 1e-13.
+
+        Args:
+            x_data (list | array | pandas.DataFrame): x-axis data
+            y_data (list | array | pandas.DataFrame): y-axis data
+
+        Returns:
+            float: slope of regression line
+            float: y-intercept of regression line
+            float: r_squared (Coefficient of Determination) of regression line against data
+    """
+
+    # Basic info about x and y
+    x_mean = np.nanmean(x_data)
+    y_mean = np.nanmean(y_data)
+    n = x_data.shape[0]
+    # Calculate slope and intercept for line of best fit
+    s_x_y = sum(x_data*y_data)/n - (sum(x_data)*sum(y_data))/n**2
+    s_x_sq = sum(x_data**2)/n - (sum(x_data)/n)**2
+    slope = s_x_y/s_x_sq
+    intercept = y_mean - (slope * x_mean)
+    # Calculate r_value
+    y_predicted = intercept + slope*x_data
+    residuals = y_data - y_predicted
+    dists_from_mean = y_data - y_mean
+    ssr = sum(residuals**2)
+    sst = sum(dists_from_mean**2)
+    r_squared = 1 - (ssr/sst)
+
+    return slope, intercept, r_squared

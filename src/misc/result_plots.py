@@ -1,13 +1,41 @@
+"""Module defining and exporting functions used to visualize the results of Fantasy Football predictions.
+
+    Typically called by a PredictionResult or PredictionResultGroup object.
+
+    Functions:
+        gen_scatterplots : Processes data to create configurable scatterplots/histograms showing the difference between predicted and true stats.
+        scatter_hist : Handles plotting and formatting of scatterplots/histograms pre-processed by gen_scatterplots.
+        set_hist_bins : Determines histogram bin sizing based on axis tickmarks.
+        check_df_for_slice : Checks whether a slice (e.g. specified Player/Position/Team) applies to a given row of a stats DataFrame.
+        data_slice_to_plot : Filters DataFrames in a PredictionResult object to only the data slice specified (e.g. a specific Player).
+        draw_regression_lines : Adds the ideal (y=x) and actual lines of best fit to a scatterplot.
+        plot_game_timeline : Generates a line graph of predicted and true Fantasy Points over the course of a single game for a single player.
+        plot_error_histogram : Generates histogram of (signed or absolute) differences between predicted and true Fantasy Points.
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.stats import linregress
+from misc.nn_helper_functions import linear_regression
 
 # Bold text on everything
 plt.rcParams['font.weight'] = 'bold'
 plt.rcParams["axes.labelweight"] = "bold"
 
 def gen_scatterplots(result, **kwargs):
+    """Processes data to create configurable scatterplots/histograms showing the difference between predicted and true stats.
+
+        Args:
+            result (PredictionResult): object containing predicted and true statistics across a full dataset.
+            
+        Keyword-Args:
+            columns (list, optional): list of the stats (e.g. 'Pass Yds') to plot in the figure. Each element is plotted on a separate subplot. Defaults to None.
+            slice (dict, optional): subset of the evaluated dataset to include in the figure. Keys may be 'Position', 'Team', or 'Player'. Defaults to empty.
+            legend_slice (dict, optional): subsets of the evaluated dataset to split into separate entities in the plot legend. Same keys as slice. Defaults to empty.
+            subtitle (str, optional): text to include as a subtitle on the figure. Defaults to None.
+            histograms (bool, optional): whether to include histograms on the axes of each subplot. Defaults to False.
+    """
+
     # Handle keyword arguments
     columns = kwargs.get('columns', None)
     plot_slice = kwargs.get('slice', {})
@@ -65,6 +93,21 @@ def gen_scatterplots(result, **kwargs):
 
 
 def scatter_hist(truth_dfs, predict_dfs, ax, column, legend_slice, histograms=True):
+    """Handles plotting and formatting of scatterplots/histograms pre-processed by gen_scatterplots.
+
+        Args:
+            truth_dfs (pandas.DataFrame): true stats (including Fantasy Points) for a full dataset
+            predict_dfs (pandas.DataFrame): predicted stats (including Fantasy Points) for a full dataset
+            ax (matplotlib.axes.Axes): subplot axes to use for scatterplot/histogram
+            column (str): DataFrame column (stat, such as Pass Yds) containing data to plot
+            legend_slice (dict): subsets of the evaluated dataset to split into separate entities in the plot legend. Keys may be 'Player','Position','Team'
+            histograms (bool, optional): whether to include histograms on the axes of each subplot. Defaults to True.
+
+        Returns:
+            Line2D: handle to the ideal line of best fit (regression line) for the data
+            Line2D: handle to the actual line of best fit (regression line) for the data
+    """
+
     if histograms:
         # Axes for histograms
         ax_histx = ax.inset_axes([0, -0.15, 1, 0.15], sharex=ax)
@@ -126,6 +169,16 @@ def scatter_hist(truth_dfs, predict_dfs, ax, column, legend_slice, histograms=Tr
 
 
 def set_hist_bins(ax,num_bins_per_tick=4):
+    """Determines histogram bin sizing based on axis tickmarks.
+
+        Args:
+            ax (matplotlib.axes.Axes): subplot axes being used for histogram
+            num_bins_per_tick (int, optional): number of histogram bins between each tick mark on the x-axis. Defaults to 4.
+
+        Returns:
+            numpy.ndarray: x- and y- values to use as center of each histogram bin
+    """
+
     # Set bins based on x-axis tickmarks
     ticks = ax.get_xticks()
     tickspacing = ticks[1] - ticks[0]
@@ -135,6 +188,18 @@ def set_hist_bins(ax,num_bins_per_tick=4):
 
 
 def check_df_for_slice(x,key,slice_var,slice_type='dict'):
+    """Checks whether a slice (e.g. specified Player/Position/Team) applies to a given row of a stats DataFrame.
+
+        Args:
+            x (pandas.Series): row of a DataFrame containing stats
+            key (str): Name of the variable being used to filter the DataFrame (e.g. "Position")
+            slice_var (dict | list): values to filter the DataFrame on. If dict, values used are the values for the key "key". If list, values are the list elements.
+            slice_type (str, optional): string version of datatype for slice_var. Defaults to 'dict'.
+
+        Returns:
+            bool: True if this row of the DataFrame meets the slice criteria (e.g. "Position" matches the subset of positions provided)
+    """
+
     match slice_type:
         case 'dict':
             if isinstance(slice_var[key],list):
@@ -146,6 +211,20 @@ def check_df_for_slice(x,key,slice_var,slice_type='dict'):
 
 
 def data_slice_to_plot(result, plot_slice, legend_slice, return_lists=True):
+    """Filters DataFrames in a PredictionResult object to only the data slice specified (e.g. a specific Player).
+
+        Args:
+            result (PredictionResult): object containing predicted and true statistics across a full dataset.
+            plot_slice (dict): subset of the evaluated dataset to include in the figure. Keys may be 'Position', 'Team', 'Player', 'Week', 'Year'...
+            legend_slice (dict): subsets of the evaluated dataset to split into separate entities in the plot legend. Same keys as slice.
+            return_lists (bool, optional): whether DataFrames in result should be returned in a list of lists 
+                (needed for backwards-compatibility with some data handling nonsense). Defaults to True.
+                    
+        Returns:
+            list: list of DataFrames or list of list of DataFrames (depending on value of return_lists) containing the DataFrames from result,
+                filtered to only match the criteria in plot_slice and/or legend_slice.
+    """
+
     # Copy results dataframes so that the result object's attributes are unmodified
     id_df = result.id_df.copy()
     dfs_to_slice = [getattr(result,df_name) for df_name in ['truths','predicts','pbp_df'] if hasattr(result,df_name)]
@@ -180,6 +259,20 @@ def data_slice_to_plot(result, plot_slice, legend_slice, return_lists=True):
 
 
 def draw_regression_lines(truth_dfs, predict_dfs, column, lim_vals, ax):
+    """Adds the ideal (y=x) and actual lines of best fit to a scatterplot.
+
+        Args:
+            truth_dfs (pandas.DataFrame): true stats (including Fantasy Points) for a full dataset
+            predict_dfs (pandas.DataFrame): predicted stats (including Fantasy Points) for a full dataset
+            column (str): DataFrame column (stat, such as Pass Yds) containing data to plot
+            lim_vals (numpy.ndarray): Plot limits, to draw lines spanning the plot area
+            ax (matplotlib.axes.Axes): subplot axes to use for scatterplot/histogram
+
+        Returns:
+            Line2D: handle to the ideal line of best fit (regression line) for the data
+            Line2D: handle to the actual line of best fit (regression line) for the data
+    """
+
     # Trendlines: ideal trendline, and line of best fit
     # Re-consolidate x,y datasets
     truth_data = pd.concat(truth_dfs)[column]
@@ -190,13 +283,13 @@ def draw_regression_lines(truth_dfs, predict_dfs, column, lim_vals, ax):
         # well-performing model)
         ideal_line, = ax.plot(lim_vals, lim_vals, '--', color='0.4')
         # Draw line of best fit, display r-squared as text on figure
-        slope, intercept, r_value = linregress(truth_data, predict_data)[0:3]
+        slope, intercept, r_squared = linear_regression(truth_data, predict_data)
         bestfit_line, = ax.plot(lim_vals, slope * lim_vals + intercept, 'k--')
         ax.text(lim_vals[-1],
                 slope * lim_vals[-1] + intercept,
-                f'$R^2 = {(r_value**2):>0.3f}$ ',
+                f'$R^2 = {(r_squared):>0.3f}$ ',
                 horizontalalignment='right',
-                verticalalignment=('bottom' if r_value > 0 else 'top'))
+                verticalalignment=('bottom' if slope > 0 else 'top'))
     else:
         ideal_line = None
         bestfit_line = None
@@ -204,6 +297,17 @@ def draw_regression_lines(truth_dfs, predict_dfs, column, lim_vals, ax):
 
 
 def plot_game_timeline(result, game_id, fig=None):
+    """Generates a line graph of predicted and true Fantasy Points over the course of a single game for a single player.
+
+        Args:
+            result (PredictionResult): object containing predicted and true statistics across a full dataset.
+            game_id (dict): game/player to visualize. Must contain the following keys:
+                - "Player" : value -> str
+                - "Year" : value -> int
+                - "Week" : value -> int
+            fig (matplotlib.figure.Figure, optional): handle to the figure to add the plot to. Defaults to None.
+    """
+
     # Copy dataframes (to preserve original object attributes)
     # And trim content to only the data spec'd in game_id
     [truth_df,predict_df,pbp_df] = data_slice_to_plot(result, game_id, None, return_lists=False)
@@ -233,7 +337,16 @@ def plot_game_timeline(result, game_id, fig=None):
     # "Display" plot (won't really be displayed until plt.show is called again without block=False)
     plt.show(block=False)
 
+
 def plot_error_histogram(result, absolute=False, fig=None):
+    """Generates histogram of (signed or absolute) differences between predicted and true Fantasy Points.
+
+        Args:
+            result (PredictionResult): object containing predicted and true statistics across a full dataset.
+            absolute (bool, optional): whether to compute absolute value of error before computing the average. Defaults to False.
+            fig (matplotlib.figure.Figure, optional): handle to the figure to add the plot to. Defaults to None.
+    """
+
     # Generate new figure if not plotting on a pre-existing fig
     if not fig:
         fig = plt.subplots()[0]
