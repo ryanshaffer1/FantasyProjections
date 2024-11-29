@@ -1,3 +1,10 @@
+"""Creates and exports classes to be used as one approach to predicting NFL stats and Fantasy Football scores.
+
+    Classes:
+        NeuralNetPredictor : child of FantasyPredictor. Predicts NFL player stats using a Neural Net.
+        NeuralNet : PyTorch-based Neural Network object with a custom network architecture.
+"""
+
 from dataclasses import dataclass
 import logging
 import numpy as np
@@ -13,6 +20,34 @@ logger = logging.getLogger('log')
 
 @dataclass
 class NeuralNetPredictor(FantasyPredictor):
+    """Predictor of NFL players' stats in games, using a Neural Net to generate predictions.
+    
+        Sub-class of FantasyPredictor.
+
+        Args:
+            name (str): name of the predictor object, used for logging/display purposes.
+            save_folder (str, optional): path to the folder to save model and optimizer settings. Defaults to None.
+            load_folder (str, optional): path to the folder to load model and optimizer settings. Defaults to None.
+            max_epochs (int, optional): number of training iterations before stopping training. Defaults to 100
+            n_epochs_to_stop (int, optional): number of training iterations to check for improvement before stopping. Defaults to 5.
+                ex. if a NeuralNetPredictor's performance has not improved over its last n training epochs,
+                the training process will be terminated.
+        
+        Additional Class Attributes:
+            device (str): name of the device (e.g. cpu, gpu) used for NeuralNetwork processing
+            model (NeuralNetwork): Neural Network implemented via PyTorch
+            optimizer (torch.optim.sgd.SGD): Optimizer for model, implemented via PyTorch
+                Currently only supports SGD (Stochastic Gradient Descent) type optimizer
+        
+        Public Methods:
+            configure_for_training : Sets up DataLoader, NeuralNetwork, and optimizer objects to train with provided implementation details.
+            eval_model : Generates predicted stats for an input evaluation dataset, as computed by the NeuralNetwork.
+            load : Initializes a NeuralNetwork and optimizer using specifications saved to file.
+            print : Displays the NeuralNetwork architecture and parameter size to console or to a logger.
+            save : Stores NeuralNetwork and optimizer specifications to file.
+            train_and_validate : Carries out the training process and generates predictions for a separate evaluation dataset.
+    """
+
     # CONSTRUCTOR
     save_folder: str = None
     load_folder: str = None
@@ -20,6 +55,10 @@ class NeuralNetPredictor(FantasyPredictor):
     n_epochs_to_stop: int = 5
 
     def __post_init__(self):
+        # Evaluates as part of the Constructor.
+        # Generates attributes that are not simple data copies of inputs.
+
+        # Assign a device
         self.device = self.__assign_device()
         # Initialize model
         if self.load_folder:
@@ -31,10 +70,31 @@ class NeuralNetPredictor(FantasyPredictor):
 
     # PUBLIC METHODS
 
-    def configure_for_training(self, param_set, training_data, validation_data, print_model_flag=False):
+    def configure_for_training(self, param_set, training_data, eval_data, print_model_flag=False):
+        """Sets up DataLoader, NeuralNetwork, and optimizer objects to train with provided implementation details.
+
+            Args:
+                param_set (HyperParameterSet): set of hyper-parameters used in Neural Network training. Must include:
+                    mini_batch_size: size of training data batches used in SGD training iterations
+                    learning_rate: Learning Rate used in SGD optimizer
+                    lmbda: L2 Regularization Parameter used in SGD optimizer
+                training_data (StatsDataset): data to use for Neural Net training
+                eval_data (StatsDataset): data to use for Neural Net evaluation (e.g. validation or test data)
+                print_model_flag (bool, optional): displays Neural Network model architecture to console or a logger. 
+                    Defaults to False.
+
+            Side Effects:
+                self.model is given a new instance of NeuralNetwork
+                self.optimizer is given a new instance of torch.optim.SGD, using parameters in param_set
+                    (specifically, learning_rate and lmbda [weight_decay])
+
+            Returns:
+                DataLoader: Training DataLoader to use in training. Batched per mini_batch_size, and shuffled.
+                DataLoader: Evaluation DataLoader to use in results evaluation. Not batched or shuffled.
+        """
         # Configure data loaders
-        train_dataloader = DataLoader(training_data, batch_size=int(param_set.get('mini_batch_size').value), shuffle=False)
-        validation_dataloader = DataLoader(validation_data, batch_size=int(validation_data.x_data.shape[0]), shuffle=False)
+        train_dataloader = DataLoader(training_data, batch_size=int(param_set.get('mini_batch_size').value), shuffle=True)
+        eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
 
         # Initialize Neural Network object, configure optimizer, optionally print info on model
         self.model = NeuralNetwork().to(self.device)
@@ -45,10 +105,24 @@ class NeuralNetPredictor(FantasyPredictor):
         if print_model_flag:
             self.print(self.model, log=True)
 
-        return train_dataloader, validation_dataloader
+        return train_dataloader, eval_dataloader
 
 
     def eval_model(self, eval_data=None, eval_dataloader=None):
+        """Generates predicted stats for an input evaluation dataset, as computed by the NeuralNetwork.
+
+            Either eval_data or eval_dataloader must be input. 
+            If both are input, eval_dataloader will be used.
+
+            Args:
+                eval_data (Dataset, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
+                eval_dataloader (DataLoader, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
+
+            Returns:
+                PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
+                    performance assessments, etc.
+        """
+
         # Create dataloader if only a dataset is passed as input
         if not eval_dataloader:
             eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
@@ -71,6 +145,23 @@ class NeuralNetPredictor(FantasyPredictor):
 
 
     def load(self, model_folder, print_loaded_model=False):
+        """Initializes a NeuralNetwork and optimizer using specifications saved to file.
+
+            Assumes the file name for the model is "model.pth"
+            And the file name for the optimizer is "opt.pth"
+
+            Args:
+                model_folder (str): path where "model.pth" and "optimizer.pth" are located
+                print_loaded_model (bool, optional): displays Neural Network model architecture to console or a logger. 
+                    Defaults to False.
+
+            Returns:
+                NeuralNetwork: Neural Network implemented via PyTorch. 
+                    Size/architecture and initial parameters determined by the loaded model.pth
+                torch.optim.SGD: Optimizer for model, implemented via PyTorch. 
+                    Parameters are determined by the loaded optimizer.pth
+        """
+
         model_file = model_folder + 'model.pth'
         opt_file = model_folder + 'opt.pth'
         # Establish shape of the model based on data within file
@@ -112,6 +203,14 @@ class NeuralNetPredictor(FantasyPredictor):
 
 
     def print(self, model, log=False):
+        """Displays the NeuralNetwork architecture and parameter size to console or to a logger.
+            
+            Args:
+                model (NeuralNetwork): Neural Network implemented via PyTorch.
+                log (bool, optional): True if output should be directed to a logger, 
+                    False if printed to console. Defaults to False.
+        """
+
         model_parameters = filter(lambda p: p.requires_grad, model.parameters())
         total_params = sum([np.prod(p.size()) for p in model_parameters])
         if log:
@@ -123,6 +222,13 @@ class NeuralNetPredictor(FantasyPredictor):
             print(f'Total tunable parameters: {total_params}')
 
     def save(self):
+        """Stores NeuralNetwork and optimizer specifications to file.
+
+            The folder to use is specified by the NeuralNetPredictor's save_folder attribute.
+            The NeuralNet model is always saved as "model.pth".
+            The optimizer is always saved as "opt.pth"        
+        """
+
         # Check that folder exists, and set filenames
         create_folders(self.save_folder)
         model_save_file = self.save_folder + 'model.pth'
@@ -134,6 +240,24 @@ class NeuralNetPredictor(FantasyPredictor):
 
 
     def train_and_validate(self, param_set, train_dataloader, validation_dataloader):
+        """Carries out the training process and generates predictions for a separate evaluation dataset.
+
+            The model is first trained using train_dataloader and the input loss function (as well as 
+            model and optimizer parameters contained in the NeuralNetPredictor object).
+            After each training epoch, the validation data is used to generate prediction accuracy results.
+            This process is repeated until either the max epochs condition or the end learning (model no longer
+            improving) condition are met.
+
+            Args:
+                param_set (HyperParameterSet): set of hyper-parameters used in Neural Network training. Must include:
+                    loss_fn: str denoting the loss function to use (e.g. "nn.MSELoss")
+                train_dataloader (DataLoader): data to use for Neural Net training.
+                validation_dataloader (DataLoader): data to use for Neural Net validation.
+
+            Returns:
+                list: accuracy (quantified as average absolute prediction error) of the model's predictions on the
+                    validation dataset after each epoch of training.
+        """
         # Training/validation loop
         val_perfs = []
         for t in range(self.max_epochs):
@@ -154,6 +278,7 @@ class NeuralNetPredictor(FantasyPredictor):
 
 
     # PRIVATE METHODS
+
     def __assign_device(self, print_device=True):
         # Get cpu, gpu or mps device for training.
         device = (
@@ -182,6 +307,8 @@ class NeuralNetPredictor(FantasyPredictor):
 
 
     def __train(self, dataloader, loss_fn, print_losses=True):
+        # Implements Stochastic Gradient Descent to train the model
+        # against the provided training dataloader. Periodically logs losses from the loss function
         size = len(dataloader.dataset)
         num_batches = int(np.ceil(size / dataloader.batch_size))
         self.model.train()
@@ -202,24 +329,47 @@ class NeuralNetPredictor(FantasyPredictor):
                 logger.debug(f'\tloss: {loss:>7f}  [{current:>5d}/{size:>5d}]')
 
 
-# Shape of neural network (can be reconfigured during object initialization)
-default_shape = {
-    'players_input': 300,
-    'teams_input': 32,
-    'stats_input': 25,
-    'positions_input': 4,
-    'embedding_player': 50,
-    'embedding_team': 10,
-    'embedding_opp': 10,
-    'linear_stack': 300,
-    'stats_output': 12,
-}
-
 class NeuralNetwork(nn.Module):
-    # CONSTRUCTOR
+    """Neural Network model implemented using PyTorch.nn, tailored to the data structures and needs of fantasy_projections.
 
+        Attributes:
+            stats_inds (list): lazy, list of indices in input vector corresponding to "raw game stats"
+            position_inds (list): lazy, list of indices in input vector corresponding to player positions
+            players_inds (list): lazy, list of indices in input vector corresponding to player IDs
+            teams_inds (list): lazy, list of indices in input vector corresponding to team IDs
+            opponents_inds (list): lazy, list of indices in input vector corresponding to opponent IDs
+            embedding_player (nn.Sequential): network layer embedding the player ID information. Parallel to other embedding layers.
+            embedding_team (nn.Sequential): network layer embedding the team ID information. Parallel to other embedding layers.
+            embedding_opp (nn.Sequential): network layer embedding the opponent ID information. Parallel to other embedding layers.
+            linear_stack (nn.Sequential): network layer(s) containing interconnections between embeddings/other stats and output layer.
+
+        Public Methods:
+            forward : Defines the feedforward flow of information through the network, including the embedding and linear stack layers.
+    """
+
+    # CONSTRUCTOR
     def __init__(self,shape=None):
+        """Initializes a NeuralNetwork with a network architecture defined in FantasyProjections project docs.
+
+            Args:
+                shape (dict, optional): number of neurons in each layer of the network, keyed by the names of each layer. 
+                Defaults to dict default_shape.
+                
+        """
         super().__init__()
+
+        # Shape of neural network (can be reconfigured during object initialization)
+        default_shape = {
+            'players_input': 300,
+            'teams_input': 32,
+            'stats_input': 25,
+            'positions_input': 4,
+            'embedding_player': 50,
+            'embedding_team': 10,
+            'embedding_opp': 10,
+            'linear_stack': 300,
+            'stats_output': 12,
+        }
 
         # Establish shape based on optional inputs
         if not shape:
@@ -258,6 +408,15 @@ class NeuralNetwork(nn.Module):
     # PUBLIC METHODS
 
     def forward(self, x):
+        """Defines the feedforward flow of information through the network, including the embedding and linear stack layers.
+
+            Args:
+                x (tensor): input vector into Neural Net
+
+            Returns:
+                tensor: output vector from Neural Net based on provided input
+        """
+
         player_embedding = self.embedding_player(x[:, self.players_inds])
         team_embedding = self.embedding_team(x[:, self.teams_inds])
         opp_embedding = self.embedding_opp(x[:, self.opponents_inds])
@@ -274,4 +433,5 @@ class NeuralNetwork(nn.Module):
     # PRIVATE METHODS
 
     def __index_range(self, prev_range, length):
+        # Returns the next range of length "length", starting from the end of a previous range "prev_range"
         return range(max(prev_range) + 1, max(prev_range) + 1 + length)

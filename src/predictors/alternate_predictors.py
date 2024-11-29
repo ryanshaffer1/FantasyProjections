@@ -1,3 +1,10 @@
+"""Creates and exports classes to be used as various approaches to predicting NFL stats and Fantasy Football scores.
+
+    Classes:
+        LastNPredictor : child of FantasyPredictor. Predicts NFL player stats using an average of the player's stats in recent games.
+        PerfectPredictor : child of FantasyPredictor. Predicts NFL player stats using the true NFL stats, giving perfect predictions.
+"""
+
 from dataclasses import dataclass
 import numpy as np
 import torch
@@ -6,6 +13,18 @@ from .fantasypredictor import FantasyPredictor
 
 @dataclass
 class LastNPredictor(FantasyPredictor):
+    """Predictor of NFL players' stats in games, using an average of the player's stats in recent games.
+    
+        Sub-class of FantasyPredictor.
+
+        Args:
+            name (str): name of the predictor object, used for logging/display purposes.
+            n (int, optional): number of previous games to average over. Defaults to 1.
+
+        Public Methods:
+            eval_model : Generates predicted stats for an input evaluation dataset, based on an average of the player's stats in recent games.
+    """
+
     # CONSTRUCTOR
     n: int = 1
 
@@ -13,6 +32,19 @@ class LastNPredictor(FantasyPredictor):
     # PUBLIC METHODS
 
     def eval_model(self, eval_data, all_data):
+        """Generates predicted stats for an input evaluation dataset, based on an average of the player's stats in recent games.
+
+            Note that only pre-game predictions will be included in the evaluation result. If multiple game times in each game
+            are present in eval_data, only one prediction per game will be made, with the other rows automatically dropped.
+
+            Args:
+                eval_data (Dataset): data to use for Predictor evaluation (e.g. validation or test data).
+
+            Returns:
+                PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
+                    performance assessments, etc.
+        """
+
         # Drop all the duplicated rows that are for the same game, and only
         # dependent on elapsed game time - that variable is irrelevant here, so we
         # can greatly simplify
@@ -44,6 +76,9 @@ class LastNPredictor(FantasyPredictor):
     # PRIVATE METHODS
 
     def __link_previous_games(self, all_data):
+        # For every row in all_data (note that each row corresponds to a unique player/game),
+        # find the index in all_data that contains the previous game played by the same player
+
         # Variables needed to search for previous games and convert stats to
         # fantasy points
         first_year_in_dataset = min(all_data.id_data['Year'])
@@ -90,6 +125,7 @@ class LastNPredictor(FantasyPredictor):
     def __stats_from_past_games(self,all_ids, y_data, n=1):
         # Collect game stats from y_data over the last n games
         # Where all_ids contains the "linked list" to previous games
+
         answer = []
         sorted_index = all_ids.sort_values(by=['index']).index
         for row_ind in all_ids.index:
@@ -114,12 +150,33 @@ class LastNPredictor(FantasyPredictor):
 
 @dataclass
 class PerfectPredictor(FantasyPredictor):
+    """Predictor of NFL players' stats in games, using the true NFL stats, giving perfect predictions.
+    
+        Sub-class of FantasyPredictor.
+
+        Args:
+            name (str): name of the predictor object, used for logging/display purposes.
+
+        Public Methods:
+            eval_model : Generates predicted stats for an input evaluation dataset, using the true stats for the same dataset.
+    """
+
     # CONSTRUCTOR
     # N/A - Fully constructed by parent __init__()
 
     # PUBLIC METHODS
 
     def eval_model(self, eval_data):
+        """Generates predicted stats for an input evaluation dataset, using the true stats for the same dataset.
+
+            Args:
+                eval_data (Dataset): data to use for Predictor evaluation (e.g. validation or test data).
+
+            Returns:
+                PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
+                    performance assessments, etc.
+        """
+
         # True stats from eval data
         stat_truths = self.eval_truth(eval_data)
         # Predicts equal truth

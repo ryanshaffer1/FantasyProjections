@@ -1,8 +1,6 @@
 {
     "pylint.args": [
-        "--disable=C0114",
-        "--disable=C0115",
-        "--disable=C0116",
+        "--disable=W0511",
         "--disable=C0301",
         "--disable=E0401",
         "--disable=W1203"
@@ -14,5 +12,6 @@
     "editor.formatOnSave": false,
     "files.saveConflictResolution": "overwriteFileOnDisk",
     "austin.path": "C:\\Users\\rshaf\\OneDrive\\Documents\\Projects\\FantasyProjections\\.venv\\Scripts\\austin.exe",
-
+    "autoDocstring.customTemplatePath": "src/config/docstring.mustache",
+    "autoDocstring.guessTypes": true,
 }

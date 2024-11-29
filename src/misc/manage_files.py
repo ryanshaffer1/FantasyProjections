@@ -1,3 +1,12 @@
+"""Set of functions used to manage file I/O.
+
+    Functions:
+        create_folders : Checks if an input list of folders exists, and creates any that do not exist.
+        collect_input_dfs : Collects raw NFL stats data from local files, and if insufficient, optionally pulls additional data from online source.
+        collect_roster_filter : Loads a roster filter file, and returns whether the load was successful.
+        move_logfile : Moves the logfile generated during program execution from a temporary location to a new folder.
+"""
+
 import os
 import logging
 import shutil
@@ -7,6 +16,16 @@ import pandas as pd
 logger = logging.getLogger('log')
 
 def create_folders(folders):
+    """Checks if an input list of folders exists, and creates any that do not exist.
+
+        Recommended to execute this function before any save commands to ensure the save folder exists.
+
+        Args:
+            folders (list or str): Folder or list of folders that may or may not already exist.
+                If a folder does exist, this function will not modify it. If a function does not exist,
+                this function will create it.
+    """
+
     # Handle case of single folder being passed
     if isinstance(folders,str):
         folders = [folders]
@@ -18,6 +37,20 @@ def create_folders(folders):
 
 
 def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_avail=False):
+    """Collects raw NFL stats data from local files, and if insufficient, optionally pulls additional data from online source.
+
+        Args:
+            years (list or int): year or list of years to load raw input data from
+            weeks (list): weeks within each year to load raw input data from
+            local_file_paths (dict): dictionary with each type of input (e.g. 'pbp') as keys and filepaths to each type of input as values
+            online_file_paths (dict): dictionary with each type of input (e.g. 'pbp') as keys and filepaths to each type of input as values.
+                Keys must match between local_file_paths and online_file_paths.
+            online_avail (bool, optional): toggle whether to allow pulling additional data from online files as necessary. Defaults to False.
+
+        Returns:
+            list: list of DataFrame objects corresponding to each input file type (e.g. 'pbp','roster').
+    """
+
     # Handle single year being input
     if not hasattr(years,'__iter__'):
         years = [years]
@@ -31,7 +64,7 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
     for year in years:
         # Load local files
         try:
-            yearly_dfs = tuple(pd.read_csv(local_file_paths[key].format(year), low_memory=False) for key in local_file_paths)
+            yearly_dfs = tuple(pd.read_csv(local_file_paths[name].format(year), low_memory=False) for name in local_file_paths)
             # Check if local files contain all weeks (checks all df's together)
             weeks_present = [all((any(df['week']==week) for df in yearly_dfs)) for week in weeks]
         except FileNotFoundError:
@@ -57,6 +90,19 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
     return all_dfs
 
 def collect_roster_filter(filter_roster, update_filter, roster_filter_file):
+    """Loads a roster filter file, and returns whether the load was successful.
+
+        Args:
+            filter_roster (bool): whether to filter roster at all (if False, no point in loading a filter file)
+            update_filter (bool): whether to force an update of the roster filter (if True, no point in loading an old filter file)
+            roster_filter_file (str): filepath to the roster filter file to use
+
+        Returns:
+            [pandas.DataFrame | None]: If file was loaded successfully, returns a DataFrame with the roster filter (player list). If file was 
+                not loaded successfully (either failed to load, or was not attempted), returns None.
+            bool: True if file load was successful, False if not.
+    """
+
     if filter_roster and not update_filter:
         try:
             filter_df = pd.read_csv(roster_filter_file)
@@ -70,7 +116,15 @@ def collect_roster_filter(filter_roster, update_filter, roster_filter_file):
 
     return filter_df, load_success
 
+
 def move_logfile(curr_filepath,new_folder):
+    """Moves the logfile generated during program execution from a temporary location to a new folder.
+
+        Args:
+            curr_filepath (str): filepath where the logfile has been temporarily stored (MUST INCLUDE FILE NAME)
+            new_folder (str): folder to move the logfile to (MUST NOT INCLUDE FILE NAME)
+    """
+
     # Create folder if it does not exist
     create_folders(new_folder)
 
