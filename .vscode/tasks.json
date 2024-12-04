@@ -3,7 +3,7 @@
     "tasks": [
         {
             "type": "austin",
-            "file": "src/fantasy_projections.py",
+            "file": "FantasyProjections/fantasy_projections.py",
             "label": "Profile fantasy_projections.py",
             "problemMatcher": []
         },

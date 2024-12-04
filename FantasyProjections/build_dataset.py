@@ -20,16 +20,14 @@ from misc.manage_files import collect_input_dfs, collect_roster_filter, create_f
 
 
 # Flags
-SAVE_DATA       = False # Saves data in .csv's (output files specified below)
+SAVE_DATA       = True # Saves data in .csv's (output files specified below)
 PROCESS_TO_NN   = True # After saving human-readable data, creates data formatted for Neural Network usage
-FILTER_ROSTER   = False # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
+FILTER_ROSTER   = True # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
 UPDATE_FILTER   = True # Forces re-evaluation of filtered list of players
 # Data Inputs
 TEAM_NAMES_INPUT    = "all"  # All team names
 YEARS               = range(2021, 2025) # All years to process data for
-YEARS = [2024]
 WEEKS               = range(1, 19)      # All weeks to process data for (applies this set to all years in YEARS)
-WEEKS = range(1,5)
 GAME_TIMES          = range(0, 76)      # range(0,76). Alternates: 'all', list of numbers
 
 # Folders

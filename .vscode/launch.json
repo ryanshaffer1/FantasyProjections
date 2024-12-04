@@ -6,10 +6,10 @@
     "configurations": [
         
         {
-            "name": "fantasy_projections.py: Python Debug",
+            "name": "main.py: Python Debug",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/fantasy_projections.py",
+            "program": "${workspaceFolder}/FantasyProjections/main.py",
             "console": "integratedTerminal",
             "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"}
         },
@@ -17,7 +17,7 @@
             "name": "build_dataset.py: Python Debug",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/build_dataset.py",
+            "program": "${workspaceFolder}/FantasyProjections/build_dataset.py",
             "console": "integratedTerminal",
             "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"}
         },
