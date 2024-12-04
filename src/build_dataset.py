@@ -1,6 +1,15 @@
+"""Gathers data to be used in Fantasy Football stat prediction. 
+    Pulls data from local files where possible, and from online repository when necessary (saving locally for next time). Parses inputs to determine the 
+    play-by-play performance of all NFL players or a filtered subset (filtered by highest-scoring in Fantasy Football) over all games within a specified
+    time-frame. Optionally normalizes/pre-processes the data for use in a Neural Net predictor.
+    
+    This module is a script to be run alone. Before running, the packages in requirements.txt must be installed. Use the following terminal command:
+    > pip install -u requirements.txt
+"""
+
 from datetime import datetime
 import pandas as pd
-from data_pipeline.data_helper_functions import adjust_team_names, cleanup_data, filter_team_weeks
+from data_pipeline.data_helper_functions import adjust_team_names, cleanup_data, weeks_played_by_team
 from data_pipeline.roster_filter import generate_roster_filter, apply_roster_filter
 from data_pipeline.get_game_info import get_game_info
 from data_pipeline.parse_play_by_play import parse_play_by_play
@@ -11,14 +20,16 @@ from misc.manage_files import collect_input_dfs, collect_roster_filter, create_f
 
 
 # Flags
-SAVE_DATA       = True # Saves data in .csv's (output files specified below)
+SAVE_DATA       = False # Saves data in .csv's (output files specified below)
 PROCESS_TO_NN   = True # After saving human-readable data, creates data formatted for Neural Network usage
-FILTER_ROSTER   = True # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
+FILTER_ROSTER   = False # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
 UPDATE_FILTER   = True # Forces re-evaluation of filtered list of players
 # Data Inputs
 TEAM_NAMES_INPUT    = "all"  # All team names
 YEARS               = range(2021, 2025) # All years to process data for
+YEARS = [2024]
 WEEKS               = range(1, 19)      # All weeks to process data for (applies this set to all years in YEARS)
+WEEKS = range(1,5)
 GAME_TIMES          = range(0, 76)      # range(0,76). Alternates: 'all', list of numbers
 
 # Folders
@@ -37,6 +48,14 @@ online_file_paths = {'pbp': ONLINE_DATA_SOURCE + 'pbp/play_by_play_{0}.csv',
 local_file_paths = {'pbp':INPUT_FOLDER + 'play_by_play/play_by_play_{0}.csv',
                     'roster': INPUT_FOLDER + 'rosters/roster_weekly_{0}.csv'}
 
+# Files to save
+if SAVE_DATA:
+    ROSTER_SAVE_FILE = ROSTER_FILTER_FILE
+else:
+    ROSTER_SAVE_FILE = None
+    PRE_PROCESS_FOLDER = None
+
+
 # Huge output data arrays
 midgame_df = pd.DataFrame()
 final_stats_df = pd.DataFrame()
@@ -44,12 +63,12 @@ final_stats_df = pd.DataFrame()
 # Time the script
 start_time = datetime.now()
 
-# Load dataframes from files/online
+# Load dataframes from files/online (input_dfs = (pbp_df, roster_df))
 input_dfs = collect_input_dfs(YEARS, WEEKS, local_file_paths, online_file_paths, online_avail=True)
 # Load optional roster filter
 filter_df, filter_load_success = collect_roster_filter(FILTER_ROSTER, UPDATE_FILTER, ROSTER_FILTER_FILE)
 
-for year, (pbp_df, roster_df) in zip(YEARS,input_dfs):
+for year, (pbp_df, roster_df) in zip(YEARS, input_dfs):
     print(f"------------------{year}------------------")
     adjust_team_names((team_abbreviations.pbp_abbrevs,
                        team_abbreviations.boxscore_website_abbrevs,
@@ -69,7 +88,7 @@ for year, (pbp_df, roster_df) in zip(YEARS,input_dfs):
 
         # All regular season weeks where games have been played by the team
         # (excludes byes, future weeks)
-        weeks_with_games, weeks_with_players = filter_team_weeks(all_game_info_df, all_rosters_df, full_team_name, year)
+        weeks_with_games, weeks_with_players = weeks_played_by_team(all_game_info_df, all_rosters_df, full_team_name, year)
 
         for week in WEEKS:
             if week not in weeks_with_games:
@@ -98,7 +117,7 @@ for year, (pbp_df, roster_df) in zip(YEARS,input_dfs):
 # If roster filter could not be found/applied before processing,
 # generate a roster filter file now and apply it to the data
 if FILTER_ROSTER and (not (filter_load_success) or UPDATE_FILTER):
-    filter_df = generate_roster_filter(input_dfs, final_stats_df, ROSTER_FILTER_FILE)
+    filter_df = generate_roster_filter(input_dfs, final_stats_df, ROSTER_SAVE_FILE)
     midgame_df, final_stats_df = apply_roster_filter(midgame_df, final_stats_df, filter_df)
 
 # Organize dataframes
@@ -113,6 +132,6 @@ if SAVE_DATA:
 
 # Generate/save data in a format readable into the Neural Net
 if PROCESS_TO_NN:
-    preprocess_nn_data(midgame_input=midgame_df, final_stats_input=final_stats_df, save_data=SAVE_DATA, save_folder=PRE_PROCESS_FOLDER)
+    preprocess_nn_data(midgame_input=midgame_df, final_stats_input=final_stats_df, save_folder=PRE_PROCESS_FOLDER)
 
 print(f"Done! Elapsed Time: {(datetime.now() - start_time).total_seconds()} seconds")

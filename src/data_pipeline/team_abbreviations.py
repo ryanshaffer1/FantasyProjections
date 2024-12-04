@@ -1,3 +1,15 @@
+"""Contains variables defining the team names and team abbreviations used in various NFL statistics data sources, as well as functions to manipulate these variables.
+
+    Variables: 
+        pbp_abbrevs (dict): Maps full team name to the abbreviation used in play-by-play data from nflverse.
+        boxscore_website_abbrevs (dict): Maps full team name to the abbreviation used in boxscore data from pro-football-reference.com.
+        roster_website_abbrevs (dict): Maps full team name to the abbreviation used in roster URLs from pro-football-reference.com.
+
+    Functions:
+        invert : Swaps keys and values of a dictionary.
+        convert_abbrev : Converts a team abbreviation from one format (dictionary) to another format (dictionary).
+"""
+
 pbp_abbrevs = {
     'Arizona Cardinals': 'ARI',
     'Atlanta Falcons': 'ATL',
@@ -104,9 +116,32 @@ roster_website_abbrevs = {
 }
 
 def invert(dictionary):
+    """Swaps keys and values of a dictionary.
+
+        Args:
+            dictionary (dict): Dictionary to invert
+
+        Returns:
+            dict: Inverted dictionary: all values within original dict are now keys, and vice versa.
+    """
     return {v: k for k, v in dictionary.items()}
 
 def convert_abbrev(abbrev, dict1, dict2):
+    """Converts a team abbreviation from one format (dictionary) to another format (dictionary).
+    
+        Example:
+            > convert_abbrev("ARI", pbp_abbrevs, roster_website_abbrevs)
+            "crd"
+
+        Args:
+            abbrev (str): Team abbreviation as found in dict1
+            dict1 (_type_): Original format
+            dict2 (_type_): New format
+
+        Returns:
+            str: Abbreviation for the same team, formatted according to dict2
+    """
+
     team_name = invert(dict1)[abbrev]
     new_abbrev = dict2[team_name]
     return new_abbrev

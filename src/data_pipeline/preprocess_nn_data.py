@@ -1,9 +1,42 @@
+"""Creates and exports functions to process gathered NFL stats data into a format usable by a Neural Net Fantasy Predictor.
+
+    Functions:
+        preprocess_nn_data : Converts NFL stats data from raw statistics to a Neural Network-readable format.
+        add_word_bank_to_df : Converts a column of unique values from a DataFrame into a series of columns in a new DataFrame, each one corresponding to one of the values.
+        strip_and_normalize : Trims a DataFrame to only the columns of interest, and normalizes each stat to take a value between 0 and 1.
+"""
+
 import pandas as pd
 from misc.nn_helper_functions import normalize_stat
 from misc.manage_files import create_folders
 
-def preprocess_nn_data(midgame_input=None, final_stats_input=None,
-                       save_data=True, save_folder='data/', save_filenames=None):
+def preprocess_nn_data(midgame_input, final_stats_input,
+                       save_folder=None, save_filenames=None):
+    """Converts NFL stats data from raw statistics to a Neural Network-readable format.
+    
+        Main steps:
+            1. Cleans dataframes (fills in blanks/NaNs as 0, converts all True/False to 1/0, removes non-numeric data)
+            2. Matches every row in midgame to the corresponding row in final_stats
+            3. Normalizing statistics so that all values are between 0 and 1
+            4. Encoding player, team, and opponent IDs as vectors of 0's and 1's (1 corresponds to the correct ID, 0 everywhere else)
+
+        Args:
+            midgame_input (pandas.DataFrame | str): Stats accrued over the course of an NFL game for a set of players/games, OR path to csv file containing this data.
+            final_stats_input (pandas.DataFrame | str): Stats at the end of an NFL game for a set of players/games, OR path to csv file containing this data.
+            save_folder (str, optional): folder to save files that can be ingested by a Neural Net Fantasy Predictor. Defaults to None (files will not be saved).
+            save_filenames (dict, optional): Filename to use for each neural net input csv. Defaults to:
+            {
+                "midgame": "midgame_data_to_nn.csv",
+                "final": "final_stats_to_nn.csv",
+                "id": "data_ids.csv"
+            }
+
+        Returns:
+            pandas.DataFrame: Midgame input data in Neural Net-readable format
+            pandas.DataFrame: Final Stats input data in Neural Net-readable format
+            pandas.DataFrame: ID (player/game information) input data in Neural Net-readable format
+    """
+
     # Optional save_filenames input
     if not save_filenames:
         save_filenames = {
@@ -94,12 +127,14 @@ def preprocess_nn_data(midgame_input=None, final_stats_input=None,
     # Encode each non-numeric, relevant pbp field (Player, Team, Position) in a "word bank":
     fields = ["Position", "Player", "Team", "Opponent"]
     for field in fields:
-        midgame_input = add_word_bank_to_df(field, id_df, midgame_input)
+        word_bank_df = add_word_bank_to_df(field, id_df)
+        midgame_input = pd.concat((midgame_input, word_bank_df), axis=1)
+
 
     print('Data pre-processed for projections')
 
     # Save data
-    if save_data:
+    if save_folder is not None:
         create_folders(save_folder)
         print('Saving pre-processed NN data...')
         midgame_input.to_csv(f'{save_folder}{save_filenames['midgame']}', index=False)
@@ -110,18 +145,41 @@ def preprocess_nn_data(midgame_input=None, final_stats_input=None,
     return midgame_input, final_stats_input, id_df
 
 
-def add_word_bank_to_df(field, id_df, midgame_input):
+def add_word_bank_to_df(field, id_df):
+    """Converts a column of unique values from a DataFrame into a series of columns in a new DataFrame, each one corresponding to one of the values.
+        For each row of the DataFrame, a 1 is placed in the column corresponding to its original value, and 0's are placed in every other new column.
+        Note that no columns are removed from the original DataFrames, including the column used to generate the word bank.
+        
+        Args:
+            field (str): Name of column in id_df to "enumerate" (convert into distinct columns). Example: "Player"
+            id_df (pandas.DataFrame): DataFrame containing the player/game info, including the column of unique values.
+
+        Returns:
+            pandas.DataFrame: DataFrame containing the series of columns, each corresponding to a unique value in the input DataFrame column.
+    """
+
     word_bank = id_df[field].unique()
     word_bank.sort()
     print(f"{len(word_bank)} unique {field}s")
-    df = pd.DataFrame(columns=field + "=" + word_bank)
+    word_bank_df = pd.DataFrame(columns=field + "=" + word_bank)
     for entry in word_bank:
-        df[field + "=" + entry] = (id_df[field] == entry).astype(int)
-    midgame_input = pd.concat((midgame_input, df), axis=1)
+        word_bank_df[field + "=" + entry] = (id_df[field] == entry).astype(int)
 
-    return midgame_input
+    return word_bank_df
 
 def strip_and_normalize(df, cols):
+    """Trims a DataFrame to only the columns of interest, and normalizes each stat to take a value between 0 and 1.
+    
+        The normalization calculation is performed in a separate function, normalize_stat()
+
+        Args:
+            df (pandas.DataFrame): DataFrame containing NFL stats data.
+            cols (list): List of columns in df to retain.
+
+        Returns:
+            pandas.DataFrame: input DataFrame, with only the input columns included, and all numeric values between 0 and 1.
+    """
+
     df = df[cols]
     df = df.apply(normalize_stat,axis=0)
     return df

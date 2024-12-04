@@ -128,6 +128,8 @@ def move_logfile(curr_filepath,new_folder):
     # Create folder if it does not exist
     create_folders(new_folder)
 
+    logger.info(f'Saving logfile to {new_folder}')
+
     # Move file to new path
     filename = curr_filepath.split('/')[-1]
     new_filepath = new_folder + filename

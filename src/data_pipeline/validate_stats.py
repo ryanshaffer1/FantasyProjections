@@ -1,3 +1,9 @@
+"""Validates that data used in Fantasy Football stat prediction matches statistics gathered from an independent source. 
+    
+    This module is a script to be run alone. Before running, the packages in requirements.txt must be installed. Use the following terminal command:
+    > pip install -u requirements.txt
+"""
+
 from datetime import datetime
 import pandas as pd
 import matplotlib.pyplot as plt

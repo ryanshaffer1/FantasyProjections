@@ -1,3 +1,9 @@
+"""Creates and exports functions to gather data from pro-football-reference.com.
+
+    Functions:
+        scrape_box_score : Obtains box-score statistics (final player stats for a game) from pro-football-reference.com for all players on a given team in a given game.
+"""
+
 from datetime import datetime
 from time import sleep
 import requests
@@ -12,6 +18,16 @@ REQ_WAIT_TIME = 2  # seconds between web scraper HTTP requests
 
 
 def scrape_box_score(stats_html, full_team_name):
+    """Obtains box-score statistics (final player stats for a game) from pro-football-reference.com for all players on a given team in a given game.
+
+        Args:
+            stats_html (str): HTML to page containing game stats on pro-football-reference.com.
+            full_team_name (str): Name of the team to process.
+
+        Returns:
+            pandas.DataFrame: Final stats for each player on the team who played in the game.
+    """
+
     # Gathers offensive stats from a game
 
     box_score_df = pd.DataFrame()

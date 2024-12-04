@@ -1,6 +1,6 @@
 """Creates multiple Fantasy Football stat predictors (using various prediction algorithms), evaluates their predictions for a user-configurable
     set of past NFL games, and logs/visualizes the results in multiple user-configurable plots.
-    Many user settings for the Neural Network Predictor, which is the most custom (and most important) type of predictor in the project.
+    Contains many user settings for the Neural Network Predictor, which is the most custom (and most important) type of predictor in the project.
     
     This module is a script to be run alone. Before running, the packages in requirements.txt must be installed. Use the following terminal command:
     > pip install -u requirements.txt
@@ -108,7 +108,7 @@ hp_tuner_settings = {
     'plot_tuning_results': True,
 }
 nn_settings = {
-    'max_epochs': 100,
+    'max_epochs': 1,
     'n_epochs_to_stop': 5,
 }
 
@@ -174,9 +174,9 @@ scatter_plot_settings.append({'columns': ['Fantasy Points'],
 
 # Initialize and train neural net
 # neural_net1 = NeuralNetPredictor(name='Bad Neural Net', load_file=BAD_FILE, **nn_settings)
-neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, save_folder=save_folder, **nn_settings)
-# neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_settings)
-# param_tuner.tune_neural_net(neural_net, training_data, validation_data)
+# neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, save_folder=save_folder, **nn_settings)
+neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_settings)
+param_tuner.tune_neural_net(neural_net, training_data, validation_data)
 
 # Create Sleeper prediction model
 sleeper_predictor = SleeperPredictor(name='Sleeper',
@@ -199,11 +199,10 @@ perfect_result = perfect_predictor.eval_model(eval_data=test_data)
 # Plot evaluation results
 all_results = PredictionResultGroup((nn_result,))
 all_results.plot_all(PredictionResult.plot_error_dist, together=True, absolute=True)
-all_results.plot_all(PredictionResult.plot_single_games, n_random=0)
+all_results.plot_all(PredictionResult.plot_single_games, n_random=5)
 all_results.plot_all(PredictionResult.plot_scatters, scatter_plot_settings)
 
 # Move logfile to the correct folder
-logger.info(f'Saving logfile to {save_folder}')
 logging.shutdown()
 move_logfile('logfile.log',save_folder)
 

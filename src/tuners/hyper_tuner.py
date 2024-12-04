@@ -1,9 +1,51 @@
+"""Creates and exports multiple classes that support the handling and manipulation of Neural Network HyperParameters.
+    Hyper-Parameter = Variable within ML equations which is not learned by the model during training, and must be set before training.
+
+    This class cannot optimize HyperParameters on its own, but forms the building blocks and base class to implement optimization according to other algorithms.
+
+    Classes:
+        HyperParameter : Class handling the value and variations of a Neural Net Hyper-Parameter.
+        HyperParameterSet : Groups HyperParameter objects together and allows for simultaneous modification of multiple HyperParameters.
+        HyperParameterTuner : Base class for Tuner objects which modify values of a HyperParameterSet in order to optimize Neural Net performance according to some algorithm.
+"""
+
 from dataclasses import dataclass, field, InitVar
 import numpy as np
 import pandas as pd
 
 @dataclass
 class HyperParameter():
+    """Class handling the value and variations of a Neural Net Hyper-Parameter.
+    
+        Hyper-Parameter = Variable within ML equations which is not learned by the model during training, and must be set before training.
+    
+        Args:
+            name (str): name of the hyper-parameter. Used within training logic and must match a set list of valid hyper-parameters:
+                - learning_rate
+                - lmbda
+                - loss_fn
+                - mini_batch_size
+            optimizable (bool): Whether the hyper-parameter can be modified by a HyperParameter Tuner. (Whether it is actually optimized depends on the tuner.)
+                Note that optimizable is not tracked as an object attribute, being redundant to other data.
+            value (float, optional): Initial value to assume if not optimizing. Defaults to 0.
+            val_range (list, optional): Minimum and maximum values to use if optimizing. Defaults to [self.value] (preventing optimizing).
+            val_scale (str, optional): Type of scale to use when setting values within val_range. Defaults to "none". Options include:
+                - "none"
+                - "linear"
+                - "log"
+                - "selection"
+            num_steps (int, optional): Number of unique values to use when optimizing. Defaults to 1 (preventing optimizing).
+        
+        Additional Class Attributes:
+            values (list): Sequence of values to use as the value attribute over successive tuning iterations. Determined by a HyperParameterTuner.
+                Unique values may repeat.
+            gridpoints (list): Array of unique values (with no repetition) to use in a grid search HyperParameter optimization.
+
+        Public Methods:
+            gen_gridpoints : Generates list of unique values to use in a grid search HyperParamater optimization.
+            set_value : Sets HyperParameter attribute value to a specific index within the list of values.
+    """
+
     # CONSTRUCTOR
     name: str
     optimizable: InitVar[bool | None]
@@ -14,6 +56,9 @@ class HyperParameter():
     num_steps: int = 1
 
     def __post_init__(self, optimizable):
+        # Evaluates as part of the Constructor.
+        # Generates attributes that are not simple data copies of inputs.
+
         self.values = [self.value] # This may be overwritten by a HyperParameterSet object, if optimizing
         if not self.val_range or not optimizable:
             self.val_range = [self.value]
@@ -23,6 +68,12 @@ class HyperParameter():
     # PUBLIC METHODS
 
     def gen_gridpoints(self):
+        """Generates list of unique values to use in a grid search HyperParamater optimization.
+        
+            Uses object attributes val_range, val_scale, and num_steps. 
+            Creates object attribute gridpoints. May update num_steps to 1 if necessary.        
+        """
+
         if len(self.val_range) > 1:
             match self.val_scale:
                 case 'linear':
@@ -48,14 +99,39 @@ class HyperParameter():
 
 
     def set_value(self, i):
+        """Sets HyperParameter attribute value to a specific index within the list of values (list determined by a HyperParameterTuner).
+
+            Args:
+                i (int): Index of object attribute values to use as new self.value.
+        """
+
         self.value = self.values[i]
+
 
 @dataclass
 class HyperParameterSet():
+    """Groups HyperParameter objects together and allows for simultaneous modification of multiple HyperParameters.
+    
+        Args:
+            hyper_parameters (tuple): tuple of HyperParameter objects. All HyperParameters must be initialized prior to initializing HyperParameterSet.
+            optimize (bool): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
+        
+        Additional Class Attributes:
+            total_gridpoints (int): Number of unique combinations of HyperParameter values.
+
+        Public Methods:
+            get : Returns a HyperParameter from a HyperParameterSet based on the HyperParameter's name.
+            refine_grid : Implements Recursive Grid Search by generating new gridpoints/values for each HyperParameter, "zooming in" closer to the values at the provided index.
+            set_values : Sets value of all HyperParameter objects in set to value at a specific index within the list of values.
+    """
+
     hyper_parameters: tuple
     optimize: bool = True
 
     def __post_init__(self):
+        # Evaluates as part of the Constructor.
+        # Generates attributes that are not simple data copies of inputs.
+
         if self.optimize:
             self.__gen_grid()
         else:
@@ -67,12 +143,29 @@ class HyperParameterSet():
     # PUBLIC METHODS
 
     def get(self,hp_name):
+        """Returns a HyperParameter from a HyperParameterSet based on the HyperParameter's name.
+
+            Args:
+                hp_name (str): Name of HyperParameter object within HyperParameterSet to return.
+
+            Returns:
+                HyperParameter: (first) object in HyperParameterSet.hyper_parameters with a name matching the input.
+        """
+
         # Returns the hyper-parameter in the set with the provided name.
         hp_names = [hp.name for hp in self.hyper_parameters]
         return self.hyper_parameters[hp_names.index(hp_name)]
 
 
     def refine_grid(self, ind):
+        """Implements Recursive Grid Search by generating new gridpoints/values for each HyperParameter, "zooming in" closer to the values at the provided index. 
+
+            Args:
+                ind (int): Index of HyperParameter.values attribute to refine grid around
+            Modifies: 
+                .gridpoints and .values for each object in self.hyper_parameters
+        """
+
         # "Zoom in" on the area of interest and generate new gridpoints closer to the provided index
         # Find new value ranges for each hyperparameter
         for hp in self.hyper_parameters:
@@ -123,6 +216,12 @@ class HyperParameterSet():
 
 
     def set_values(self, ind):
+        """Sets value of all HyperParameter objects in set to value at a specific index within the list of values.
+
+            Args:
+                ind (int): Index of object attribute values to use as new self.value.
+        """
+
         if self.optimize:
             for hp in self.hyper_parameters:
                 hp.set_value(ind)
@@ -145,12 +244,36 @@ class HyperParameterSet():
 
 @dataclass
 class HyperParamTuner():
+    """Base class for Tuner objects which modify values of a HyperParameterSet in order to optimize Neural Net performance according to some algorithm.
+    
+        Sub-classes implement specific prediction algorithms, including:
+                GridSearchTuner: optimizes HyperParameters using a Recursive Grid Search algorithm.
+    
+        Args:
+            param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
+            save_folder (str): path to folder where any tuning performance logs should be saved.
+            optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
+                Defaults to False.
+            plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
+        
+        Additional Class Attributes:
+            model_perf_list (list): Performance of Neural Net (e.g. Validation Error, loss, etc.) after each tuning iteration
+            hyper_tuning_table (list): Table recording HyperParameter values and subsequent Neural Network performance after each tuning iteration
+
+        Public Methods:
+            None
+    """
+
+
     param_set: HyperParameterSet
     save_folder: str
     optimize_hypers: bool = False
     plot_tuning_results: bool = False
 
     def __post_init__(self):
+        # Evaluates as part of the Constructor.
+        # Generates attributes that are not simple data copies of inputs.
+
         # Initialize attributes to use later in tuning
         self.model_perf_list = [] # List of model performance values for all combos of hyperparameter values
         self.hyper_tuning_table = []
@@ -161,6 +284,9 @@ class HyperParamTuner():
     # PROTECTED METHODS
 
     def _save_hp_tuning_results(self, addl_columns=None, filename=None):
+        # Generates table with results of HyperParameter tuning (input HyperParameter values and output Neural Net performance),
+        # and optionally saves the table to a file.
+
         # Handle additional columns input
         if not addl_columns:
             addl_columns = {}

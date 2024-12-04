@@ -1,3 +1,10 @@
+"""Creates and exports class to be used as one approach to optimizing HyperParameters for a Neural Network.
+
+    Classes:
+        GridSerachTuner : Optimizes HyperParameters of a Neural Network for best performance (minimum evaluation error after training) via a Recursive Grid Search algorithm.
+            Child of HyperParameterTuner.
+"""
+
 from dataclasses import dataclass
 import logging
 import numpy as np
@@ -10,6 +17,27 @@ logger = logging.getLogger('log')
 
 @dataclass
 class GridSearchTuner(HyperParamTuner):
+    """Optimizes HyperParameters of a Neural Network for best performance (minimum evaluation error after training) via a Recursive Grid Search algorithm.
+    
+        Sub-class of HyperParameterTuner.
+    
+        Args:
+            param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
+            save_folder (str): path to folder where any tuning performance logs should be saved.
+            optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
+                Defaults to False.
+            plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
+            hyper_tuner_layers (int, optional): Number of grid search layers to perform (each recursion layer is "zooming in" closer to a local optima.) Defaults to 1 (no zooming in).
+            hyper_tuner_steps_per_dim (int, optional): Number of unique values to use for each optimizable HyperParameter. Defaults to 3.
+            scale_epochs_over_layers (bool, optional): Whether each grid search layer gets a doubling of max epoch and early stopping condition. Defaults to False.
+        
+        Additional Class Attributes:
+            save_folder (str): path to file where tuning performance log will be saved. Filename is "hyper_grid.csv".
+
+        Public Methods:
+            tune_neural_net : Performs iterative training and validation of a Neural Net to find an optimal combination of HyperParameters.
+    """
+
     hyper_tuner_layers: int = 1
     hyper_tuner_steps_per_dim: int = 3
     scale_epochs_over_layers: bool = False
@@ -25,6 +53,14 @@ class GridSearchTuner(HyperParamTuner):
     # PUBLIC METHODS
 
     def tune_neural_net(self, net, training_data, validation_data):
+        """Performs iterative training and validation of a Neural Net to find an optimal combination of HyperParameters. Implements recursive grid search to optimize.
+
+            Args:
+                net (NeuralNetPredictor): Predictor of NFL players' stats in games, using a Neural Net to generate predictions.
+                training_data (StatsDataset): data to use for Neural Net training
+                validation_data (StatsDataset): data to use for Neural Net evaluation (computation of average error against truth)
+        """
+
         for tune_layer in range(self.hyper_tuner_layers):
             logger.info(f'Optimization Round {tune_layer+1} of {self.hyper_tuner_layers} -------------------------------')
             # Iterate through all combinations of hyperparameters
@@ -62,6 +98,8 @@ class GridSearchTuner(HyperParamTuner):
     # PRIVATE METHODS
 
     def __next_hp_layer(self,neural_net,tune_layer):
+        # Generates the grid for the next layer of a recursive grid search.
+
         min_grid_index = np.nanargmin(self.model_perf_list)
         if self.optimize_hypers:
             # Save the results of the previous layer

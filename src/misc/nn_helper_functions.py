@@ -1,54 +1,41 @@
+"""Creates and exports helper functions commonly used when manipulating Fantasy Projections data.
+
+    Functions:
+        normalize_stat : Converts statistics from true values (i.e. football stats) to normalized values (scaled between 0 and 1).
+        unnormalize_stat : Converts statistics from normalized values (scaled between 0 and 1) back to true values (i.e. actual football stats).
+        stats_to_fantasy_points : Calculates Fantasy Points corresponding to an input stat line, based on fantasy scoring rules.
+        remove_game_duplicates : Filters evaluation data to only contain one entry per unique game/player.
+        gen_random_games : Generates random game/player combinations from input dataset, with no repeating.
+        linear_regression : Performs Simple Linear Regression on x_data and y_data to determine line of best fit (slope, intercept) and coefficient of determination (r_squared).
+"""
+
 import logging
 import numpy as np
 import pandas as pd
+from config import stats_config
 
 # Set up logger
 logger = logging.getLogger('log')
 
-thresholds = {
-    "Elapsed Time": [0, 60],
-    "Team Score": [0, 100],
-    "Opp Score": [0, 100],
-    "Possession": [0, 1],
-    "Field Position": [0, 100],
-    "Pass Att": [0, 100],
-    "Pass Cmp": [0, 100],
-    "Pass Yds": [-50, 1000],
-    "Pass TD": [0, 8],
-    "Int": [0, 8],
-    "Rush Att": [0, 100],
-    "Rush Yds": [-50, 1000],
-    "Rush TD": [0, 8],
-    "Rec": [0, 100],
-    "Rec Yds": [-50, 1000],
-    "Rec TD": [0, 8],
-    "Fmb": [0, 8],
-    "Age": [0, 60],
-    "Site": [0, 1],
-    "Team Wins": [0, 18],
-    "Team Losses": [0, 18],
-    "Team Ties": [0, 18],
-    "Opp Wins": [0, 18],
-    "Opp Losses": [0, 18],
-    "Opp Ties": [0, 18],
-}
+def normalize_stat(col, thresholds=None):
+    """Converts statistics from true values (i.e. football stats) to normalized values (scaled between 0 and 1).
 
-# Names of all statistics
-stat_indices_default = [
-    'Pass Att',
-    'Pass Cmp',
-    'Pass Yds',
-    'Pass TD',
-    'Int',
-    'Rush Att',
-    'Rush Yds',
-    'Rush TD',
-    'Rec',
-    'Rec Yds',
-    'Rec TD',
-    'Fmb']
+        Values are scaled based on notional threshold values set for each statistic, and values outside the thresholds
+        are bounded ("clipped") to 0 and 1.
 
-def normalize_stat(col):
+        Args:
+            col (pandas.Series): Series of data corresponding to a football stat, with Series name matching a key in the dictionary "thresholds"
+            thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
+                lie between 0 and 1. Defaults to dictionary "default_norm_thresholds" defined in configuration files.
+
+        Returns:
+            pandas.Series: Series of normalized data where each entry in col is mapped between 0 and 1 according to the bounds in thresholds
+    """
+
+    # Optional input
+    if not thresholds:
+        thresholds = stats_config.default_norm_thresholds
+
     if col.name in thresholds:
         [lwr, upr] = thresholds[col.name]
         col = (col - lwr) / (upr - lwr)
@@ -59,7 +46,22 @@ def normalize_stat(col):
     return col
 
 
-def unnormalize_stat(col):
+def unnormalize_stat(col, thresholds=None):
+    """Converts statistics from normalized values (scaled between 0 and 1) back to true values (i.e. actual football stats).
+
+        Args:
+            col (pandas.Series): Series of data corresponding to a normalized stat, with Series name matching a key in the dictionary "thresholds"
+            thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
+                lie between 0 and 1. Defaults to dictionary "default_norm_thresholds" defined in configuration files.
+
+        Returns:
+            pandas.Series: Series of unnormalized data where each entry in col is scaled up according to the bounds in thresholds
+    """
+
+    # Optional input
+    if not thresholds:
+        thresholds = stats_config.default_norm_thresholds
+
     if col.name in thresholds:
         # Unfortunately can't undo the clipping from 0 to 1 performed during
         # normalization, so there's a small chance of lost info...
@@ -71,20 +73,33 @@ def unnormalize_stat(col):
     return col
 
 
-def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False):
-    if stat_indices == 'default':
-        stat_indices = stat_indices_default
+def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, scoring_weights=None):
+    """Calculates Fantasy Points corresponding to an input stat line, based on fantasy scoring rules.
 
-    # Scoring rules in fantasy format
-    fantasy_rules = {'pass_ypp': 25,
-                     'pass_td': 4,
-                     'int': -2,
-                     'rush_ypp': 10,
-                     'rush_td': 6,
-                     'ppr': 1,
-                     'rec_ypp': 10,
-                     'rec_td': 6,
-                     'fmb': -2}
+        Args:
+            stat_line (pandas.Series | pandas.DataFrame | torch.tensor): Stats to use to calculate fantasy points. 
+                If 1D data array, each entry is assumed to correspond to a different statistic (e.g. Pass Yds, Pass TD, etc.).
+                If 2D data array, each column is assumed to correspond to a different statistic.
+                Data may be normalized or un-normalized, with input "normalized" set accordingly.
+            stat_indices (str | list, optional): For data without column headers or row indices, used to determine the 
+                order of statistics contained in stat_line. Defaults to None. May be passed as string "default" in order to use default_stat_list.
+            normalized (bool, optional): Whether stats in stat_line are already normalized (converted such that all values are between 0 and 1)
+                or un-normalized (in standard football stat ranges). Defaults to False.
+            scoring_weights (dict, optional): Fantasy points per unit of each statistic (e.g. points per passing yard, points per reception, etc.)
+                Defaults to default_scoring_weights.
+
+        Returns:
+            pandas.DataFrame: stat_line, un-normalized and with column headers corresponding to stat indices, with an additional entry for
+                Fantasy Points calculated based on the fantasy scoring rules.
+    """
+
+    # Optional input
+    if not scoring_weights:
+        # Scoring rules in fantasy format
+        scoring_weights = stats_config.default_scoring_weights
+
+    if stat_indices == 'default':
+        stat_indices = stats_config.default_stat_list
 
     if stat_indices:
         stat_line = pd.DataFrame(stat_line)
@@ -95,29 +110,24 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False):
         for col in stat_line.columns:
             stat_line[col] = unnormalize_stat(stat_line[col])
 
-    # Passing
-    pass_points = stat_line['Pass Yds'] / fantasy_rules['pass_ypp'] + stat_line['Pass TD'] * \
-        fantasy_rules['pass_td'] + stat_line['Int'] * fantasy_rules['int']
-
-    # Rushing
-    rush_points = stat_line['Rush Yds'] / fantasy_rules['rush_ypp'] + \
-        stat_line['Rush TD'] * fantasy_rules['rush_td']
-
-    # Receiving
-    rec_points = stat_line['Rec'] * fantasy_rules['ppr'] + stat_line['Rec Yds'] / \
-        fantasy_rules['rec_ypp'] + stat_line['Rec TD'] * fantasy_rules['rec_td']
-
-    # Misc.
-    misc_points = stat_line['Fmb'] * fantasy_rules['fmb']
-
-    # Add fantasy points to stat line
-    stat_line['Fantasy Points'] = pass_points + \
-        rush_points + rec_points + misc_points
+    stat_line['Fantasy Points'] = (stat_line[scoring_weights.keys()] * scoring_weights).sum(axis=1)
 
     return stat_line
 
 
 def remove_game_duplicates(eval_data):
+    """Filters evaluation data to only contain one entry per unique game/player.
+    
+        Removes all but the first row in id_data for each Player/Year/Week combination. (First row is typically when Elapsed Time = 0).
+        Does not modify x_data.
+
+        Args:
+            eval_data (StatsDataset): data containing NFL game/player final statistics
+
+        Returns:
+            StatsDataset: input StatsDataset, modified to only have one row per unique game/player
+    """
+
     duplicated_rows_eval_data = eval_data.id_data.reset_index().duplicated(subset=[
         'Player', 'Year', 'Week'])
     eval_data.y_data = eval_data.y_data[np.logical_not(duplicated_rows_eval_data)]
@@ -127,6 +137,25 @@ def remove_game_duplicates(eval_data):
 
 
 def gen_random_games(id_df, n_random, game_ids=None):
+    """Generates random game/player combinations from input dataset, with no repeating.
+
+        Args:
+            id_df (pandas.DataFrame): DataFrame containing "Player", "Week", and "Year" as columns
+            n_random (int): Number of random game/player combinations to generate
+            game_ids (list, optional): List of pre-selected (not random) games/players. Defaults to None. 
+                Each element in list must be a dict containing the following keys:
+                    - "Player" : value -> str
+                    - "Year" : value -> int
+                    - "Week" : value -> int
+
+        Returns:
+            list: List of games/players, including any pre-selected as well as randomly-selected games/players. 
+                Each element in list is a dict containing the following keys:
+                    - "Player" : value -> str
+                    - "Year" : value -> int
+                    - "Week" : value -> int
+    """
+
     if not game_ids:
         game_ids = []
     # (Optionally) Add random players/games to plot
@@ -144,7 +173,7 @@ def gen_random_games(id_df, n_random, game_ids=None):
 
 
 def linear_regression(x_data, y_data):
-    """Performs Simple Linear Regression on x_data and y_data to determine line of best fit (slope, intercept) and coefficient of determination (r_squared)
+    """Performs Simple Linear Regression on x_data and y_data to determine line of best fit (slope, intercept) and coefficient of determination (r_squared).
     
         Equations taken from:
         https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/images/Regression_and_Correlation.pdf (p. 6)

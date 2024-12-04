@@ -1,3 +1,8 @@
+"""Visualization functions used for displaying the results of Neural Net HyperParameter tuning.
+
+    Functions:
+        plot_grid_search_results : Generates plot showing the Neural Net performance as two HyperParameters are varied simultaneously.
+"""
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
@@ -5,6 +10,14 @@ import pandas as pd
 
 
 def plot_grid_search_results(filename,param_set,variables=None):
+    """Generates plot showing the Neural Net performance as two HyperParameters are varied simultaneously.
+
+        Args:
+            filename (str): File containing inputs and results for GridSearchTuner hyper-parameter tuning.
+            param_set (HyperParameterSet): Group of HyperParameters varied over the course of the tuning process.
+            variables (tuple | list, optional): 2-element array. Names of the HyperParameters to use as x- and y-axes of plot. Defaults to None. (Won't work without input...)
+    """
+
     # Caution: this will only work for linear or log-scale variables
 
     hp_label_dict = {

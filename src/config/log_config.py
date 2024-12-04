@@ -1,3 +1,14 @@
+"""Contains variables defining the configuration of logging channels/handlers used in Fantasy Projections.
+
+    Documentation on logging and logging config files:
+        https://docs.python.org/3/library/logging.config.html
+        https://docs.python.org/3/howto/logging.html
+        https://stackoverflow.com/questions/7507825/where-is-a-complete-example-of-logging-config-dictconfig
+
+    Variables: 
+        LOGGING_CONFIG (dict): json-like, configures logging formatters and handlers
+"""
+
 LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': True,

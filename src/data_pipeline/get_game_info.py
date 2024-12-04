@@ -1,3 +1,12 @@
+"""Creates and exports functions to generate/process a list of all NFL games in a given year, adding relevant data for each game.
+
+    Functions:
+        get_game_info : Generates info on every game for each team in a given year: who is home vs away, and records of each team going into the game.
+        compute_team_record : Computes the record (wins, losses, and ties) of a team GOING INTO each game (i.e. not including the result of the current game).
+        track_wins_losses_ties : Tracks whether each game is a win, loss, or tie for the team.
+        shift_val_one_game_back : Converts a team's wins, losses, or ties over the course of a season from post-game to pre-game values.
+"""
+
 import dateutil.parser as dateparse
 import pandas as pd
 import numpy as np
@@ -6,8 +15,18 @@ from data_pipeline import team_abbreviations
 URL_INTRO = 'https://www.pro-football-reference.com/boxscores/'
 
 def get_game_info(year, pbp_df):
-    # For a given year, generates info on every game for each team: who is home vs away, and records of each team going into the game
-    # Also generates url to get game stats from pro-football-reference.com
+    """Generates info on every game for each team in a given year: who is home vs away, and records of each team going into the game.
+
+        Also generates url to get game stats from pro-football-reference.com.
+        Note that each game is included twice - once from the perspective of each team (i.e. "Team" and "Opponent" info are swapped).
+
+        Args:
+            year (int): Year being processed
+            pbp_df (pandas.DataFrame): Play-by-Play data for all plays in the year, obtained from nfl-verse
+
+        Returns:
+            pandas.DataFrame: DataFrame containing game info on each unique game in the NFL season being processed (teams, pre-game team records, etc.)
+    """
 
     # Filter df to only the final play of each game
     pbp_df = pbp_df.drop_duplicates(subset='game_id',keep='last')
@@ -87,15 +106,19 @@ def get_game_info(year, pbp_df):
     return all_games_df
 
 
-def pbp_abbrev_to_roster_site_abbrev(pbp_abbrev):
-    team_name = team_abbreviations.invert(team_abbreviations.pbp_abbrevs)[pbp_abbrev]
-    roster_abbrev = team_abbreviations.roster_website_abbrevs[team_name]
-    return roster_abbrev
-
-
 def compute_team_record(scores_df):
+    """Computes the record (wins, losses, and ties) of a team GOING INTO each game (i.e. not including the result of the current game).
+
+        Args:
+            scores_df (pandas.DataFrame): DataFrame with a row for each game, including the score of each game.
+                Must contain all games from Week 1 through the current (or final) week, with no skipped games, for each team being handled (may be one team at a time or the entire league at once).
+
+        Returns:
+            pandas.DataFrame: Input DataFrame, with three columns added: "Team Wins", "Team Losses", "Team Ties". These correspond to the team's record GOING INTO the game.
+    """
+
     # Add columns tracking whether each game is a win, loss, or tie for the team
-    scores_df = add_wins_losses_ties(scores_df)
+    scores_df = track_wins_losses_ties(scores_df)
 
     # Track team record heading into each week
     scores_df = scores_df.sort_values(by='Week')
@@ -116,7 +139,16 @@ def compute_team_record(scores_df):
     return scores_df
 
 
-def add_wins_losses_ties(scores_df):
+def track_wins_losses_ties(scores_df):
+    """Tracks whether each game is a win, loss, or tie for the team.
+
+        Args:
+            scores_df (pandas.DataFrame): DataFrame with a row for each game, including the score of each game.
+        
+        Returns:
+            pandas.DataFrame: Input DataFrame, with three columns added: "Win", "Loss", "Tie". These correspond to the team's record GOING INTO the game.
+    """
+
     scores_df['Tie'] = scores_df['total_home_score'] == scores_df['total_away_score']
     scores_df['Win Loc'] = scores_df.apply(lambda x: 'Home' if x['total_home_score']>=x['total_away_score'] else 'Away', axis=1)
     scores_df['Win'] = (scores_df['Win Loc'] == scores_df['Site']) & (np.logical_not(scores_df['Tie']))
@@ -128,15 +160,27 @@ def add_wins_losses_ties(scores_df):
     return scores_df
 
 
-def shift_val_one_game_back(list_of_val_by_team,games_played_by_team):
+def shift_val_one_game_back(postgame_vals_by_team_week,games_played_by_team):
+    """Converts a team's wins, losses, or ties over the course of a season from post-game to pre-game values.
+
+        Can process multiple teams simultaneously, or one game at a time (current use case).
+
+        Args:
+            postgame_vals_by_team_week (list): List of postgame wins OR losses OR ties for all weeks/teams currently being processed
+            games_played_by_team (pandas.Series): Number of games played by each team currently being processed
+
+        Returns:
+            list: List of pregame wins OR losses OR ties for all weeks/teams currently being processed
+    """
+
     last_game_played_by_team = [x-1 for x in games_played_by_team.cumsum().to_list()]
     last_game_played_by_team.reverse()
     # Remove last games played by each team
     for ind in last_game_played_by_team:
-        del list_of_val_by_team[ind]
+        del postgame_vals_by_team_week[ind]
     # Add a zero at the beginning of each team's season
     zero_indices = [0] + games_played_by_team.cumsum().iloc[0:-1].to_list()
     for ind in zero_indices:
-        list_of_val_by_team[ind:ind] = [0]
+        postgame_vals_by_team_week[ind:ind] = [0]
 
-    return list_of_val_by_team
+    return postgame_vals_by_team_week
