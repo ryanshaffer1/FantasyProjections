@@ -17,14 +17,16 @@ from config import stats_config
 # Set up logger
 logger = logging.getLogger('log')
 
-def normalize_stat(col, thresholds=None):
+def normalize_stat(data, thresholds=None):
     """Converts statistics from true values (i.e. football stats) to normalized values (scaled between 0 and 1).
 
         Values are scaled based on notional threshold values set for each statistic, and values outside the thresholds
         are bounded ("clipped") to 0 and 1.
 
         Args:
-            col (pandas.Series): Series of data corresponding to a football stat, with Series name matching a key in the dictionary "thresholds"
+            data (pandas.Series | pandas.DataFrame): Series or DataFrame of data.
+                If Series: corresponds to a single football stat, with Series name matching a key in the dictionary "thresholds".
+                If DataFrame: corresponds to multiple football stats, with column names all matching a key in the dictionary "thresholds".
             thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
                 lie between 0 and 1. Defaults to dictionary "default_norm_thresholds" defined in configuration files.
 
@@ -36,21 +38,28 @@ def normalize_stat(col, thresholds=None):
     if not thresholds:
         thresholds = stats_config.default_norm_thresholds
 
-    if col.name in thresholds:
-        [lwr, upr] = thresholds[col.name]
-        col = (col - lwr) / (upr - lwr)
-        col = col.clip(0, 1)
-    else:
-        logger.warning(f'Warning: {col.name} not explicitly normalized')
+    # Normalize column-by-column, depending on type of input data
+    match type(data):
+        case pd.Series:
+            # Only one column of data
+            data = _normalize_series(data,thresholds)
+        case pd.DataFrame:
+            # Normalize one column at a time
+            data = data.apply(_normalize_series,args=(thresholds,),axis=0)
+        case _:
+            # Invalid data type
+            raise TypeError('Invalid Data Type')
 
-    return col
+    return data
 
 
-def unnormalize_stat(col, thresholds=None):
+def unnormalize_stat(data, thresholds=None):
     """Converts statistics from normalized values (scaled between 0 and 1) back to true values (i.e. actual football stats).
 
         Args:
-            col (pandas.Series): Series of data corresponding to a normalized stat, with Series name matching a key in the dictionary "thresholds"
+            data (pandas.Series | pandas.DataFrame): Series or DataFrame of normalized data.
+                If Series: corresponds to a single normalized football stat, with Series name matching a key in the dictionary "thresholds".
+                If DataFrame: corresponds to multiple normalized football stats, with column names all matching a key in the dictionary "thresholds".
             thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
                 lie between 0 and 1. Defaults to dictionary "default_norm_thresholds" defined in configuration files.
 
@@ -62,18 +71,22 @@ def unnormalize_stat(col, thresholds=None):
     if not thresholds:
         thresholds = stats_config.default_norm_thresholds
 
-    if col.name in thresholds:
-        # Unfortunately can't undo the clipping from 0 to 1 performed during
-        # normalization, so there's a small chance of lost info...
-        [lwr, upr] = thresholds[col.name]
-        col = col * (upr - lwr) + lwr
-    else:
-        logger.warning(f'Warning: {col.name} not explicitly normalized')
+    # Un-normalize column-by-column, depending on type of input data
+    match type(data):
+        case pd.Series:
+            # Only one column of data
+            data = _unnormalize_series(data,thresholds)
+        case pd.DataFrame:
+            # Normalize one column at a time
+            data = data.apply(_unnormalize_series,args=(thresholds,),axis=0)
+        case _:
+            # Invalid data type
+            raise TypeError('Invalid Data Type')
 
-    return col
+    return data
 
 
-def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, scoring_weights=None):
+def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm_thresholds=None, scoring_weights=None):
     """Calculates Fantasy Points corresponding to an input stat line, based on fantasy scoring rules.
 
         Args:
@@ -85,15 +98,19 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, scor
                 order of statistics contained in stat_line. Defaults to None. May be passed as string "default" in order to use default_stat_list.
             normalized (bool, optional): Whether stats in stat_line are already normalized (converted such that all values are between 0 and 1)
                 or un-normalized (in standard football stat ranges). Defaults to False.
+            norm_thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
+                lie between 0 and 1. Defaults to dictionary "default_norm_thresholds" defined in configuration files.
             scoring_weights (dict, optional): Fantasy points per unit of each statistic (e.g. points per passing yard, points per reception, etc.)
                 Defaults to default_scoring_weights.
 
         Returns:
             pandas.DataFrame: stat_line, un-normalized and with column headers corresponding to stat indices, with an additional entry for
-                Fantasy Points calculated based on the fantasy scoring rules.
+                Fantasy Points calculated based on the fantasy scoring rules. Output type is DataFrame regardless of input type.
     """
 
-    # Optional input
+    # Optional inputs
+    if not norm_thresholds:
+        norm_thresholds = stats_config.default_norm_thresholds
     if not scoring_weights:
         # Scoring rules in fantasy format
         scoring_weights = stats_config.default_scoring_weights
@@ -101,16 +118,34 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, scor
     if stat_indices == 'default':
         stat_indices = stats_config.default_stat_list
 
+    # Convert stat line to data frame if need be
+    if isinstance(stat_line, pd.Series):
+        stat_line = pd.DataFrame(stat_line).T
+
+    # Assign column names if stat indices are provided
     if stat_indices:
         stat_line = pd.DataFrame(stat_line)
         if len(stat_line.columns) == 1:
             stat_line = stat_line.transpose()
-        stat_line.columns = stat_indices
-    if normalized:
-        for col in stat_line.columns:
-            stat_line[col] = unnormalize_stat(stat_line[col])
+        try:
+            stat_line.columns = stat_indices
+        except ValueError as e:
+            raise ValueError('Unable to assign stat_indices to stat_line.') from e
 
-    stat_line['Fantasy Points'] = (stat_line[scoring_weights.keys()] * scoring_weights).sum(axis=1)
+    # Un-normalize stats if necessary
+    if normalized:
+        stat_line = unnormalize_stat(stat_line, thresholds=norm_thresholds)
+
+    # Trim scoring weights dictionary to only the stats that have non-zero weight
+    scoring_weights_nonzero = {key:val for (key,val) in scoring_weights.items() if val!=0}
+
+    # Calculate Fantasy Points from stat line and scoring weights
+    try:
+        stat_line['Fantasy Points'] = (stat_line[scoring_weights_nonzero.keys()] * scoring_weights_nonzero).sum(axis=1)
+    except KeyError as e:
+        raise KeyError('Key Error: Unidentified column in stat_line not present in scoring_weights.') from e
+    except IndexError as e:
+        raise IndexError('Index Error: statistics cannot be matched to weights. stat_indices must be input, or set to "default"') from e
 
     return stat_line
 
@@ -209,3 +244,30 @@ def linear_regression(x_data, y_data):
     r_squared = 1 - (ssr/sst)
 
     return slope, intercept, r_squared
+
+
+# PRIVATE FUNCTIONS
+
+def _normalize_series(col, thresholds):
+    # Converts statistics of a single type (one data Series) to normalized values
+    if col.name in thresholds:
+        [lwr, upr] = thresholds[col.name]
+        col = (col - lwr) / (upr - lwr)
+        col = col.clip(0, 1)
+    else:
+        logger.warning(f'{col.name} not explicitly normalized')
+
+    return col
+
+
+def _unnormalize_series(col, thresholds):
+    # Converts normalized statistics of a single type (one data Series) to regular values
+    if col.name in thresholds:
+        # Unfortunately can't undo the clipping from 0 to 1 performed during
+        # normalization, so there's a small chance of lost info...
+        [lwr, upr] = thresholds[col.name]
+        col = col * (upr - lwr) + lwr
+    else:
+        logger.warning(f'Warning: {col.name} not explicitly normalized')
+
+    return col
