@@ -3,7 +3,6 @@
     Functions:
         preprocess_nn_data : Converts NFL stats data from raw statistics to a Neural Network-readable format.
         add_word_bank_to_df : Converts a column of unique values from a DataFrame into a series of columns in a new DataFrame, each one corresponding to one of the values.
-        strip_and_normalize : Trims a DataFrame to only the columns of interest, and normalizes each stat to take a value between 0 and 1.
 """
 
 import pandas as pd
@@ -121,8 +120,10 @@ def preprocess_nn_data(midgame_input, final_stats_input,
     id_df = midgame_input[id_columns]
 
     # Strip out non-numeric columns, and normalize numeric columns to between 0 and 1
-    midgame_input = strip_and_normalize(midgame_input, midgame_numeric_columns)
-    final_stats_input = strip_and_normalize(final_stats_input, final_stats_numeric_columns)
+    midgame_input = midgame_input[midgame_numeric_columns]
+    midgame_input = normalize_stat(midgame_input)
+    final_stats_input = final_stats_input[final_stats_numeric_columns]
+    final_stats_input = normalize_stat(final_stats_input)
 
     # Encode each non-numeric, relevant pbp field (Player, Team, Position) in a "word bank":
     fields = ["Position", "Player", "Team", "Opponent"]
@@ -166,20 +167,3 @@ def add_word_bank_to_df(field, id_df):
         word_bank_df[field + "=" + entry] = (id_df[field] == entry).astype(int)
 
     return word_bank_df
-
-def strip_and_normalize(df, cols):
-    """Trims a DataFrame to only the columns of interest, and normalizes each stat to take a value between 0 and 1.
-    
-        The normalization calculation is performed in a separate function, normalize_stat()
-
-        Args:
-            df (pandas.DataFrame): DataFrame containing NFL stats data.
-            cols (list): List of columns in df to retain.
-
-        Returns:
-            pandas.DataFrame: input DataFrame, with only the input columns included, and all numeric values between 0 and 1.
-    """
-
-    df = df[cols]
-    df = df.apply(normalize_stat,axis=0)
-    return df
