@@ -32,4 +32,5 @@
     "python.analysis.extraPaths": [
         "./FantasyProjections"
     ],
+    "python.experiments.optInto": ["pythonTestAdapter"],
 }

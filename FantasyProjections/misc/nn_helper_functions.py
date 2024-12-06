@@ -154,21 +154,33 @@ def remove_game_duplicates(eval_data):
     """Filters evaluation data to only contain one entry per unique game/player.
     
         Removes all but the first row in id_data for each Player/Year/Week combination. (First row is typically when Elapsed Time = 0).
-        Does not modify x_data.
+        Adjusts all applicable attributes in StatsDataset: x_data, y_data, x_df, y_df, id_data
 
         Args:
             eval_data (StatsDataset): data containing NFL game/player final statistics
 
         Returns:
-            StatsDataset: input StatsDataset, modified to only have one row per unique game/player
+            StatsDataset: copy of input StatsDataset, modified to only have one row per unique game/player
     """
 
-    duplicated_rows_eval_data = eval_data.id_data.reset_index().duplicated(subset=[
+    # Make a copy
+    new_dataset = eval_data.copy()
+
+    # Obtain indices of duplicated rows to remove
+    duplicated_rows_eval_data = new_dataset.id_data.reset_index().duplicated(subset=[
         'Player', 'Year', 'Week'])
-    eval_data.y_data = eval_data.y_data[np.logical_not(duplicated_rows_eval_data)]
-    eval_data.id_data = eval_data.id_data.reset_index(
+
+    # Remove duplicated rows from each attribute of new dataset
+    new_dataset.x_data = new_dataset.x_data[np.logical_not(duplicated_rows_eval_data)]
+    new_dataset.y_data = new_dataset.y_data[np.logical_not(duplicated_rows_eval_data)]
+    new_dataset.x_df = new_dataset.x_df.reset_index(
         drop=True).loc[np.logical_not(duplicated_rows_eval_data)].reset_index(drop=True)
-    return eval_data
+    new_dataset.y_df = new_dataset.y_df.reset_index(
+        drop=True).loc[np.logical_not(duplicated_rows_eval_data)].reset_index(drop=True)
+    new_dataset.id_data = new_dataset.id_data.reset_index(
+        drop=True).loc[np.logical_not(duplicated_rows_eval_data)].reset_index(drop=True)
+
+    return new_dataset
 
 
 def gen_random_games(id_df, n_random, game_ids=None):
@@ -191,14 +203,28 @@ def gen_random_games(id_df, n_random, game_ids=None):
                     - "Week" : value -> int
     """
 
-    if not game_ids:
+    # Keep only unique games from id_df
+    unique_id_df = id_df.copy()
+    unique_id_df = unique_id_df.drop_duplicates(subset=['Player','Year','Week'],keep='first')
+
+    # Copy or initialize list of game IDs
+    if game_ids:
+        game_ids = game_ids.copy()
+    else:
         game_ids = []
+
+    # Check that number of unique games in id_df is greater than number of games requested
+    if unique_id_df.shape[0] < len(game_ids) + n_random:
+        logger.warning('More game IDs requested than unique games available. Returning all games.')
+        game_ids = list(unique_id_df.apply(lambda x:{col: x[col] for col in ['Player','Week','Year']},axis=1))
+        return game_ids
+
     # (Optionally) Add random players/games to plot
     for _ in range(n_random):
         valid_new_entry = False
         while not valid_new_entry:
-            ind = np.random.randint(id_df.shape[0])
-            game_dict = {col: id_df.iloc[ind][col]
+            ind = np.random.randint(unique_id_df.shape[0])
+            game_dict = {col: unique_id_df.iloc[ind][col]
                         for col in ['Player', 'Week', 'Year']}
             if game_dict not in game_ids:
                 game_ids.append(game_dict)
@@ -226,6 +252,10 @@ def linear_regression(x_data, y_data):
             float: r_squared (Coefficient of Determination) of regression line against data
     """
 
+    # Convert inputs to array (column vector)
+    x_data = np.array(x_data).reshape([-1,1])
+    y_data = np.array(y_data).reshape([-1,1])
+
     # Basic info about x and y
     x_mean = np.nanmean(x_data)
     y_mean = np.nanmean(y_data)
@@ -233,15 +263,15 @@ def linear_regression(x_data, y_data):
     # Calculate slope and intercept for line of best fit
     s_x_y = sum(x_data*y_data)/n - (sum(x_data)*sum(y_data))/n**2
     s_x_sq = sum(x_data**2)/n - (sum(x_data)/n)**2
-    slope = s_x_y/s_x_sq
-    intercept = y_mean - (slope * x_mean)
+    slope = float(s_x_y/s_x_sq)
+    intercept = float(y_mean - (slope * x_mean))
     # Calculate r_value
     y_predicted = intercept + slope*x_data
     residuals = y_data - y_predicted
     dists_from_mean = y_data - y_mean
     ssr = sum(residuals**2)
     sst = sum(dists_from_mean**2)
-    r_squared = 1 - (ssr/sst)
+    r_squared = float(1 - (ssr/sst))
 
     return slope, intercept, r_squared
 

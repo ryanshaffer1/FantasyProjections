@@ -1,18 +1,20 @@
 import unittest
+import numpy as np
 import pandas as pd
 import pandas.testing as pdtest
 import torch
-from misc.nn_helper_functions import normalize_stat, unnormalize_stat, stats_to_fantasy_points
+# Module under test
+from misc import nn_helper_functions as proj
+# Modules needed for test setup
+from misc.dataset import StatsDataset
 from config import stats_config
-
-# Set up same logger as project code
 import logging
 import logging.config
 from config.log_config import LOGGING_CONFIG
+
+# Set up same logger as project code
 logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger('log')
-
-
 
 class TestNormalizeStat_DefaultThresholds(unittest.TestCase):
     # Set Up
@@ -26,27 +28,27 @@ class TestNormalizeStat_DefaultThresholds(unittest.TestCase):
 
     # Tests of normalization calculations across input ranges
     def test_min_thresholds_normalize_to_zero(self):
-        result = normalize_stat(pd.DataFrame(data=self.threshold_mins, index=self.column_names).T)
+        result = proj.normalize_stat(pd.DataFrame(data=self.threshold_mins, index=self.column_names).T)
         all_zeros = pd.DataFrame(data=[float(0)]*len(self.column_names), index=self.column_names).T
         pdtest.assert_frame_equal(result, all_zeros, check_dtype=False)
 
     def test_below_min_thresholds_normalize_to_zero(self):
-        result = normalize_stat((pd.DataFrame(data=self.threshold_mins, index=self.column_names).T) - 10)
+        result = proj.normalize_stat((pd.DataFrame(data=self.threshold_mins, index=self.column_names).T) - 10)
         all_zeros = pd.DataFrame(data=[float(0)]*len(self.column_names), index=self.column_names).T
         pdtest.assert_frame_equal(result, all_zeros, check_dtype=False)
 
     def test_max_thresholds_normalize_to_one(self):
-        result = normalize_stat(pd.DataFrame(data=self.threshold_maxes, index=self.column_names).T)
+        result = proj.normalize_stat(pd.DataFrame(data=self.threshold_maxes, index=self.column_names).T)
         all_ones = pd.DataFrame(data=[float(1)]*len(self.column_names), index=self.column_names).T
         pdtest.assert_frame_equal(result, all_ones, check_dtype=False)
 
     def test_above_min_thresholds_normalize_to_one(self):
-        result = normalize_stat((pd.DataFrame(data=self.threshold_maxes, index=self.column_names).T) + 10)
+        result = proj.normalize_stat((pd.DataFrame(data=self.threshold_maxes, index=self.column_names).T) + 10)
         all_ones = pd.DataFrame(data=[float(1)]*len(self.column_names), index=self.column_names).T
         pdtest.assert_frame_equal(result, all_ones, check_dtype=False)
 
     def test_midway_values_normalize_to_one_half(self):
-        result = normalize_stat(pd.DataFrame(data=self.threshold_midpoints, index=self.column_names).T)
+        result = proj.normalize_stat(pd.DataFrame(data=self.threshold_midpoints, index=self.column_names).T)
         all_point_fives = pd.DataFrame(data=[0.5]*len(self.column_names), index=self.column_names).T
         pdtest.assert_frame_equal(result, all_point_fives, check_dtype=False)
 
@@ -54,10 +56,10 @@ class TestNormalizeStat_DefaultThresholds(unittest.TestCase):
 
     def test_list_input_raises_type_error(self):
         with self.assertRaises(TypeError):
-            normalize_stat(self.threshold_midpoints)
+            proj.normalize_stat(self.threshold_midpoints)
     
     def test_single_stat_series_input_passes(self):
-        result = normalize_stat(pd.Series(data=[self.threshold_midpoints[0]]*5, name=self.column_names[0]))
+        result = proj.normalize_stat(pd.Series(data=[self.threshold_midpoints[0]]*5, name=self.column_names[0]))
         all_point_fives = pd.Series(data=[0.5]*5, name=self.column_names[0])
         pdtest.assert_series_equal(result, all_point_fives, check_dtype=False)
 
@@ -79,31 +81,31 @@ class TestNormalizeStat_CustomThresholds(unittest.TestCase):
 
     # Tests of normalization calculations across input ranges
     def test_min_thresholds_normalize_to_zero(self):
-        result = normalize_stat(pd.DataFrame(data=self.threshold_mins, index=self.column_names).T, 
+        result = proj.normalize_stat(pd.DataFrame(data=self.threshold_mins, index=self.column_names).T, 
                                 thresholds=self.thresholds)
         all_zeros = pd.DataFrame(data=[float(0)]*len(self.column_names), index=self.column_names).T
         pdtest.assert_frame_equal(result, all_zeros, check_dtype=False)
 
     def test_below_min_thresholds_normalize_to_zero(self):
-        result = normalize_stat((pd.DataFrame(data=self.threshold_mins, index=self.column_names).T) - 10,
+        result = proj.normalize_stat((pd.DataFrame(data=self.threshold_mins, index=self.column_names).T) - 10,
                                 thresholds=self.thresholds)
         all_zeros = pd.DataFrame(data=[float(0)]*len(self.column_names), index=self.column_names).T
         pdtest.assert_frame_equal(result, all_zeros, check_dtype=False)
 
     def test_max_thresholds_normalize_to_one(self):
-        result = normalize_stat(pd.DataFrame(data=self.threshold_maxes, index=self.column_names).T, 
+        result = proj.normalize_stat(pd.DataFrame(data=self.threshold_maxes, index=self.column_names).T, 
                                 thresholds=self.thresholds)
         all_ones = pd.DataFrame(data=[float(1)]*len(self.column_names), index=self.column_names).T
         pdtest.assert_frame_equal(result, all_ones, check_dtype=False)
 
     def test_above_min_thresholds_normalize_to_one(self):
-        result = normalize_stat((pd.DataFrame(data=self.threshold_maxes, index=self.column_names).T) + 10,
+        result = proj.normalize_stat((pd.DataFrame(data=self.threshold_maxes, index=self.column_names).T) + 10,
                                 thresholds=self.thresholds)
         all_ones = pd.DataFrame(data=[float(1)]*len(self.column_names), index=self.column_names).T
         pdtest.assert_frame_equal(result, all_ones, check_dtype=False)
 
     def test_midway_values_normalize_to_one_half(self):
-        result = normalize_stat(pd.DataFrame(data=self.threshold_midpoints, index=self.column_names).T, 
+        result = proj.normalize_stat(pd.DataFrame(data=self.threshold_midpoints, index=self.column_names).T, 
                                 thresholds=self.thresholds)
         all_point_fives = pd.DataFrame(data=[0.5]*len(self.column_names), index=self.column_names).T
         pdtest.assert_frame_equal(result, all_point_fives, check_dtype=False)
@@ -126,17 +128,17 @@ class TestUnNormalizeStat_DefaultThresholds(unittest.TestCase):
     # Note: No test of below min or above max thresholds, since un-normalization cannot produce values outside of thresholds
 
     def test_zero_unnormalizes_to_min_threshold(self):
-        result = unnormalize_stat(pd.DataFrame(data=[0]*len(self.column_names), index=self.column_names).T)
+        result = proj.unnormalize_stat(pd.DataFrame(data=[0]*len(self.column_names), index=self.column_names).T)
         min_thresholds = pd.DataFrame(data=self.threshold_mins, index=self.column_names).T
         pdtest.assert_frame_equal(result, min_thresholds, check_dtype=False)
 
     def test_one_unnormalizes_to_max_threshold(self):
-        result = unnormalize_stat(pd.DataFrame(data=[1]*len(self.column_names), index=self.column_names).T)
+        result = proj.unnormalize_stat(pd.DataFrame(data=[1]*len(self.column_names), index=self.column_names).T)
         threshold_maxes = pd.DataFrame(data=self.threshold_maxes, index=self.column_names).T
         pdtest.assert_frame_equal(result, threshold_maxes, check_dtype=False)
 
     def test_one_half_unnormalizes_to_threshold_midpoint(self):
-        result = unnormalize_stat(pd.DataFrame(data=[0.5]*len(self.column_names), index=self.column_names).T)
+        result = proj.unnormalize_stat(pd.DataFrame(data=[0.5]*len(self.column_names), index=self.column_names).T)
         threshold_midpoints = pd.DataFrame(data=self.threshold_midpoints, index=self.column_names).T
         pdtest.assert_frame_equal(result, threshold_midpoints, check_dtype=False)
 
@@ -144,10 +146,10 @@ class TestUnNormalizeStat_DefaultThresholds(unittest.TestCase):
 
     def test_list_input_raises_type_error(self):
         with self.assertRaises(TypeError):
-            unnormalize_stat([0.5]*5)
+            proj.unnormalize_stat([0.5]*5)
     
     def test_single_stat_series_input_passes(self):
-        result = unnormalize_stat(pd.Series(data=[0.5]*5, name=self.column_names[0]))
+        result = proj.unnormalize_stat(pd.Series(data=[0.5]*5, name=self.column_names[0]))
         threshold_midpoints = pd.Series(data=[self.threshold_midpoints[0]]*5, name=self.column_names[0])
         pdtest.assert_series_equal(result, threshold_midpoints, check_dtype=False)
 
@@ -169,7 +171,7 @@ class TestUnNormalizeStat_CustomThresholds(unittest.TestCase):
 
     # Tests of normalization calculations across input ranges
     def test_zero_unnormalizes_to_min_threshold(self):
-        result = unnormalize_stat(pd.DataFrame(data=[0]*len(self.column_names), index=self.column_names).T, 
+        result = proj.unnormalize_stat(pd.DataFrame(data=[0]*len(self.column_names), index=self.column_names).T, 
                                 thresholds=self.thresholds)
         min_thresholds = pd.DataFrame(data=self.threshold_mins, index=self.column_names).T
         pdtest.assert_frame_equal(result, min_thresholds, check_dtype=False)
@@ -177,7 +179,7 @@ class TestUnNormalizeStat_CustomThresholds(unittest.TestCase):
     # No test of below min threshold, since un-normalization cannot produce values outside of thresholds
 
     def test_one_unnormalizes_to_max_threshold(self):
-        result = unnormalize_stat(pd.DataFrame(data=[1]*len(self.column_names), index=self.column_names).T, 
+        result = proj.unnormalize_stat(pd.DataFrame(data=[1]*len(self.column_names), index=self.column_names).T, 
                                 thresholds=self.thresholds)
         threshold_maxes = pd.DataFrame(data=self.threshold_maxes, index=self.column_names).T
         pdtest.assert_frame_equal(result, threshold_maxes, check_dtype=False)
@@ -185,7 +187,7 @@ class TestUnNormalizeStat_CustomThresholds(unittest.TestCase):
     # No test of above max threshold, since un-normalization cannot produce values outside of thresholds
 
     def test_one_half_unnormalizes_to_threshold_midpoint(self):
-        result = unnormalize_stat(pd.DataFrame(data=[0.5]*len(self.column_names), index=self.column_names).T, 
+        result = proj.unnormalize_stat(pd.DataFrame(data=[0.5]*len(self.column_names), index=self.column_names).T, 
                                 thresholds=self.thresholds)
         threshold_midpoints = pd.DataFrame(data=self.threshold_midpoints, index=self.column_names).T
         pdtest.assert_frame_equal(result, threshold_midpoints, check_dtype=False)
@@ -207,8 +209,8 @@ class TestNormalize_to_UnNormalize(unittest.TestCase):
     # Tests of normalization calculations across input ranges
     def test_norm_to_unnorm_produces_original_numbers_within_threshold_range(self):
         original_df = pd.DataFrame(data=self.threshold_midpoints, index=self.column_names).T
-        normalized_df = normalize_stat(original_df, thresholds=self.thresholds)
-        unnormalized_df = unnormalize_stat(normalized_df, thresholds=self.thresholds)
+        normalized_df = proj.normalize_stat(original_df, thresholds=self.thresholds)
+        unnormalized_df = proj.unnormalize_stat(normalized_df, thresholds=self.thresholds)
         pdtest.assert_frame_equal(original_df, unnormalized_df, check_dtype=False)
 
     # Tear Down
@@ -225,7 +227,7 @@ class TestStatsToFantasyPoints_DefaultWeights(unittest.TestCase):
         # Various inputs for test methods
         self.one_df = pd.DataFrame(data=[1]*len(self.stat_names), index=self.stat_names).T
         self.one_tensor = torch.tensor(self.one_df.values)
-        self.one_df_normalized = normalize_stat(self.one_df, thresholds=self.thresholds)
+        self.one_df_normalized = proj.normalize_stat(self.one_df, thresholds=self.thresholds)
         # Correct result for various inputs
         self.one_result = self.one_df.copy()
         self.one_result['Fantasy Points'] = self.sum_of_weights
@@ -236,11 +238,11 @@ class TestStatsToFantasyPoints_DefaultWeights(unittest.TestCase):
         zero_result = zero_df.copy()
         zero_result['Fantasy Points'] = 0
 
-        pdtest.assert_frame_equal(stats_to_fantasy_points(zero_df), 
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(zero_df), 
                                   zero_result, check_dtype=False)
 
     def test_one_of_each_stat_equals_correct_points(self):
-        pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_df),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_df),
                                   self.one_result, check_dtype=False)
 
     def test_negative_one_of_each_stat_equals_correct_points(self):
@@ -249,40 +251,40 @@ class TestStatsToFantasyPoints_DefaultWeights(unittest.TestCase):
         minus_one_result = self.one_df.copy()*(-1)
         minus_one_result['Fantasy Points'] = self.sum_of_weights*(-1)
 
-        pdtest.assert_frame_equal(stats_to_fantasy_points(minus_one_df),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(minus_one_df),
                                   minus_one_result, check_dtype=False)
     
     def test_tensor_input_with_stat_index(self):
-        pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_tensor, stat_indices=self.stat_names),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_tensor, stat_indices=self.stat_names),
                                   self.one_result, check_dtype=False)
 
     def test_tensor_input_with_stat_index_default_gives_right_result(self):
-        pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_tensor, stat_indices='default'),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_tensor, stat_indices='default'),
                                   self.one_result, check_dtype=False)
 
     def test_tensor_input_without_stat_index_fails(self):
         with self.assertRaises(IndexError):
-            stats_to_fantasy_points(self.one_tensor)
+            proj.stats_to_fantasy_points(self.one_tensor)
 
     def test_unnormalized_stats_with_norm_true_gives_wrong_result(self):
         with self.assertRaises(AssertionError):
-            pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_df, normalized=True),
+            pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_df, normalized=True),
                                       self.one_result, check_dtype=False)
 
     def test_normalized_stats_with_norm_false_gives_wrong_result(self):
         with self.assertRaises(AssertionError):
-            pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_df_normalized),
+            pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_df_normalized),
                                       self.one_result, check_dtype=False)
 
     def test_normalized_stats_with_norm_true_gives_right_result(self):
-        pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_df_normalized, normalized=True),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_df_normalized, normalized=True),
                                   self.one_result, check_dtype=False)
 
     def test_series_input_gives_right_result(self):
         # Custom setup
         one_series = self.one_df.iloc[0]
 
-        pdtest.assert_frame_equal(stats_to_fantasy_points(one_series),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(one_series),
                                   self.one_result, check_dtype=False)
 
     def test_input_df_with_additional_column_names_gives_right_result(self):
@@ -292,7 +294,7 @@ class TestStatsToFantasyPoints_DefaultWeights(unittest.TestCase):
         one_with_addl_column_result = one_df_addl_column.copy()
         one_with_addl_column_result['Fantasy Points'] = self.sum_of_weights
 
-        pdtest.assert_frame_equal(stats_to_fantasy_points(one_df_addl_column),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(one_df_addl_column),
                                   one_with_addl_column_result, check_dtype=False)
 
     def test_input_df_with_missing_stats_gives_error(self):
@@ -305,7 +307,7 @@ class TestStatsToFantasyPoints_DefaultWeights(unittest.TestCase):
         one_without_pass_yds_result['Fantasy Points'] = sum_of_weights_without_pass_yds
 
         with self.assertRaises(KeyError):
-            stats_to_fantasy_points(one_df_without_pass_yds)
+            proj.stats_to_fantasy_points(one_df_without_pass_yds)
 
     # Tear Down
     def tearDown(self):
@@ -323,7 +325,7 @@ class TestStatsToFantasyPoints_CustomWeights(unittest.TestCase):
         # Common inputs for various test methods
         self.one_df = pd.DataFrame(data=[1]*len(self.stat_names), index=self.stat_names).T
         self.one_tensor = torch.tensor(self.one_df.values)
-        self.one_df_normalized = normalize_stat(self.one_df, thresholds=self.thresholds)
+        self.one_df_normalized = proj.normalize_stat(self.one_df, thresholds=self.thresholds)
         # Correct result for common inputs
         self.one_result = self.one_df.copy()
         self.one_result['Fantasy Points'] = self.sum_of_weights
@@ -334,11 +336,11 @@ class TestStatsToFantasyPoints_CustomWeights(unittest.TestCase):
         zero_result = zero_df.copy()
         zero_result['Fantasy Points'] = 0
 
-        pdtest.assert_frame_equal(stats_to_fantasy_points(zero_df, scoring_weights=self.weights), 
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(zero_df, scoring_weights=self.weights), 
                                   zero_result, check_dtype=False)
 
     def test_one_of_each_stat_equals_correct_points(self):
-        pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_df, scoring_weights=self.weights),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_df, scoring_weights=self.weights),
                                   self.one_result, check_dtype=False)
 
     def test_negative_one_of_each_stat_equals_correct_points(self):
@@ -347,40 +349,40 @@ class TestStatsToFantasyPoints_CustomWeights(unittest.TestCase):
         minus_one_result = self.one_df.copy()*(-1)
         minus_one_result['Fantasy Points'] = self.sum_of_weights*(-1)
 
-        pdtest.assert_frame_equal(stats_to_fantasy_points(minus_one_df, scoring_weights=self.weights),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(minus_one_df, scoring_weights=self.weights),
                                   minus_one_result, check_dtype=False)
     
     def test_tensor_input_with_stat_index(self):
-        pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_tensor, stat_indices=self.stat_names, scoring_weights=self.weights),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_tensor, stat_indices=self.stat_names, scoring_weights=self.weights),
                                   self.one_result, check_dtype=False)
 
     def test_tensor_input_with_stat_index_default_gives_error(self):
         with self.assertRaises(ValueError):
-            stats_to_fantasy_points(self.one_tensor, stat_indices='default', scoring_weights=self.weights)
+            proj.stats_to_fantasy_points(self.one_tensor, stat_indices='default', scoring_weights=self.weights)
 
     def test_tensor_input_without_stat_index_fails(self):
         with self.assertRaises(IndexError):
-            stats_to_fantasy_points(self.one_tensor, scoring_weights=self.weights)
+            proj.stats_to_fantasy_points(self.one_tensor, scoring_weights=self.weights)
 
     def test_unnormalized_stats_with_norm_true_gives_wrong_result(self):
         with self.assertRaises(AssertionError):
-            pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_df, normalized=True, norm_thresholds=self.thresholds, scoring_weights=self.weights),
+            pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_df, normalized=True, norm_thresholds=self.thresholds, scoring_weights=self.weights),
                                       self.one_result, check_dtype=False)
 
     def test_normalized_stats_with_norm_false_gives_wrong_result(self):
         with self.assertRaises(AssertionError):
-            pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_df_normalized, norm_thresholds=self.thresholds, scoring_weights=self.weights),
+            pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_df_normalized, norm_thresholds=self.thresholds, scoring_weights=self.weights),
                                       self.one_result, check_dtype=False)
 
     def test_normalized_stats_with_norm_true_gives_right_result(self):
-        pdtest.assert_frame_equal(stats_to_fantasy_points(self.one_df_normalized, normalized=True, norm_thresholds=self.thresholds, scoring_weights=self.weights),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(self.one_df_normalized, normalized=True, norm_thresholds=self.thresholds, scoring_weights=self.weights),
                                   self.one_result, check_dtype=False)
 
     def test_series_input_gives_right_result(self):
         # Custom setup
         one_series = self.one_df.iloc[0]
 
-        pdtest.assert_frame_equal(stats_to_fantasy_points(one_series, scoring_weights=self.weights),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(one_series, scoring_weights=self.weights),
                                   self.one_result, check_dtype=False)
 
     def test_input_df_with_additional_column_names_gives_right_result(self):
@@ -390,7 +392,7 @@ class TestStatsToFantasyPoints_CustomWeights(unittest.TestCase):
         one_with_addl_column_result = one_df_addl_column.copy()
         one_with_addl_column_result['Fantasy Points'] = self.sum_of_weights
 
-        pdtest.assert_frame_equal(stats_to_fantasy_points(one_df_addl_column, scoring_weights=self.weights),
+        pdtest.assert_frame_equal(proj.stats_to_fantasy_points(one_df_addl_column, scoring_weights=self.weights),
                                   one_with_addl_column_result, check_dtype=False)
 
     def test_input_df_with_missing_stats_gives_error(self):
@@ -403,13 +405,148 @@ class TestStatsToFantasyPoints_CustomWeights(unittest.TestCase):
         one_without_stat_a_result['Fantasy Points'] = sum_of_weights_without_stat_a
 
         with self.assertRaises(KeyError):
-            stats_to_fantasy_points(one_df_without_stat_a, scoring_weights=self.weights)
+            proj.stats_to_fantasy_points(one_df_without_stat_a, scoring_weights=self.weights)
 
     # Tear Down
     def tearDown(self):
         pass
 
+class TestRemoveGameDuplicates(unittest.TestCase):
+    # Set Up
+    def setUp(self):
+        # Dataset with duplicate games (e.g. multiple entries for same player/week)
+        id_df = pd.DataFrame(data=[['Austin Ekeler',        2024, 1, 'WAS', 'TB', 'RB', 0],
+                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 1],
+                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 2],
+                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 3],
+                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 22],
+                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 23],
+                                    ['Jayden Daniels',      2024, 3, 'WAS', 'CIN', 'QB', 18],
+                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 24],
+                                    ['Zach Ertz',           2023, 5, 'ARI', 'CIN', 'TE', 13],
+                                    ['Zach Ertz',           2024, 5, 'WAS', 'CLE', 'TE', 53]],
+                             columns=['Player', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
+        pbp_df = pd.DataFrame(data=[[0, 0.65],[0.016666667, 0.34],[0.033333333, 0.55],[0.05, 0.6],
+                                    [0.366666667, 0.71],[0.383333333, 0.55],[0.3, 0.35],[0.4, 0.18],
+                                    [0.216666667, 0.78],[0.883333333, 0.9]],
+                              columns=['Elapsed Time','Field Position'])
+        bs_df = pd.DataFrame(data=[[0, 0, 0.047619048],[0, 0, 0.047619048],[0, 0, 0.047619048],
+                                   [0, 0, 0.047619048],[0, 0, 0.047619048],[0, 0, 0.047619048],
+                                   [0.23, 0.21, 0.28952381],
+                                   [0, 0, 0.047619048],[0, 0, 0.047619048],[0, 0, 0.047619048]],
+                             columns=['Pass Att', 'Pass Cmp', 'Pass Yds'])
+        self.dummy_dataset = StatsDataset(name='dataset',pbp_df=pbp_df,boxscore_df=bs_df,id_df=id_df)
 
+        # Desired result: dataset with a single row per player/game
+        id_df_trimmed = pd.DataFrame(data=[['Austin Ekeler',        2024, 1, 'WAS', 'TB', 'RB', 0],
+                                           ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 22],
+                                           ['Jayden Daniels',      2024, 3, 'WAS', 'CIN', 'QB', 18],
+                                           ['Zach Ertz',           2023, 5, 'ARI', 'CIN', 'TE', 13],
+                                           ['Zach Ertz',           2024, 5, 'WAS', 'CLE', 'TE', 53]],
+                                     columns=['Player', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
+        pbp_df_trimmed = pd.DataFrame(data=[[0, 0.65],[0.366666667, 0.71],[0.3, 0.35],[0.216666667, 0.78],[0.883333333, 0.9]],
+                              columns=['Elapsed Time','Field Position'])
+        bs_df_trimmed = pd.DataFrame(data=[[0, 0, 0.047619048],[0, 0, 0.047619048],[0.23, 0.21, 0.28952381],
+                                           [0, 0, 0.047619048],[0, 0, 0.047619048]],
+                             columns=['Pass Att', 'Pass Cmp', 'Pass Yds'])
+        self.trimmed_dataset = StatsDataset(name='dataset',pbp_df=pbp_df_trimmed,boxscore_df=bs_df_trimmed,id_df=id_df_trimmed)
 
-if __name__ == '__main__':
-    unittest.main()
+    def test_correct_duplicates_removed(self):
+        result = proj.remove_game_duplicates(self.dummy_dataset)
+        self.assertEqual(result,self.trimmed_dataset)
+
+    # Tear Down
+    def tearDown(self):
+        pass
+
+class TestGenRandomGames(unittest.TestCase):
+    # Set Up
+    def setUp(self):
+        self.id_df = pd.DataFrame(data=[['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 0],
+                                        ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 1],
+                                        ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 2],
+                                        ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 3],
+                                        ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 22],
+                                        ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 23],
+                                        ['Jayden Daniels',      2024, 3, 'WAS', 'CIN', 'QB', 18],
+                                        ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 24],
+                                        ['Zach Ertz',           2023, 5, 'ARI', 'CIN', 'TE', 13],
+                                        ['Zach Ertz',           2024, 5, 'WAS', 'CLE', 'TE', 53]],
+                             columns=['Player', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
+        self.unique_games = self.id_df.copy()
+        self.unique_games = self.unique_games.drop_duplicates(subset=['Player','Year','Week'],keep='first')
+    
+    def test_number_of_generated_games(self):
+        n_games = 3
+        result = proj.gen_random_games(id_df=self.id_df, n_random=n_games)
+        self.assertEqual(len(result),n_games)
+
+    def test_game_ids_keys(self):
+        result = proj.gen_random_games(id_df=self.id_df,n_random=1)
+        self.assertSetEqual(set(result[0].keys()),set(['Player','Year','Week']))
+
+    def test_game_ids_output_types(self):
+        result = proj.gen_random_games(id_df=self.id_df,n_random=1)
+        value_types = [type(result[0]['Player']), type(result[0]['Year']), type(result[0]['Week'])]
+        self.assertListEqual(value_types,[str, np.int64, np.int64])
+
+    def test_predetermined_game_ids_remain_in_result(self):
+        game_ids = [{'Player':'Austin Ekeler', 'Week': 1, 'Year': 2024}]
+        result = proj.gen_random_games(id_df=self.id_df, n_random=2, game_ids=game_ids)
+        self.assertEqual([result[0]],game_ids)
+
+    def test_gen_no_random_games(self):
+        game_ids = [{'Player':'Austin Ekeler', 'Week': 1, 'Year': 2024}]
+        result = proj.gen_random_games(id_df=self.id_df, n_random=0, game_ids=game_ids)
+        self.assertEqual(len(result),len(game_ids))
+    
+    def test_no_repetitions_in_result(self):
+        n_games = self.unique_games.shape[0]
+        result = proj.gen_random_games(id_df=self.id_df, n_random=n_games)
+        set_of_results = set([frozenset(d.items()) for d in result])
+        self.assertEqual(len(set_of_results),n_games)
+    
+    def test_more_games_requested_than_dataset_size(self):
+        n_games = self.unique_games.shape[0]
+        result = proj.gen_random_games(id_df=self.id_df, n_random=n_games)
+        result_too_many_games = proj.gen_random_games(id_df=self.id_df, n_random=n_games+1)
+        set_of_results1 = set([frozenset(d.items()) for d in result])
+        set_of_results2 = set([frozenset(d.items()) for d in result_too_many_games])
+        self.assertSetEqual(set_of_results1,set_of_results2)
+    
+    # Tear Down
+    def tearDown(self):
+        pass
+    
+class TestLinearRegression(unittest.TestCase):
+    # Set Up
+    def setUp(self):
+        pass
+
+    def test_list_input(self):
+        x_data = list(range(10))
+        y_data = list(range(10))
+        m, b, r2 = proj.linear_regression(x_data,y_data)
+        self.assertEqual([m,b,r2],[1,0,1])
+
+    def test_dataframe_input(self):
+        x_data = pd.DataFrame(range(10))
+        y_data = pd.DataFrame(range(10))
+        m, b, r2 = proj.linear_regression(x_data,y_data)
+        self.assertEqual([m,b,r2],[1,0,1])
+
+    def test_array_input(self):
+        x_data = np.array(range(10))
+        y_data = np.array(range(10))
+        m, b, r2 = proj.linear_regression(x_data,y_data)
+        self.assertEqual([m,b,r2],[1,0,1])
+
+    def test_mixed_input(self):
+        x_data = list(range(10))
+        y_data = pd.DataFrame(range(10))
+        m, b, r2 = proj.linear_regression(x_data,y_data)
+        self.assertEqual([m,b,r2],[1,0,1])
+
+    # Tear Down
+    def tearDown(self):
+        pass

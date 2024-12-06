@@ -8,6 +8,7 @@
 import logging
 import random
 import pandas as pd
+import pandas.testing as pdtest
 import torch
 from torch.utils.data import Dataset
 
@@ -51,8 +52,10 @@ class StatsDataset(Dataset):
                     The data in id_df must be gathered, parsed, and pre-processed using functions in data_pipeline.
             
             Keyword-Args:
-                start_index (int, optional): First index to use in DataFrames (if taking consecutive data from the DataFrames). Defaults to 0.
-                num_to_use (int, optional): Number of rows to use in DataFrames (if taking consecutive data from the DataFrames). Defaults to -1 (entire DataFrame).
+                start_index (int, optional): First index to use in DataFrames (if taking consecutive data from the DataFrames). 
+                    Defaults to None (start of DataFrame).
+                end_index (int, optional): Last index to use in DataFrames (if taking consecutive data from the DataFrames). 
+                    Defaults to None (end of DataFrame).
                 shuffle (bool, optional): Whether to shuffle the rows of the DataFrames when generating. Defaults to False.
                 weeks (list, optional): Week numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 years (list, optional): Year numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
@@ -61,8 +64,8 @@ class StatsDataset(Dataset):
                 elapsed_time (list, optional): Game times from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
         """
         # Handle optional inputs and assign default values not passed
-        start_index = kwargs.get('start_index', 0)
-        num_to_use = kwargs.get('num_to_use', -1)
+        start_index = kwargs.get('start_index', None) # Default starts at the beginning of the array
+        end_index = kwargs.get('num_to_use', None) # Default ends at the end of the array
         shuffle = kwargs.get('shuffle', False)
         # Other valid kwargs that are not currently initialized to default
         # values: weeks, years, teams, players, elapsed_time
@@ -86,9 +89,9 @@ class StatsDataset(Dataset):
 
         # 2. using start_index and num_to_use
         else:
-            self.x_data = self.x_data[start_index:start_index + num_to_use]
-            self.y_data = self.y_data[start_index:start_index + num_to_use]
-            self.id_data = self.id_data.iloc[start_index:start_index + num_to_use]
+            self.x_data = self.x_data[start_index:end_index]
+            self.y_data = self.y_data[start_index:end_index]
+            self.id_data = self.id_data.iloc[start_index:end_index]
 
         # Optionally shuffle the data
         if shuffle:
@@ -173,20 +176,54 @@ class StatsDataset(Dataset):
         indices = self.id_data.query(df_query).index.values
 
         if inplace:
+            self.x_df = self.x_df.loc[indices]
             self.x_data = self.x_data[indices]
+            self.y_df = self.y_df.loc[indices]
             self.y_data = self.y_data[indices]
             self.id_data = self.id_data.loc[indices]
         else:
             new_dataset = StatsDataset(
                 self.name,
-                self.x_df,
-                self.y_df,
-                self.id_data)
-            new_dataset.x_data = new_dataset.x_data[indices]
-            new_dataset.y_data = new_dataset.y_data[indices]
-            new_dataset.id_data = new_dataset.id_data.loc[indices]
+                self.x_df.loc[indices],
+                self.y_df.loc[indices],
+                self.id_data.loc[indices])
             return new_dataset
         return None
+
+
+    def copy(self):
+        """Returns a copy of the StatsDataset object. All attributes (e.g. DataFrames) are copies of the originals, not views.
+
+            Returns:
+                StatsDataset: Copy of the StatsDataset object invoking this method. All attributes are copies, not views.
+        """
+
+        return StatsDataset(name=self.name,
+                            pbp_df=self.x_df,
+                            boxscore_df=self.y_df,
+                            id_df=self.id_data)
+
+
+    def __eq__(self, other):
+        # Compares two StatsDataset objects and returns whether all their attributes are equal
+        # Compare all non-pandas attributes
+        name_equal = self.name == other.name
+        valid_criteria_equal = self.valid_criteria == other.valid_criteria
+        x_data_equal = torch.equal(self.x_data, other.x_data)
+        y_data_equal = torch.equal(self.y_data, other.y_data)
+        # If a non-pandas attribute is False, return False
+        if not (name_equal and valid_criteria_equal and x_data_equal and y_data_equal):
+            return False
+
+        # Compare pandas object attributes
+        try:
+            pdtest.assert_frame_equal(self.x_df,other.x_df,check_dtype=False)
+            pdtest.assert_frame_equal(self.y_df,other.y_df,check_dtype=False)
+            pdtest.assert_frame_equal(self.id_data,other.id_data,check_dtype=False)
+        except AssertionError:
+            return False
+        # If pandas object comparison passes without AssertionError, return True
+        return True
 
 
     def __len__(self):
