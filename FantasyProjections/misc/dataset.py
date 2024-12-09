@@ -32,8 +32,10 @@ class StatsDataset(Dataset):
                 The data in id_data must be gathered, parsed, and pre-processed using functions in data_pipeline.
 
         Public Methods:
-            concat : append two StatsDatasets into one larger StatsDataset, either in-place or returning a new StatsDataset.
-            slice_by_criteria : remove all data from a StatsDataset except the entries that meet a set of criteria
+            concat : Append two StatsDatasets into one larger StatsDataset, either in-place or returning a new StatsDataset.
+            slice_by_criteria : Remove all data from a StatsDataset except the entries that meet a set of criteria.
+            copy : Return a copy of the StatsDataset object. All attributes (e.g. DataFrames) are copies of the originals, not views.
+            equals : Compares two StatsDataset objects and returns whether all their data are equal. Optionally can check non-data attributes for equality.
     """
 
     # CONSTRUCTOR
@@ -54,7 +56,7 @@ class StatsDataset(Dataset):
             Keyword-Args:
                 start_index (int, optional): First index to use in DataFrames (if taking consecutive data from the DataFrames). 
                     Defaults to None (start of DataFrame).
-                end_index (int, optional): Last index to use in DataFrames (if taking consecutive data from the DataFrames). 
+                end_index (int, optional): Last index to use in DataFrames (if taking consecutive data from the DataFrames). Included in result.
                     Defaults to None (end of DataFrame).
                 shuffle (bool, optional): Whether to shuffle the rows of the DataFrames when generating. Defaults to False.
                 weeks (list, optional): Week numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
@@ -62,6 +64,9 @@ class StatsDataset(Dataset):
                 teams (list, optional): Team names from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 players (list, optional): Player names from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 elapsed_time (list, optional): Game times from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
+
+            Raises:
+                TypeError: inputs pbp_df, boxscore_df, and/or id_df are not of type pandas.DataFrame.
         """
         # Handle optional inputs and assign default values not passed
         start_index = kwargs.get('start_index', None) # Default starts at the beginning of the array
@@ -69,6 +74,10 @@ class StatsDataset(Dataset):
         shuffle = kwargs.get('shuffle', False)
         # Other valid kwargs that are not currently initialized to default
         # values: weeks, years, teams, players, elapsed_time
+
+        # Check input data types
+        if not(isinstance(pbp_df,pd.DataFrame) and isinstance(boxscore_df,pd.DataFrame) and isinstance(id_df,pd.DataFrame)):
+            raise TypeError('Invalid input type to StatsDataset.')
 
         # Name
         self.name = name
@@ -89,6 +98,8 @@ class StatsDataset(Dataset):
 
         # 2. using start_index and num_to_use
         else:
+            self.x_df = self.x_df.iloc[start_index:end_index]
+            self.y_df = self.y_df.iloc[start_index:end_index]
             self.x_data = self.x_data[start_index:end_index]
             self.y_data = self.y_data[start_index:end_index]
             self.id_data = self.id_data.iloc[start_index:end_index]
@@ -98,6 +109,8 @@ class StatsDataset(Dataset):
             indices = list(range(self.x_data.shape[0]))
             random.seed(10)
             random.shuffle(indices)
+            self.x_df = self.x_df.iloc[indices]
+            self.y_df = self.y_df.iloc[indices]
             self.x_data = self.x_data[indices]
             self.y_data = self.y_data[indices]
             self.id_data = self.id_data.iloc[indices]
@@ -112,37 +125,46 @@ class StatsDataset(Dataset):
                 other (StatsDataset): Second StatsDataset to combine with the object "self" calling this method.
                 inplace (bool, optional): If True, self is modified in-place; if False, a new StatsDataset is returned. Defaults to True.
 
+            Raises:
+                NameError: Columns of one or multiple DataFrames do not match.
+
             Returns:
                 [None | StatsDataset]: If inplace==True (default), returns None. If inplace==False, returns the concatenated StatsDataset. 
         """
 
         # Check that data labels match each other
         if self.x_df.columns.to_list() != other.x_df.columns.to_list():
-            logging.warning(f'Warning: x data labels do not match for Datasets {self.name} and {other.name}')
+            logging.error(f'Error: x data labels do not match for DataFrames {self.name} and {other.name}')
+            raise NameError(f'x data labels do not match for DataFrames {self.name} and {other.name}')
         if self.y_df.columns.to_list() != other.y_df.columns.to_list():
-            logging.warning(f'Warning: y data labels do not match for Datasets {self.name} and {other.name}')
+            logging.error(f'Warning: y data labels do not match for DataFrames {self.name} and {other.name}')
+            raise NameError(f'y data labels do not match for DataFrames {self.name} and {other.name}')
+        if self.id_data.columns.to_list() != other.id_data.columns.to_list():
+            logging.error(f'Warning: ID data labels do not match for DataFrames {self.name} and {other.name}')
+            raise NameError(f'ID data labels do not match for DataFrames {self.name} and {other.name}')
 
         # Concatenate data structures
         joined_x_data = torch.cat((self.x_data, other.x_data))
         joined_y_data = torch.cat((self.y_data, other.y_data))
-        joined_id_data = pd.concat((self.id_data, other.id_data))
+        joined_x_df = pd.concat((self.x_df, other.x_df)).reset_index(drop=True)
+        joined_y_df = pd.concat((self.y_df, other.y_df)).reset_index(drop=True)
+        joined_id_data = pd.concat((self.id_data, other.id_data)).reset_index(drop=True)
 
         # Return in place (modify self)
         if inplace:
             self.x_data = joined_x_data
             self.y_data = joined_y_data
+            self.x_df = joined_x_df
+            self.y_df = joined_y_df
             self.id_data = joined_id_data
 
         # Return new object
         else:
             new_dataset = StatsDataset(
                 self.name,
-                self.x_df,
-                self.y_df,
-                self.id_data)
-            new_dataset.x_data = joined_x_data
-            new_dataset.y_data = joined_y_data
-            new_dataset.id_data = joined_id_data
+                joined_x_df,
+                joined_y_df,
+                joined_id_data)
             return new_dataset
         return None
 
@@ -173,7 +195,11 @@ class StatsDataset(Dataset):
         df_query = ' & '.join(
             [f'`{criteria_var_to_col[crit]}` in @kwargs["{crit}"]'
                 for crit in self.valid_criteria if kwargs.get(crit)])
-        indices = self.id_data.query(df_query).index.values
+        try:
+            indices = self.id_data.query(df_query).index.values
+        except ValueError:
+            logging.warning('Invalid criteria (or no criteria) passed to method slice_by_criteria. No slicing will be performed.')
+            indices = self.id_data.index.values
 
         if inplace:
             self.x_df = self.x_df.loc[indices]
@@ -204,15 +230,31 @@ class StatsDataset(Dataset):
                             id_df=self.id_data)
 
 
-    def __eq__(self, other):
-        # Compares two StatsDataset objects and returns whether all their attributes are equal
-        # Compare all non-pandas attributes
-        name_equal = self.name == other.name
-        valid_criteria_equal = self.valid_criteria == other.valid_criteria
+    def equals(self, other, check_non_data_attributes=False):
+        """Compares two StatsDataset objects and returns whether all their data are equal. Optionally can check non-data attributes for equality.
+
+            Non-data attributes include: name, valid_criteria.
+
+            Args:
+                other (StatsDataset): Object to compare against StatsDataset object invoking the equals method.
+                check_non_data_attributes (bool, optional): Whether to enforce that all attributes (including name, etc.) match for equals=True. 
+                    Defaults to False.
+                
+            Returns:
+                bool: Whether the StatsDataset objects have identical data (and identical other attributes, if check_non_data_attributes).
+        """
+        # Compare non-data attributes
+        if check_non_data_attributes:
+            name_equal = self.name == other.name
+            valid_criteria_equal = self.valid_criteria == other.valid_criteria
+            if not (name_equal and valid_criteria_equal):
+                return False
+
+        # Compare non-pandas data
         x_data_equal = torch.equal(self.x_data, other.x_data)
         y_data_equal = torch.equal(self.y_data, other.y_data)
         # If a non-pandas attribute is False, return False
-        if not (name_equal and valid_criteria_equal and x_data_equal and y_data_equal):
+        if not (x_data_equal and y_data_equal):
             return False
 
         # Compare pandas object attributes
@@ -222,6 +264,7 @@ class StatsDataset(Dataset):
             pdtest.assert_frame_equal(self.id_data,other.id_data,check_dtype=False)
         except AssertionError:
             return False
+
         # If pandas object comparison passes without AssertionError, return True
         return True
 
@@ -239,8 +282,3 @@ class StatsDataset(Dataset):
     def __getid__(self, idx):
         # Returns the ID data at a given index
         return self.id_data.iloc[idx]
-
-
-    def __getids__(self):
-        # Returns all ID data
-        return self.id_data

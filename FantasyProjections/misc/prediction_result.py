@@ -101,7 +101,7 @@ class PredictionResult():
 
         self.predictor_name = predictor.name
         # ID (player, week, year, team, position, etc) for each data point
-        self.id_df = self.dataset.__getids__().reset_index(drop=True)
+        self.id_df = self.dataset.id_data.reset_index(drop=True)
         # Play-by-play data with fantasy score (used in plot_single_game)
         self.pbp_df = self.__pbp_with_fantasy_points()
 

@@ -453,7 +453,7 @@ class TestRemoveGameDuplicates(unittest.TestCase):
 
     def test_correct_duplicates_removed(self):
         result = proj.remove_game_duplicates(self.dummy_dataset)
-        self.assertEqual(result,self.trimmed_dataset)
+        self.assertTrue(result.equals(self.trimmed_dataset))
 
     # Tear Down
     def tearDown(self):
