@@ -6,6 +6,7 @@ import torch
 # Module under test
 from misc import nn_helper_functions as proj
 # Modules needed for test setup
+import tests.utils_for_tests.mock_data as mock_data
 from misc.dataset import StatsDataset
 from config import stats_config
 import logging
@@ -415,45 +416,27 @@ class TestRemoveGameDuplicates(unittest.TestCase):
     # Set Up
     def setUp(self):
         # Dataset with duplicate games (e.g. multiple entries for same player/week)
-        id_df = pd.DataFrame(data=[['Austin Ekeler',        2024, 1, 'WAS', 'TB', 'RB', 0],
-                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 1],
-                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 2],
-                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 3],
-                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 22],
-                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 23],
-                                    ['Jayden Daniels',      2024, 3, 'WAS', 'CIN', 'QB', 18],
-                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 24],
-                                    ['Zach Ertz',           2023, 5, 'ARI', 'CIN', 'TE', 13],
-                                    ['Zach Ertz',           2024, 5, 'WAS', 'CLE', 'TE', 53]],
-                             columns=['Player', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
-        pbp_df = pd.DataFrame(data=[[0, 0.65],[0.016666667, 0.34],[0.033333333, 0.55],[0.05, 0.6],
-                                    [0.366666667, 0.71],[0.383333333, 0.55],[0.3, 0.35],[0.4, 0.18],
-                                    [0.216666667, 0.78],[0.883333333, 0.9]],
-                              columns=['Elapsed Time','Field Position'])
-        bs_df = pd.DataFrame(data=[[0, 0, 0.047619048],[0, 0, 0.047619048],[0, 0, 0.047619048],
-                                   [0, 0, 0.047619048],[0, 0, 0.047619048],[0, 0, 0.047619048],
-                                   [0.23, 0.21, 0.28952381],
-                                   [0, 0, 0.047619048],[0, 0, 0.047619048],[0, 0, 0.047619048]],
-                             columns=['Pass Att', 'Pass Cmp', 'Pass Yds'])
-        self.dummy_dataset = StatsDataset(name='dataset',pbp_df=pbp_df,boxscore_df=bs_df,id_df=id_df)
+        id_df = mock_data.id_df.copy()
+        pbp_df = mock_data.pbp_df.copy()
+        bs_df = mock_data.bs_df.copy()
+        self.dummy_dataset = StatsDataset(name='dataset',
+                                          pbp_df=pbp_df,
+                                          boxscore_df=bs_df,
+                                          id_df=id_df)
 
         # Desired result: dataset with a single row per player/game
-        id_df_trimmed = pd.DataFrame(data=[['Austin Ekeler',        2024, 1, 'WAS', 'TB', 'RB', 0],
-                                           ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 22],
-                                           ['Jayden Daniels',      2024, 3, 'WAS', 'CIN', 'QB', 18],
-                                           ['Zach Ertz',           2023, 5, 'ARI', 'CIN', 'TE', 13],
-                                           ['Zach Ertz',           2024, 5, 'WAS', 'CLE', 'TE', 53]],
-                                     columns=['Player', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
-        pbp_df_trimmed = pd.DataFrame(data=[[0, 0.65],[0.366666667, 0.71],[0.3, 0.35],[0.216666667, 0.78],[0.883333333, 0.9]],
-                              columns=['Elapsed Time','Field Position'])
-        bs_df_trimmed = pd.DataFrame(data=[[0, 0, 0.047619048],[0, 0, 0.047619048],[0.23, 0.21, 0.28952381],
-                                           [0, 0, 0.047619048],[0, 0, 0.047619048]],
-                             columns=['Pass Att', 'Pass Cmp', 'Pass Yds'])
-        self.trimmed_dataset = StatsDataset(name='dataset',pbp_df=pbp_df_trimmed,boxscore_df=bs_df_trimmed,id_df=id_df_trimmed)
+        unique_game_indices = np.logical_not(id_df.duplicated(subset=('Player','Year','Week'),keep='first'))
+        id_df_no_dupe_games = id_df[unique_game_indices].reset_index(drop=True)
+        pbp_df_no_dupe_games = pbp_df[unique_game_indices].reset_index(drop=True)
+        bs_df_no_dupe_games = bs_df[unique_game_indices].reset_index(drop=True)
+        self.dataset_no_dupe_games = StatsDataset(name='dataset',
+                                            pbp_df=pbp_df_no_dupe_games,
+                                            boxscore_df=bs_df_no_dupe_games,
+                                            id_df=id_df_no_dupe_games)
 
     def test_correct_duplicates_removed(self):
         result = proj.remove_game_duplicates(self.dummy_dataset)
-        self.assertTrue(result.equals(self.trimmed_dataset))
+        self.assertTrue(result.equals(self.dataset_no_dupe_games))
 
     # Tear Down
     def tearDown(self):
@@ -462,17 +445,7 @@ class TestRemoveGameDuplicates(unittest.TestCase):
 class TestGenRandomGames(unittest.TestCase):
     # Set Up
     def setUp(self):
-        self.id_df = pd.DataFrame(data=[['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 0],
-                                        ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 1],
-                                        ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 2],
-                                        ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 3],
-                                        ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 22],
-                                        ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 23],
-                                        ['Jayden Daniels',      2024, 3, 'WAS', 'CIN', 'QB', 18],
-                                        ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 24],
-                                        ['Zach Ertz',           2023, 5, 'ARI', 'CIN', 'TE', 13],
-                                        ['Zach Ertz',           2024, 5, 'WAS', 'CLE', 'TE', 53]],
-                             columns=['Player', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
+        self.id_df = mock_data.id_df
         self.unique_games = self.id_df.copy()
         self.unique_games = self.unique_games.drop_duplicates(subset=['Player','Year','Week'],keep='first')
     
