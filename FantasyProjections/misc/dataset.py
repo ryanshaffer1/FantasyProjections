@@ -56,7 +56,7 @@ class StatsDataset(Dataset):
             Keyword-Args:
                 start_index (int, optional): First index to use in DataFrames (if taking consecutive data from the DataFrames). 
                     Defaults to None (start of DataFrame).
-                end_index (int, optional): Last index to use in DataFrames (if taking consecutive data from the DataFrames). Included in result.
+                end_index (int, optional): First index to exclude from DataFrames (if taking consecutive data from the DataFrames).
                     Defaults to None (end of DataFrame).
                 shuffle (bool, optional): Whether to shuffle the rows of the DataFrames when generating. Defaults to False.
                 weeks (list, optional): Week numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
@@ -70,7 +70,7 @@ class StatsDataset(Dataset):
         """
         # Handle optional inputs and assign default values not passed
         start_index = kwargs.get('start_index', None) # Default starts at the beginning of the array
-        end_index = kwargs.get('num_to_use', None) # Default ends at the end of the array
+        end_index = kwargs.get('end_index', None) # Default ends at the end of the array
         shuffle = kwargs.get('shuffle', False)
         # Other valid kwargs that are not currently initialized to default
         # values: weeks, years, teams, players, elapsed_time

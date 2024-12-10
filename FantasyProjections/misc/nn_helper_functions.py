@@ -143,7 +143,7 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm
     try:
         stat_line['Fantasy Points'] = (stat_line[scoring_weights_nonzero.keys()] * scoring_weights_nonzero).sum(axis=1)
     except KeyError as e:
-        raise KeyError('Key Error: Unidentified column in stat_line not present in scoring_weights.') from e
+        raise KeyError('Key Error: Missing data in stat_line corresponding to all stats in scoring_weights.') from e
     except IndexError as e:
         raise IndexError('Index Error: statistics cannot be matched to weights. stat_indices must be input, or set to "default"') from e
 

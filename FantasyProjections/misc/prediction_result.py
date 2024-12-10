@@ -5,10 +5,9 @@
         PredictionResult : Class containing a set of NFL games/players being evaluated, a prediction of their stats, and their true stats.
 """
 
-from dataclasses import dataclass, InitVar
+from dataclasses import dataclass
 import matplotlib.pyplot as plt
-import pandas as pd
-from misc.dataset import StatsDataset
+from config import stats_config
 from misc.nn_helper_functions import stats_to_fantasy_points, gen_random_games
 from .result_plots import gen_scatterplots, plot_game_timeline, plot_error_histogram
 
@@ -66,49 +65,62 @@ class PredictionResultGroup():
             # fig.axes[0].legend(self.names)
             fig.legend(self.names)
 
-@dataclass
+# @dataclass
 class PredictionResult():
     """Class containing a set of NFL games/players being evaluated, a prediction of their stats, and their true stats.
         
-        Args:
+        Attributes:
             dataset (StatsDataset): set of NFL games/players evaluated.
-            predictor (FantasyPredictor): FantasyPredictor (or sub-class) object which originated the predicted stats
-                Note that predictor is used to initialize PredictionResult but is not an attribute of the PredictionResult object.
             predicts (pandas.DataFrame): stat lines (with Fantasy Points) predicted for the NFL games/players in dataset
             truths (pandas.DataFrame): true stat lines (with Fantasy Points) scored in the dataset entries
-
-        Additional Class Attributes:
             predictor_name (str): name of the predictor which originated the predicted stats. Used for logging/displaying results
             id_df (pandas.DataFrame): IDs of the players/games from dataset
             pbp_df (pandas.DataFrame): DataFrame containing mid-game stats (with Fantasy Points) for all players/games in the dataset
         
         Public Methods:
-            avg_diff : Calculates the average (signed or absolute) difference between predicted and true Fantasy Points in dataset
+            diff_pred_vs_truth : Calculates the average (signed or absolute) difference between predicted and true Fantasy Points in dataset
             plot_error_dist : Generates histogram of (signed or absolute) differences between predicted and true Fantasy Points in dataset
             plot_scatters : Generates scatterplots comparing predicted and true stats, optionally with subsections ("slices) of the dataset
             plot_single_games : Generates a line graph of predicted and true Fantasy Points over the course of a game for a single player (or multiple players)
     """
 
     # CONSTRUCTOR
-    predictor: InitVar[object]
-    predicts: pd.DataFrame
-    truths: pd.DataFrame
-    dataset: StatsDataset
+    def __init__(self, dataset, predicts, truths, predictor_name=None, **kwargs):
+        """Constructor for PredictionResult
 
-    def __post_init__(self, predictor):
-         # Evaluates as part of the Constructor.
-        # Generates attributes that are not simple data copies of inputs.
+            Args:
+                dataset (StatsDataset): set of NFL games/players evaluated.
+                predicts (pandas.DataFrame): stat lines (with Fantasy Points) predicted for the NFL games/players in dataset
+                truths (pandas.DataFrame): true stat lines (with Fantasy Points) scored in the dataset entries
+                predictor_name (str): name of the predictor which originated the predicted stats. Used for logging/displaying results
+            
+            Keyword-Args:
+                All keyword arguments are passed to stats_to_fantasy_points. See that function's documentation for descriptions and valid inputs.
+                Keyword arguments are optional, with defaults set in stats_to_fantasy_points, EXCEPT:
+                - normalized defaults to True in this implementation.
 
-        self.predictor_name = predictor.name
+            Additional Class Attributes (generated, not passed as inputs):
+                id_df (pandas.DataFrame): IDs of the players/games from dataset
+                pbp_df (pandas.DataFrame): DataFrame containing mid-game stats (with Fantasy Points) for all players/games in the dataset
+        """
+        # Optional input
+        if not predictor_name:
+            predictor_name = 'Unknown Predictor'
+
+        # Assign inputs to class attributes
+        self.predicts = predicts
+        self.truths = truths
+        self.dataset = dataset
+        self.predictor_name = predictor_name
+
         # ID (player, week, year, team, position, etc) for each data point
         self.id_df = self.dataset.id_data.reset_index(drop=True)
         # Play-by-play data with fantasy score (used in plot_single_game)
-        self.pbp_df = self.__pbp_with_fantasy_points()
-
+        self.pbp_df = self.__pbp_with_fantasy_points(**kwargs)
 
     # PUBLIC METHODS
 
-    def avg_diff(self,absolute=False):
+    def diff_pred_vs_truth(self,absolute=False):
         """Calculates the average (signed or absolute) difference between predicted and true Fantasy Points in dataset.
 
             Args:
@@ -168,7 +180,7 @@ class PredictionResult():
     def plot_single_games(self, **kwargs):
         """Generates a line graph of predicted and true Fantasy Points over the course of a game for a single player (or multiple players)
         
-        Keyword-Args:
+            Keyword-Args:
                 game_ids (list, optional): list of pre-determined games/players to visualize. Each element of list is a dict with keys:
                     - "Player" : value -> str
                     - "Year" : value -> int
@@ -195,27 +207,28 @@ class PredictionResult():
 
     # PRIVATE METHODS
 
-    def __pbp_with_fantasy_points(self):
+    def __pbp_with_fantasy_points(self, **kwargs):
         # Extracts play-by-play (midgame) data for each game in the PredictionResult's dataset
         # and computes the Fantasy Points for each midgame stat line
 
-        pbp_data_labels = self.dataset.x_df.columns.to_list()
+        # All keyword arguments are passed to stats_to_fantasy_points. See that function's documentation for descriptions and valid inputs.
+        # Keyword arguments are optional, with defaults set in stats_to_fantasy_points, EXCEPT:
+        # - normalized defaults to True in this implementation.
 
-        # Add fantasy points to play-by-play
-        cols_to_keep = [
-            'Elapsed Time',
-            'Pass Att',
-            'Pass Cmp',
-            'Pass Yds',
-            'Pass TD',
-            'Int',
-            'Rush Att',
-            'Rush Yds',
-            'Rush TD',
-            'Rec',
-            'Rec Yds',
-            'Rec TD',
-            'Fmb']
-        pbp_data = self.dataset.x_data[:,[pbp_data_labels.index(col) for col in cols_to_keep]]
-        pbp_df = stats_to_fantasy_points(pbp_data, stat_indices=cols_to_keep, normalized=True)
+        # Make copy of dataset
+        pbp_df = self.dataset.x_df.copy().reset_index(drop=True)
+
+        # Extract any necessary keyword argument values
+        normalized = kwargs.get('normalized',True) # Note this defaults to True instead of the standard False
+        norm_thresholds = kwargs.get('norm_thresholds',stats_config.default_norm_thresholds)
+
+        # Remove any columns that do not need to be unnormalized
+        if normalized:
+            set_normalizable_columns = frozenset(norm_thresholds)
+            columns = [x for x in pbp_df.columns if x in set_normalizable_columns]
+            # columns = list(set(pbp_df.columns.tolist()) & set(stats_config.default_norm_thresholds))
+            pbp_df = pbp_df[columns]
+
+        # Compute Fantasy Points
+        pbp_df = stats_to_fantasy_points(pbp_df, normalized=normalized, **kwargs)
         return pbp_df

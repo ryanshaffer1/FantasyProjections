@@ -267,7 +267,7 @@ class NeuralNetPredictor(FantasyPredictor):
 
             # Validation
             val_result = self.eval_model(eval_dataloader=validation_dataloader)
-            val_perfs.append(np.mean(val_result.avg_diff(absolute=True)))
+            val_perfs.append(np.mean(val_result.diff_pred_vs_truth(absolute=True)))
 
             # Check stopping condition
             if self.__end_learning(val_perfs,self.n_epochs_to_stop): # Check stopping condition

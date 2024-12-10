@@ -353,7 +353,7 @@ def plot_error_histogram(result, absolute=False, fig=None):
 
     # Generate histogram
     ax = fig.axes[0]
-    ax.hist(result.avg_diff(absolute=absolute), bins=40, density=True, alpha=0.6)
+    ax.hist(result.diff_pred_vs_truth(absolute=absolute), bins=40, density=True, alpha=0.6)
     ax.set_xlabel(f'Fantasy Score{' Absolute' if absolute else ''} Prediction Error')
     ax.set_ylabel('Density')
     ax.set_title('Fantasy Score Prediction Error Distribution Plot', weight='bold')
