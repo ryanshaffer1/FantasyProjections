@@ -34,6 +34,7 @@ bs_df = pd.DataFrame(data=[[0.05, 0.06, 0.1],
                             [0.05, 0.05, 0.06],
                             ], columns=['Pass Yds', 'Rush Yds', 'Rec Yds'])
 
+# LastNPredictor variables
 map_to_last_game = pd.Series(data=[
     np.nan,
     0,
@@ -58,6 +59,18 @@ map_to_second_to_last_game = pd.Series(data=[
     6
 ])
 
+# SleeperPredictor variables
+expected_predicts = pd.DataFrame(data=[
+                                    [0.000000, 30.490000, 21.670000, 5.2160],
+                                    [0.000000, 23.410000, 19.900000, 4.3310],
+                                    [0.000000, 22.030001, 18.320000, 4.0350],
+                                    [0.000000, 25.260000, 19.260000, 4.4520],
+                                    [187.009995, 48.980000, 0.000000, 12.3784],
+                                    [0.000000, 0.000000, 28.330000, 2.8330],
+                                    [0.000000, 0.000000, 33.000000, 3.3000],
+                                    [0.000000, 0.000000, 37.549999, 3.7550],
+                                    [0.000000, 0.000000, 26.750000, 2.6750]],
+                                 columns=['Pass Yds', 'Rush Yds', 'Rec Yds', 'Fantasy Points'])
 
 # Hacky way to write a new dataset that can be hardcoded above
 if __name__ == "__main__":

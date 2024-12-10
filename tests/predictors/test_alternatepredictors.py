@@ -6,7 +6,7 @@ import pandas.testing as pdtest
 from predictors.alternate_predictors import LastNPredictor, PerfectPredictor
 # Modules needed for test setup
 from misc.prediction_result import PredictionResult
-from tests.utils_for_tests import mock_data, mock_data_last_n_predictor
+from tests.utils_for_tests import mock_data, mock_data_predictors
 from misc.dataset import StatsDataset
 from misc.nn_helper_functions import stats_to_fantasy_points
 import logging
@@ -143,9 +143,9 @@ class TestEvalModel_LastNPredictor(unittest.TestCase):
         }
 
         self.dataset = StatsDataset(name='dataset',
-                                    pbp_df=mock_data_last_n_predictor.pbp_df,
-                                    boxscore_df=mock_data_last_n_predictor.bs_df,
-                                    id_df=mock_data_last_n_predictor.id_df)
+                                    pbp_df=mock_data_predictors.pbp_df,
+                                    boxscore_df=mock_data_predictors.bs_df,
+                                    id_df=mock_data_predictors.id_df)
         self.predictor = LastNPredictor('test',1)
 
     def test_last_one_game_score_returns_correct_result(self):
@@ -155,7 +155,7 @@ class TestEvalModel_LastNPredictor(unittest.TestCase):
 
         # Get the last game's Fantasy Points by using the hard-coded map between a game and its previous
         stats = stats_to_fantasy_points(self.dataset.y_df, normalized=True, scoring_weights=self.scoring_weights)
-        stats['Last Game Index'] = mock_data_last_n_predictor.map_to_last_game
+        stats['Last Game Index'] = mock_data_predictors.map_to_last_game
         prev_game_score = stats.apply(lambda x: stats.loc[x['Last Game Index'],'Fantasy Points'] if x['Last Game Index']>=0 else 0, axis=1)
 
         pdtest.assert_series_equal(result.predicts['Fantasy Points'], prev_game_score, check_names=False)
@@ -168,9 +168,9 @@ class TestEvalModel_LastNPredictor(unittest.TestCase):
 
         # Get the last game's Fantasy Points by using the hard-coded map between a game and its previous
         stats = stats_to_fantasy_points(self.dataset.y_df, normalized=True, scoring_weights=self.scoring_weights)
-        stats['Last Game Index'] = mock_data_last_n_predictor.map_to_last_game
+        stats['Last Game Index'] = mock_data_predictors.map_to_last_game
         prev_game_score = stats.apply(lambda x: stats.loc[x['Last Game Index'],'Fantasy Points'] if x['Last Game Index']>=0 else 0, axis=1)
-        stats['Last Game Index'] = mock_data_last_n_predictor.map_to_second_to_last_game
+        stats['Last Game Index'] = mock_data_predictors.map_to_second_to_last_game
         second_prev_game_score = stats.apply(lambda x: stats.loc[x['Last Game Index'],'Fantasy Points'] if x['Last Game Index']>=0 else np.nan, axis=1)
         avg_game_score = pd.concat([prev_game_score,second_prev_game_score],axis=1).mean(axis=1,skipna=True)
 
@@ -182,7 +182,7 @@ class TestEvalModel_LastNPredictor(unittest.TestCase):
 
         # Get the last game's Fantasy Points by using the hard-coded map between a game and its previous
         stats = stats_to_fantasy_points(self.dataset.y_df, normalized=True, scoring_weights=self.scoring_weights)
-        stats['Last Game Index'] = mock_data_last_n_predictor.map_to_last_game
+        stats['Last Game Index'] = mock_data_predictors.map_to_last_game
         prev_game_score = stats.apply(lambda x: stats.loc[x['Last Game Index'],'Fantasy Points'] if x['Last Game Index']>=0 else 0, axis=1)
 
         pdtest.assert_series_equal(result.predicts['Fantasy Points'], prev_game_score, check_names=False)
@@ -199,7 +199,7 @@ class TestEvalModel_LastNPredictor(unittest.TestCase):
 
         # Get the last game's Fantasy Points by using the hard-coded map between a game and its previous
         stats = stats_to_fantasy_points(self.dataset.y_df, normalized=False, scoring_weights=self.scoring_weights)
-        stats['Last Game Index'] = mock_data_last_n_predictor.map_to_last_game
+        stats['Last Game Index'] = mock_data_predictors.map_to_last_game
         prev_game_score = stats.apply(lambda x: stats.loc[x['Last Game Index'],'Fantasy Points'] if x['Last Game Index']>=0 else 0, axis=1)
 
         pdtest.assert_series_equal(result.predicts['Fantasy Points'], prev_game_score, check_names=False)
@@ -211,7 +211,7 @@ class TestEvalModel_LastNPredictor(unittest.TestCase):
 
         # Get the last game's Fantasy Points by using the hard-coded map between a game and its previous
         stats = stats_to_fantasy_points(self.dataset.y_df, normalized=True, scoring_weights=self.scoring_weights)
-        stats['Last Game Index'] = mock_data_last_n_predictor.map_to_last_game
+        stats['Last Game Index'] = mock_data_predictors.map_to_last_game
         prev_game_score = stats.apply(lambda x: stats.loc[x['Last Game Index'],'Fantasy Points'] if x['Last Game Index']>=0 else 0, axis=1)
 
         pdtest.assert_series_equal(result.predicts['Fantasy Points'], prev_game_score, check_names=False)

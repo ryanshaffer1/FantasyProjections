@@ -25,8 +25,7 @@ class SleeperPredictor(FantasyPredictor):
 
         Args:
             name (str): name of the predictor object, used for logging/display purposes.
-            player_dict_file (str, optional): filepath (including filename) to .json file storing all player/roster information from Sleeper.
-                Defaults to None.
+            player_dict_file (str): filepath (including filename) to .json file storing all player/roster information from Sleeper. Required input.
             proj_dict_file (str, optional): filepath (including filename) to .json file storing all stat projections made by Sleeper.
                 Defaults to None. If a file is not entered, or the file does not contain all the necessary data, updated information will
                 automatically be requested from Sleeper.
@@ -52,6 +51,10 @@ class SleeperPredictor(FantasyPredictor):
         # Evaluates as part of the Constructor.
         # Generates attributes that are not simple data copies of inputs.
 
+        # If no player dict file is input, player list must be updated from Sleeper API
+        if self.player_dict_file is None:
+            self.update_players = True
+
         # Generate dictionary mapping player names to IDs
         if self.update_players:
             self.player_to_sleeper_id = self.refresh_players()
@@ -63,19 +66,27 @@ class SleeperPredictor(FantasyPredictor):
 
     # PUBLIC METHODS
 
-    def eval_model(self, eval_data):
+    def eval_model(self, eval_data, **kwargs):
         """Generates predicted stats for an input evaluation dataset, as provided by Sleeper.
 
             Note that only pre-game predictions will be included in the evaluation result. If multiple game times in each game
             are present in eval_data, only one prediction per game will be made, with the other rows automatically dropped.
 
             Args:
-                eval_data (Dataset): data to use for Neural Net evaluation (e.g. validation or test data).
+                eval_data (StatsDataset): data to use for Neural Net evaluation (e.g. validation or test data).
+
+            Keyword-Args:
+                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor. 
+                See the related documentation for descriptions and valid inputs. All keyword arguments are optional.
 
             Returns:
                 PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
                     performance assessments, etc.
         """
+
+        # List of stats being used to compute fantasy score
+        stat_columns = eval_data.y_df.columns.tolist()
+        num_stats = len(stat_columns)
 
         # Remove duplicated games from eval data (only one projection per game from Sleeper)
         eval_data = remove_game_duplicates(eval_data)
@@ -92,22 +103,23 @@ class SleeperPredictor(FantasyPredictor):
             player = id_row['Player']
             if player in self.player_to_sleeper_id:
                 proj_stats = self.all_proj_dict[year_week][self.player_to_sleeper_id[player]]
-                stat_line = torch.tensor(self.__reformat_sleeper_stats(proj_stats))
+                stat_line = torch.tensor(self.__reformat_sleeper_stats(proj_stats, stat_columns))
             else:
-                stat_line = torch.zeros([12])
+                stat_line = torch.zeros([num_stats])
             stat_predicts = torch.cat((stat_predicts, stat_line))
+
 
         # Compute fantasy points using stat lines (note that this ignores the
         # built-in fantasy points projection in the Sleeper API, which differs
         # from the sum of the stats)
-        stat_predicts = stats_to_fantasy_points(torch.reshape(
-            stat_predicts, [-1, 12]), stat_indices='default', normalized=False)
+        stat_predicts = stats_to_fantasy_points(torch.reshape(stat_predicts, [-1, num_stats]),
+                                                stat_indices=stat_columns, **kwargs)
 
         # True stats from eval data
-        stat_truths = self.eval_truth(eval_data)
+        stat_truths = self.eval_truth(eval_data, **kwargs)
 
         # Create result object
-        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_data)
+        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_data, **kwargs)
 
         return result
 
@@ -136,8 +148,11 @@ class SleeperPredictor(FantasyPredictor):
                 logger.warning(f'Warning: {player} not added to player dictionary')
 
         # Save player dictionary to JSON file for use next time
-        with open(self.player_dict_file, 'w', encoding='utf-8') as file:
-            json.dump(player_to_sleeper_id, file)
+        try:
+            with open(self.player_dict_file, 'w', encoding='utf-8') as file:
+                json.dump(player_to_sleeper_id, file)
+        except (FileNotFoundError, TypeError):
+            logger.warning('Sleeper player dictionary file not found during save process.')
 
         return player_to_sleeper_id
 
@@ -156,8 +171,13 @@ class SleeperPredictor(FantasyPredictor):
         unique_year_weeks = list(eval_data.id_data['Year-Week'].unique())
 
         # Gather all stats from Sleeper
-        with open(self.proj_dict_file, 'r', encoding='utf-8') as file:
-            all_proj_dict = json.load(file)
+        try:
+            with open(self.proj_dict_file, 'r', encoding='utf-8') as file:
+                all_proj_dict = json.load(file)
+        except (FileNotFoundError, TypeError):
+            logger.warning('Sleeper projection dictionary file not found during load process.')
+            all_proj_dict = {}
+
         if not all(year_week in all_proj_dict for year_week in unique_year_weeks):
             # Gather any unsaved stats from Sleeper
             stats = Stats()
@@ -169,28 +189,34 @@ class SleeperPredictor(FantasyPredictor):
                     all_proj_dict[year_week] = week_proj
                     logger.info(
                         f'Adding Year-Week {year_week} to Sleeper projections dictionary: {self.proj_dict_file}')
-            # Save player dictionary to JSON file for use next time
-            with open(self.proj_dict_file, 'w', encoding='utf-8') as file:
-                json.dump(all_proj_dict, file)
+            # Save projection dictionary to JSON file for use next time
+            try:
+                with open(self.proj_dict_file, 'w', encoding='utf-8') as file:
+                    json.dump(all_proj_dict, file)
+            except (FileNotFoundError, TypeError):
+                logger.warning('Sleeper projection dictionary file not found during save process.')
 
         return all_proj_dict
 
 
     def __load_players(self):
         # Loads the player_to_sleeper_id dictionary from a local .json file.
-
-        with open(self.player_dict_file, 'r', encoding='utf-8') as file:
-            player_to_sleeper_id = json.load(file)
+        try:
+            with open(self.player_dict_file, 'r', encoding='utf-8') as file:
+                player_to_sleeper_id = json.load(file)
+        except (FileNotFoundError, TypeError):
+            logger.warning('Sleeper player dictionary file not found during load. Refreshing from Sleeper API.')
+            player_to_sleeper_id = self.refresh_players()
 
         return player_to_sleeper_id
 
 
-    def __reformat_sleeper_stats(self, stat_dict):
+    def __reformat_sleeper_stats(self, stat_dict, stat_columns):
         # Re-names stats from Sleeper's format to the common names used across this project
         # and lists into the common stat line format.
         # TODO: this is kinda janky, no?
 
-        stat_indices_df_to_sleeper = {
+        labels_df_to_sleeper = {
             'Pass Att': 'pass_att',
             'Pass Cmp': 'pass_cmp',
             'Pass Yds': 'pass_yd',
@@ -204,9 +230,15 @@ class SleeperPredictor(FantasyPredictor):
             'Rec TD': 'rec_td',
             'Fmb': 'fum_lost'
         }
+
+        # stat_line = []
+        # for sleeper_stat_label in labels_df_to_sleeper.values():
+        #     stat_value = stat_dict.get(sleeper_stat_label, 0)
+        #     stat_line.append(stat_value)
+
         stat_line = []
-        for sleeper_stat_label in stat_indices_df_to_sleeper.values():
-            stat_value = stat_dict.get(sleeper_stat_label, 0)
+        for stat in stat_columns:
+            stat_value = stat_dict.get(labels_df_to_sleeper[stat], 0)
             stat_line.append(stat_value)
 
         return stat_line
