@@ -58,6 +58,17 @@ class TestConstructor_PredictionResult(unittest.TestCase):
 
         pdtest.assert_frame_equal(prediction_result.pbp_df,expected_pbp_result)
     
+    def test_pbp_with_fantasy_points_normalized_false(self):
+        prediction_result = PredictionResult(dataset=self.dataset,
+                                             predicts=self.predicts,
+                                             truths=self.truths, 
+                                             predictor_name=self.predictor.name,
+                                             normalized=False,
+                                             scoring_weights=self.scoring_weights)
+        expected_pbp_result = stats_to_fantasy_points(self.dataset.x_df,normalized=False,scoring_weights=self.scoring_weights)
+
+        pdtest.assert_frame_equal(prediction_result.pbp_df,expected_pbp_result)
+    
     def test_missing_stats_gives_error(self):
         with self.assertRaises(TypeError):
             PredictionResult(dataset=self.dataset,

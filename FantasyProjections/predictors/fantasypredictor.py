@@ -56,15 +56,15 @@ class FantasyPredictor():
                     Each row corresponds to the final results for a single player/game.
         """
         # Override any necessary keyword argument values
-        normalized = kwargs.get('normalized',True)
+        kwargs['normalized'] = kwargs.get('normalized',True)
 
-        stat_truths = stats_to_fantasy_points(eval_data.y_df, normalized=normalized, **kwargs)
+        stat_truths = stats_to_fantasy_points(eval_data.y_df, **kwargs)
         return stat_truths
 
 
     # PROTECTED METHODS
 
-    def _gen_prediction_result(self, stat_predicts, stat_truths, eval_data):
+    def _gen_prediction_result(self, stat_predicts, stat_truths, eval_data, **kwargs):
         """Packages predicted stats and true stats into a PredictionResult object and logs accuracy.
 
             Args:
@@ -74,13 +74,17 @@ class FantasyPredictor():
                     for a set of players/games. The set of players/games must match the set in stat_predicts.
                 eval_data (StatsDataset): Dataset containing NFL players' final stats across multiple games.
 
+            Keyword-Args:
+                All keyword arguments are passed to the PredictionResult constructor. See that class's documentation for descriptions and valid inputs.
+                All keyword arguments are optional.
+
             Returns:
                 PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
                     performance assessments, etc.
         """
 
         # Generate PredictorResult object
-        result = PredictionResult(dataset=eval_data, predicts=stat_predicts, truths=stat_truths, predictor_name=self.name)
+        result = PredictionResult(dataset=eval_data, predicts=stat_predicts, truths=stat_truths, predictor_name=self.name, **kwargs)
 
         # Compute/display average absolute error
         logger.info(f'{self.name} {eval_data.name} Error: Avg. Abs. Fantasy Points Different = {(np.mean(result.diff_pred_vs_truth(absolute=True))):>0.2f}')

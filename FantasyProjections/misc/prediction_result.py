@@ -219,16 +219,16 @@ class PredictionResult():
         pbp_df = self.dataset.x_df.copy().reset_index(drop=True)
 
         # Extract any necessary keyword argument values
-        normalized = kwargs.get('normalized',True) # Note this defaults to True instead of the standard False
+        kwargs['normalized'] = kwargs.get('normalized',True) # Note this defaults to True instead of the standard False
         norm_thresholds = kwargs.get('norm_thresholds',stats_config.default_norm_thresholds)
 
         # Remove any columns that do not need to be unnormalized
-        if normalized:
+        if kwargs['normalized']:
             set_normalizable_columns = frozenset(norm_thresholds)
             columns = [x for x in pbp_df.columns if x in set_normalizable_columns]
             # columns = list(set(pbp_df.columns.tolist()) & set(stats_config.default_norm_thresholds))
             pbp_df = pbp_df[columns]
 
         # Compute Fantasy Points
-        pbp_df = stats_to_fantasy_points(pbp_df, normalized=normalized, **kwargs)
+        pbp_df = stats_to_fantasy_points(pbp_df, **kwargs)
         return pbp_df

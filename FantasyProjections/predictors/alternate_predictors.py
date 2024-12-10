@@ -31,19 +31,34 @@ class LastNPredictor(FantasyPredictor):
 
     # PUBLIC METHODS
 
-    def eval_model(self, eval_data, all_data):
+    def eval_model(self, eval_data, all_data=None, **kwargs):
         """Generates predicted stats for an input evaluation dataset, based on an average of the player's stats in recent games.
 
             Note that only pre-game predictions will be included in the evaluation result. If multiple game times in each game
             are present in eval_data, only one prediction per game will be made, with the other rows automatically dropped.
 
             Args:
-                eval_data (Dataset): data to use for Predictor evaluation (e.g. validation or test data).
+                eval_data (StatsDataset): data to use for Predictor evaluation (e.g. validation or test data).
+                all_data (StatsDataset, optional): every game that can be used as a lookup for previous games within eval_data.
+                    Since eval_data may not include a player's whole career, all_data is intended to provide a broader search space
+                    to find a player's previous game. Defaults to eval_data.
+
+            Keyword-Args:
+                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor. 
+                See the related documentation for descriptions and valid inputs. 
+                All keyword arguments are optional.
 
             Returns:
                 PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
                     performance assessments, etc.
         """
+
+        # Optional all_data input
+        if all_data is None:
+            all_data = eval_data
+
+        # Override default kwargs to stats_to_fantasy_points 
+        kwargs['normalized'] = kwargs.get('normalized',True)
 
         # Drop all the duplicated rows that are for the same game, and only
         # dependent on elapsed game time - that variable is irrelevant here, so we
@@ -61,15 +76,17 @@ class LastNPredictor(FantasyPredictor):
         prev_game_stats_df = eval_data.id_data.apply(
             lambda x: all_ids.loc[(x['Player'], x['Year'], x['Week']), 'tensor'], axis=1)
         prev_game_stats = torch.tensor(prev_game_stats_df.to_list())
+        # List of stats being used to compute fantasy score
+        stat_columns = eval_data.y_df.columns.tolist()
 
         # Un-normalize and compute Fantasy score
         stat_predicts = stats_to_fantasy_points(
-            prev_game_stats, stat_indices='default', normalized=True)
+            prev_game_stats, stat_indices=stat_columns, **kwargs)
         # True stats from eval data
-        stat_truths = self.eval_truth(eval_data)
+        stat_truths = self.eval_truth(eval_data, **kwargs)
 
         # Create result object
-        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_data)
+        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_data, **kwargs)
 
         return result
 
@@ -148,6 +165,7 @@ class LastNPredictor(FantasyPredictor):
                 answer.append([np.nan] * y_data.shape[1])
         return answer
 
+
 @dataclass
 class PerfectPredictor(FantasyPredictor):
     """Predictor of NFL players' stats in games, using the true NFL stats, giving perfect predictions.
@@ -166,11 +184,15 @@ class PerfectPredictor(FantasyPredictor):
 
     # PUBLIC METHODS
 
-    def eval_model(self, eval_data):
+    def eval_model(self, eval_data, **kwargs):
         """Generates predicted stats for an input evaluation dataset, using the true stats for the same dataset.
 
             Args:
-                eval_data (Dataset): data to use for Predictor evaluation (e.g. validation or test data).
+                eval_data (StatsDataset): data to use for Predictor evaluation (e.g. validation or test data).
+
+            Keyword-Args:
+                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor. 
+                See the related documentation for descriptions and valid inputs. All keyword arguments are optional.
 
             Returns:
                 PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
@@ -178,11 +200,11 @@ class PerfectPredictor(FantasyPredictor):
         """
 
         # True stats from eval data
-        stat_truths = self.eval_truth(eval_data)
+        stat_truths = self.eval_truth(eval_data, **kwargs)
         # Predicts equal truth
         stat_predicts = stat_truths
 
         # Create result object
-        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_data)
+        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_data, **kwargs)
 
         return result
