@@ -35,6 +35,7 @@ bs_df = pd.DataFrame(data=[[0.05, 0.06, 0.1],
                             ], columns=['Pass Yds', 'Rush Yds', 'Rec Yds'])
 
 # LastNPredictor variables
+# Must be hard-coded by test dev whenever the above data changes
 map_to_last_game = pd.Series(data=[
     np.nan,
     0,
@@ -47,6 +48,7 @@ map_to_last_game = pd.Series(data=[
     7
 ])
 
+# Must be hard-coded by test dev whenever the above data changes
 map_to_second_to_last_game = pd.Series(data=[
     np.nan,
     np.nan,
@@ -60,6 +62,7 @@ map_to_second_to_last_game = pd.Series(data=[
 ])
 
 # SleeperPredictor variables
+# Must be hard-coded by test dev whenever the above data changes
 expected_predicts_sleeper = pd.DataFrame(data=[
                                     [0.000000, 30.490000, 21.670000, 5.2160],
                                     [0.000000, 23.410000, 19.900000, 4.3310],
@@ -71,6 +74,34 @@ expected_predicts_sleeper = pd.DataFrame(data=[
                                     [0.000000, 0.000000, 37.549999, 3.7550],
                                     [0.000000, 0.000000, 26.750000, 2.6750]],
                                  columns=['Pass Yds', 'Rush Yds', 'Rec Yds', 'Fantasy Points'])
+# NeuralNetPredictor variables
+# Updated automatically by script below
+pbp_df_neural_net = pd.DataFrame(data=[[0.0, 0.65, 0.05, 0.05, 0.05, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+                                        [0.0, 0.35, 0.05, 0.05, 0.05, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+                                        [0.0, 0.65, 0.05, 0.05, 0.05, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                        [0.0, 0.65, 0.05, 0.05, 0.05, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+                                        [0.0, 0.65, 0.05, 0.05, 0.05, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                        [0.0, 0.35, 0.05, 0.05, 0.05, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+                                        [0.0, 0.35, 0.05, 0.05, 0.05, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                                        [0.0, 0.35, 0.05, 0.05, 0.05, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                                        [0.0, 0.65, 0.05, 0.05, 0.05, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+                                        ], columns=['Elapsed Time', 'Field Position', 'Pass Yds', 'Rush Yds', 'Rec Yds', 
+                                                    'Position=QB', 'Position=RB', 'Position=TE', 
+                                                    'Player=Austin Ekeler', 'Player=Jayden Daniels', 'Player=Zach Ertz', 
+                                                    'Team=ARI', 'Team=WAS', 
+                                                    'Opponent=CIN', 'Opponent=CLE', 'Opponent=LA', 'Opponent=NYG', 'Opponent=SF', 'Opponent=TB'])
+
+expected_predicts_neural_net = pd.DataFrame(data=[
+                                                [376.053169, 518.768640, 452.056274, 112.124618],
+                                                [375.168535, 521.017497, 442.399019, 111.348393],
+                                                [377.565150, 518.032830, 453.077894, 112.213678],
+                                                [383.223504, 516.409539, 453.586681, 112.328562],
+                                                [417.155152, 529.886314, 427.540419, 112.428879],
+                                                [414.464179, 500.293094, 425.109524, 109.118829],
+                                                [420.885235, 496.811786, 420.228070, 108.539395],
+                                                [416.170914, 499.182728, 423.181051, 108.883214],
+                                                [408.103555, 510.734709, 439.930292, 111.390642]], 
+                                            columns=['Pass Yds', 'Rush Yds', 'Rec Yds', 'Fantasy Points'])
 
 # Hacky way to write a new dataset that can be hardcoded above
 if __name__ == "__main__":
@@ -78,6 +109,7 @@ if __name__ == "__main__":
     import os
     sys.path.append(os.getcwd()+'/FantasyProjections')
     from misc.dataset import StatsDataset
+    from data_pipeline.preprocess_nn_data import add_word_bank_to_df
     
     source_folder = 'C:/Users/rshaf/OneDrive/Documents/Projects/FantasyProjections/data2/to_nn/'
     id_df = pd.read_csv(source_folder+'data_ids.csv')
@@ -107,10 +139,22 @@ if __name__ == "__main__":
         string = f'{name} = pd.DataFrame(data=[{data_string}], columns={column_string})\n'
         return string
 
+    def build_neural_net_input(id_df, pbp_df):
+        # Encode each non-numeric, relevant pbp field (Player, Team, Position) in a "word bank":
+        fields = ["Position", "Player", "Team", "Opponent"]
+        for field in fields:
+            word_bank_df = add_word_bank_to_df(field, id_df)
+            pbp_df = pd.concat((pbp_df, word_bank_df), axis=1)
+        return pbp_df
+
+    nn_pbp_df = build_neural_net_input(unittest_dataset.id_data, unittest_dataset.x_df)
+
     with open('test.txt','w') as file:
-        for df, name in zip([unittest_dataset.id_data, unittest_dataset.x_df, unittest_dataset.y_df],['id_df','pbp_df','bs_df']):
+        for df, name in zip([unittest_dataset.id_data, unittest_dataset.x_df, unittest_dataset.y_df, nn_pbp_df],
+                            ['id_df','pbp_df','bs_df', 'pbp_df_neural_net']):
             dataframe_string = dataframe_to_hardcoded_string(df, name)
             print(dataframe_string)
             file.write(dataframe_string)
+    
     
     print('Done')

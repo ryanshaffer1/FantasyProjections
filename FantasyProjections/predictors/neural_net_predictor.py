@@ -30,6 +30,7 @@ class NeuralNetPredictor(FantasyPredictor):
             name (str): name of the predictor object, used for logging/display purposes.
             save_folder (str, optional): path to the folder to save model and optimizer settings. Defaults to None.
             load_folder (str, optional): path to the folder to load model and optimizer settings. Defaults to None.
+            nn_shape (dict, optional): Neural Network layers and number of neurons per layer. Defaults to the default Neural Network shape.
             max_epochs (int, optional): number of training iterations before stopping training. Defaults to 100
             n_epochs_to_stop (int, optional): number of training iterations to check for improvement before stopping. Defaults to 5.
                 ex. if a NeuralNetPredictor's performance has not improved over its last n training epochs,
@@ -53,6 +54,7 @@ class NeuralNetPredictor(FantasyPredictor):
     # CONSTRUCTOR
     save_folder: str = None
     load_folder: str = None
+    nn_shape: dict = None
     max_epochs: int = 100
     n_epochs_to_stop: int = 5
 
@@ -64,15 +66,15 @@ class NeuralNetPredictor(FantasyPredictor):
         self.device = self.__assign_device()
         # Initialize model
         if self.load_folder:
-            self.model, self.optimizer = self.load(self.load_folder,print_loaded_model=True)
+            self.load(self.load_folder,print_loaded_model=True)
         else:
-            self.model = NeuralNetwork().to(self.device)
+            self.model = NeuralNetwork(shape=self.nn_shape).to(self.device)
             self.optimizer = torch.optim.SGD(self.model.parameters())
 
 
     # PUBLIC METHODS
 
-    def configure_for_training(self, training_data, eval_data, param_set=None, reset_model=True, print_model_flag=False):
+    def configure_for_training(self, training_data, eval_data, param_set=None, **kwargs):
         """Sets up DataLoader, NeuralNetwork, and optimizer objects to train with provided implementation details.
 
             Args:
@@ -108,6 +110,10 @@ class NeuralNetPredictor(FantasyPredictor):
                 DataLoader: Evaluation DataLoader to use in results evaluation. Not batched or shuffled.
         """
 
+        # Optional keyword arguments
+        reset_model = kwargs.get('reset_model', True)
+        print_model_flag = kwargs.get('print_model_flag', False)
+
         # Extract or set values of hyper-parameters
         if isinstance(param_set, HyperParameterSet):
             param_set = param_set.to_dict()
@@ -123,7 +129,7 @@ class NeuralNetPredictor(FantasyPredictor):
 
         # Initialize Neural Network object, configure optimizer, optionally print info on model
         if reset_model:
-            self.model = NeuralNetwork().to(self.device)
+            self.model = NeuralNetwork(shape=self.nn_shape).to(self.device)
         self.optimizer = torch.optim.SGD(self.model.parameters(),
                                          lr=learning_rate,
                                          weight_decay=lmbda)
@@ -134,7 +140,7 @@ class NeuralNetPredictor(FantasyPredictor):
         return train_dataloader, eval_dataloader
 
 
-    def eval_model(self, eval_data=None, eval_dataloader=None):
+    def eval_model(self, eval_data=None, eval_dataloader=None, **kwargs):
         """Generates predicted stats for an input evaluation dataset, as computed by the NeuralNetwork.
 
             Either eval_data or eval_dataloader must be input. 
@@ -144,28 +150,42 @@ class NeuralNetPredictor(FantasyPredictor):
                 eval_data (StatsDataset, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
                 eval_dataloader (DataLoader, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
 
+            Keyword-Args:
+                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor. 
+                See the related documentation for descriptions and valid inputs.
+                All keyword arguments are optional.
+
             Returns:
                 PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
                     performance assessments, etc.
         """
+        # Raise error if normalized=False in kwargs
+        if 'normalized' in kwargs and not kwargs['normalized']:
+            raise(ValueError('NeuralNetPredictor evaluation data must be normalized.'))
+        kwargs['normalized'] = True
 
         # Create dataloader if only a dataset is passed as input
         if not eval_dataloader:
             eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
+        # Override data in eval_data (in case both are passed, or eval_data is used in following code)
+        eval_data = eval_dataloader.dataset
+
+        # List of stats being used to compute fantasy score
+        stat_columns = eval_dataloader.dataset.y_df.columns.tolist()
 
         # Gather all predicted/true outputs for the input dataset
         self.model.eval()
-        pred = torch.empty([0, 12])
-        y_matrix = torch.empty([0, 12])
+        pred = torch.empty([0, len(stat_columns)])
+        y_matrix = torch.empty([0, len(stat_columns)])
         with torch.no_grad():
             for (x_matrix, y_vec) in eval_dataloader:
                 pred = torch.cat((pred, self.model(x_matrix)))
                 y_matrix = torch.cat((y_matrix, y_vec))
 
         # Convert outputs into un-normalized statistics/fantasy points
-        stat_predicts = stats_to_fantasy_points(pred, stat_indices='default', normalized=True)
-        stat_truths = stats_to_fantasy_points(y_matrix, stat_indices='default', normalized=True)
-        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_dataloader.dataset)
+        stat_predicts = stats_to_fantasy_points(pred, stat_indices=stat_columns, **kwargs)
+        stat_truths = self.eval_truth(eval_dataloader.dataset, **kwargs)
+        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_dataloader.dataset, **kwargs)
 
         return result
 
@@ -181,18 +201,19 @@ class NeuralNetPredictor(FantasyPredictor):
                 print_loaded_model (bool, optional): displays Neural Network model architecture to console or a logger. 
                     Defaults to False.
 
-            Returns:
-                NeuralNetwork: Neural Network implemented via PyTorch. 
+            Attributes modified:
+                model (NeuralNetwork): Neural Network implemented via PyTorch. 
                     Size/architecture and initial parameters determined by the loaded model.pth
-                torch.optim.SGD: Optimizer for model, implemented via PyTorch. 
+                optimizer (torch.optim.SGD): Optimizer for model, implemented via PyTorch. 
                     Parameters are determined by the loaded optimizer.pth
+                nn_shape (dict): Neural Network layers and number of neurons per layer.
         """
 
         model_file = model_folder + 'model.pth'
         opt_file = model_folder + 'opt.pth'
         # Establish shape of the model based on data within file
         state_dict = torch.load(model_file, weights_only=True)
-        shape = {
+        self.nn_shape = {
             'players_input': state_dict['embedding_player.0.weight'].shape[1],
             'teams_input': state_dict['embedding_team.0.weight'].shape[1],
             'positions_input': 4,
@@ -202,30 +223,28 @@ class NeuralNetPredictor(FantasyPredictor):
             'linear_stack': state_dict['linear_stack.0.weight'].shape[0],
             'stats_output': state_dict['linear_stack.2.weight'].shape[0],
         }
-        shape['stats_input'] = (state_dict['linear_stack.0.weight'].shape[1] -
-                                shape['embedding_player'] -
-                                shape['embedding_team'] -
-                                shape['embedding_opp'] -
-                                shape['positions_input']
+        self.nn_shape['stats_input'] = (state_dict['linear_stack.0.weight'].shape[1] -
+                                self.nn_shape['embedding_player'] -
+                                self.nn_shape['embedding_team'] -
+                                self.nn_shape['embedding_opp'] -
+                                self.nn_shape['positions_input']
                                 )
 
         # Create Neural Network model with shape determined above
-        model = NeuralNetwork(shape=shape).to(self.device)
+        self.model = NeuralNetwork(shape=self.nn_shape).to(self.device)
 
         # Load weights/biases into model
-        model.load_state_dict(state_dict)
+        self.model.load_state_dict(state_dict)
 
         # Initialize optimizer, then load state dict from file
-        optimizer = torch.optim.SGD(model.parameters())
+        self.optimizer = torch.optim.SGD(self.model.parameters())
         opt_state_dict = torch.load(opt_file, weights_only=True)
-        optimizer.load_state_dict(opt_state_dict)
+        self.optimizer.load_state_dict(opt_state_dict)
 
         # Print model
         if print_loaded_model:
             logger.info(f'Loaded model from file {model_file}')
-            self.print(model, log=True)
-
-        return model, optimizer
+            self.print(self.model, log=True)
 
 
     def print(self, model, log=False):
@@ -404,6 +423,7 @@ class NeuralNetwork(nn.Module):
         default_shape = {
             'players_input': 300,
             'teams_input': 32,
+            'opps_input': 32,
             'stats_input': 25,
             'positions_input': 4,
             'embedding_player': 50,
@@ -425,7 +445,7 @@ class NeuralNetwork(nn.Module):
         self.position_inds = self.__index_range(self.stats_inds, shape['positions_input'])
         self.players_inds = self.__index_range(self.position_inds, shape['players_input'])
         self.teams_inds = self.__index_range(self.players_inds, shape['teams_input'])
-        self.opponents_inds = self.__index_range(self.teams_inds, shape['teams_input'])
+        self.opponents_inds = self.__index_range(self.teams_inds, shape['opps_input'])
 
         self.embedding_player = nn.Sequential(
             nn.Linear(shape['players_input'], shape['embedding_player'], dtype=float),
@@ -436,7 +456,7 @@ class NeuralNetwork(nn.Module):
             nn.ReLU()
         )
         self.embedding_opp = nn.Sequential(
-            nn.Linear(shape['teams_input'], shape['embedding_opp'], dtype=float),
+            nn.Linear(shape['opps_input'], shape['embedding_opp'], dtype=float),
             nn.ReLU()
         )
         n_input_to_linear_stack = sum(shape[item] for item in ['stats_input','positions_input','embedding_player','embedding_team','embedding_opp'])

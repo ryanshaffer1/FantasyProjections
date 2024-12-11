@@ -96,7 +96,7 @@ class GridSearchTuner(HyperParamTuner):
             plot_grid_search_results(self.save_file,self.param_set,variables=('learning_rate','lmbda'))
 
         # Set the model back to the highest performing config
-        net.model, net.optimizer = net.load(net.save_folder,print_loaded_model=False)
+        net.load(net.save_folder,print_loaded_model=False)
 
 
     # PRIVATE METHODS

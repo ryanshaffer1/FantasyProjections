@@ -1,6 +1,7 @@
 import unittest
 import pandas.testing as pdtest
 import torch
+from torch.utils.data import DataLoader
 import os
 import shutil
 # Module under test
@@ -46,6 +47,31 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
         self.save_folder = 'data/test files/'
         self.load_folder = 'data/test files/'
         
+        self.default_shape = {
+            'players_input': 300,
+            'teams_input': 32,
+            'opps_input': 32,
+            'stats_input': 25,
+            'positions_input': 4,
+            'embedding_player': 50,
+            'embedding_team': 10,
+            'embedding_opp': 10,
+            'linear_stack': 300,
+            'stats_output': 12,
+        }
+        self.shape_2 = {
+            'players_input': 3,
+            'teams_input': 2,
+            'opps_input': 6,
+            'stats_input': 5,
+            'positions_input': 3,
+            'embedding_player': 2,
+            'embedding_team': 4,
+            'embedding_opp': 4,
+            'linear_stack': 30,
+            'stats_output': 3,
+        }
+        
     def test_basic_attributes_no_optional_inputs(self):
         name = 'test'
         predictor = NeuralNetPredictor(name=name)
@@ -53,6 +79,7 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
         self.assertEqual(predictor.name, name)
         self.assertIsNone(predictor.save_folder)
         self.assertIsNone(predictor.load_folder)
+        self.assertIsNone(predictor.nn_shape)
         self.assertEqual(predictor.max_epochs, 100)
         self.assertEqual(predictor.n_epochs_to_stop, 5)
         self.assertTrue(predictor.device in ['cpu','mpu','cuda'])
@@ -64,17 +91,25 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
         predictor = NeuralNetPredictor(name=name,
                                        save_folder=self.save_folder,
                                        load_folder=self.load_folder,
+                                       nn_shape=self.default_shape,
                                        max_epochs=1,
                                        n_epochs_to_stop=2)
         
         self.assertEqual(predictor.name, name)
         self.assertEqual(predictor.save_folder, self.save_folder)
         self.assertEqual(predictor.load_folder, self.load_folder)
+        self.assertEqual(predictor.nn_shape, self.default_shape)
         self.assertEqual(predictor.max_epochs, 1)
         self.assertEqual(predictor.n_epochs_to_stop, 2)
         self.assertTrue(predictor.device in ['cpu','mpu','cuda'])
         self.assertTrue(isinstance(predictor.model, NeuralNetwork))
         self.assertTrue(isinstance(predictor.optimizer,torch.optim.SGD))
+
+    def test_non_default_shape_gives_different_model(self):
+        predictor1 = NeuralNetPredictor(name='test')
+        predictor2 = NeuralNetPredictor(name='test_shape',
+                                        nn_shape=self.shape_2)
+        self.assertFalse(compare_net_sizes(predictor1.model, predictor2.model))
 
     # Tear Down
     def tearDown(self):
@@ -84,7 +119,20 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
     # Set Up
     def setUp(self):
         self.load_folder = 'data/test files/'
-        
+                
+        self.default_shape = {
+            'players_input': 300,
+            'teams_input': 32,
+            'opps_input': 32,
+            'stats_input': 25,
+            'positions_input': 4,
+            'embedding_player': 50,
+            'embedding_team': 10,
+            'embedding_opp': 10,
+            'linear_stack': 300,
+            'stats_output': 12,
+        }
+
     def test_loaded_model_equals_default(self):
         predictor = NeuralNetPredictor(name='test',
                                        load_folder=self.load_folder)
@@ -99,6 +147,13 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
         
         self.assertEqual(predictor.optimizer.state_dict(), expected_optimizer.state_dict())
         
+    def test_loaded_nn_shape_equals_default(self):
+        predictor = NeuralNetPredictor(name='test',
+                                       load_folder=self.load_folder)
+        expected_shape = self.default_shape
+        
+        self.assertEqual(predictor.nn_shape, expected_shape)
+
     def test_invalid_folder_gives_error(self):
         with self.assertRaises(FileNotFoundError):
             NeuralNetPredictor(name='test',
@@ -114,7 +169,7 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
         # Change size of first linear layer in model
         list(predictor.model.children())[0][0].in_features = 4
         # Load model
-        predictor.model, predictor.optimizer = predictor.load(self.load_folder)
+        predictor.load(self.load_folder)
         
         self.assertNotEqual(list(predictor.model.children())[0][0].in_features, 4)
 
@@ -150,73 +205,138 @@ class TestSaveModel_NeuralNetPredictor(unittest.TestCase):
         for filename in os.listdir(self.save_folder):
             os.remove(self.save_folder+filename)
 
-# class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
-#     def setUp(self):
-#         self.save_folder = 'data/test files/'
-#         self.load_folder = 'data/test files/'
+class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
+    def setUp(self):
+        torch.manual_seed(0)
         
-#         # Custom stats list (only using a subset of all statistics)
-#         self.scoring_weights = {'Pass Yds'   : 0.04,
-#                                 'Rush Yds'   : 0.1,
-#                                 'Rec Yds'    : 0.1
-#         }
-#         # Custom dataset
-#         self.dataset = StatsDataset(name='dataset',
-#                                     pbp_df=mock_data_predictors.pbp_df,
-#                                     boxscore_df=mock_data_predictors.bs_df,
-#                                     id_df=mock_data_predictors.id_df)
-#         # Neural Net Predictor
-#         self.predictor = NeuralNetPredictor(name='test',
-#                                             load_folder=self.load_folder)
+        self.save_folder = 'data/test files/'
+        self.load_folder = 'data/test files/'
+        self.mock_shape = {
+            'players_input': 3,
+            'teams_input': 2,
+            'opps_input': 6,
+            'stats_input': 5,
+            'positions_input': 3,
+            'embedding_player': 2,
+            'embedding_team': 4,
+            'embedding_opp': 4,
+            'linear_stack': 30,
+            'stats_output': 3,
+        }
 
-#     def test_eval_model_gives_correct_results(self):
-#         result = self.predictor.eval_model(eval_data=self.dataset)
+        # Custom stats list (only using a subset of all statistics)
+        self.scoring_weights = {'Pass Yds'   : 0.04,
+                                'Rush Yds'   : 0.1,
+                                'Rec Yds'    : 0.1
+        }
+        # Custom dataset
+        self.dataset = StatsDataset(name='dataset',
+                                    pbp_df=mock_data_predictors.pbp_df_neural_net,
+                                    boxscore_df=mock_data_predictors.bs_df,
+                                    id_df=mock_data_predictors.id_df)
+        # Custom dataset 2
+        pbp_df_modified = mock_data_predictors.pbp_df_neural_net.copy()
+        pbp_df_modified['Rush Yds'] *= 2
+        self.dataset2 = StatsDataset(name='dataset',
+                                     pbp_df=pbp_df_modified,
+                                     boxscore_df=mock_data_predictors.bs_df,
+                                     id_df=mock_data_predictors.id_df)
 
-#         pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
+        # Neural Net Predictor
+        self.predictor = NeuralNetPredictor(name='test',
+                                            nn_shape=self.mock_shape)
 
-#     def test_year_outside_of_sleeper_data_gives_zeros(self):
-#         self.dataset.id_data['Year'] = self.dataset.id_data['Year']+10 # Set the year far in the future so that Sleeper can't find these games
-#         result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
+    def test_eval_model_gives_correct_results(self):
+        result = self.predictor.eval_model(eval_data=self.dataset,
+                                           scoring_weights=self.scoring_weights)
 
-#         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper*0, check_dtype=False)
+        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts_neural_net, check_dtype=False)
 
-#     def test_player_outside_of_sleeper_data_gives_zeros(self):
-#         self.dataset.id_data['Player'] = self.dataset.id_data['Player'] + '_test'
-#         result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
+    def test_different_input_dataset_gives_different_result(self):
+        result = self.predictor.eval_model(eval_data=self.dataset2,
+                                           scoring_weights=self.scoring_weights)
+        with self.assertRaises(AssertionError):
+            pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts_neural_net, check_dtype=False)
 
-#         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper*0, check_dtype=False)
+    def test_eval_model_with_dataloader_gives_correct_results(self):
+        eval_dataloader = DataLoader(self.dataset, shuffle=False)
+        result = self.predictor.eval_model(eval_dataloader=eval_dataloader,
+                                           scoring_weights=self.scoring_weights)
 
-#     def test_improper_fantasy_point_kwargs_gives_error(self):
-#         self.scoring_weights['XYZ'] = 100
-#         with self.assertRaises(KeyError):
-#             self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
+        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts_neural_net, check_dtype=False)
 
-#     def test_input_normalized_false(self):
-#         result = self.predictor.eval_model(eval_data=self.dataset,
-#                                            normalized=False,
-#                                            scoring_weights=self.scoring_weights)
+    def test_eval_model_with_dataset_and_dataloader_favors_dataloader(self):
+        eval_dataloader = DataLoader(self.dataset, shuffle=False)
+        result = self.predictor.eval_model(eval_data=self.dataset2,
+                                           eval_dataloader=eval_dataloader,
+                                           scoring_weights=self.scoring_weights)
 
-#         pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
+        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts_neural_net, check_dtype=False)
 
-#     def test_input_normalized_true(self):
-#         result = self.predictor.eval_model(eval_data=self.dataset,
-#                                            normalized=True,
-#                                            scoring_weights=self.scoring_weights)
-#         expected_predicts_normalized_true = stats_to_fantasy_points(mock_data_predictors.expected_predicts_sleeper,
-#                                                                     normalized=True,
-#                                                                     scoring_weights=self.scoring_weights)
+    def test_improper_fantasy_point_kwargs_gives_error(self):
+        self.scoring_weights['XYZ'] = 100
+        with self.assertRaises(KeyError):
+            self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
 
-#         pdtest.assert_frame_equal(result.predicts,expected_predicts_normalized_true, check_dtype=False)
+    def test_input_normalized_false_raises_error(self):
+        with self.assertRaises(ValueError):
+            self.predictor.eval_model(eval_data=self.dataset,
+                                      normalized=False,
+                                      scoring_weights=self.scoring_weights)
 
-#     def tearDown(self):
-#         # Delete copy of projections dictionary
-#         os.remove(self.proj_dict_copy_file)
-#         # Delete dummy nonexistent files
-#         try:
-#             os.remove(self.nonexistent_file_1)
-#         except FileNotFoundError:
-#             pass
-#         try:
-#             os.remove(self.nonexistent_file_2)
-#         except FileNotFoundError:
-#             pass
+    def test_input_normalized_true(self):
+        result = self.predictor.eval_model(eval_data=self.dataset,
+                                           normalized=True,
+                                           scoring_weights=self.scoring_weights)
+
+        pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_neural_net, check_dtype=False)
+
+    def tearDown(self):
+        pass
+
+class TestConfigureForTraining_NeuralNetPredictor(unittest.TestCase):
+    def setUp(self):
+        torch.manual_seed(0)
+        
+        self.save_folder = 'data/test files/'
+        self.load_folder = 'data/test files/'
+        self.mock_shape = {
+            'players_input': 3,
+            'teams_input': 2,
+            'opps_input': 6,
+            'stats_input': 5,
+            'positions_input': 3,
+            'embedding_player': 2,
+            'embedding_team': 4,
+            'embedding_opp': 4,
+            'linear_stack': 30,
+            'stats_output': 3,
+        }
+
+        # Custom stats list (only using a subset of all statistics)
+        self.scoring_weights = {'Pass Yds'   : 0.04,
+                                'Rush Yds'   : 0.1,
+                                'Rec Yds'    : 0.1
+        }
+        # Custom dataset
+        self.dataset = StatsDataset(name='dataset',
+                                    pbp_df=mock_data_predictors.pbp_df_neural_net,
+                                    boxscore_df=mock_data_predictors.bs_df,
+                                    id_df=mock_data_predictors.id_df)
+        # Custom dataset 2
+        pbp_df_modified = mock_data_predictors.pbp_df_neural_net.copy()
+        pbp_df_modified['Rush Yds'] *= 2
+        self.dataset2 = StatsDataset(name='dataset',
+                                     pbp_df=pbp_df_modified,
+                                     boxscore_df=mock_data_predictors.bs_df,
+                                     id_df=mock_data_predictors.id_df)
+
+        # Neural Net Predictor
+        self.predictor = NeuralNetPredictor(name='test',
+                                            nn_shape=self.mock_shape)
+
+    def test_stuff(self):
+        pass
+
+    def tearDown(self):
+        pass
