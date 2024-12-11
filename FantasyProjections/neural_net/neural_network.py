@@ -12,7 +12,6 @@ class NeuralNetwork(nn.Module):
 
         Attributes:
             stats_inds (list): lazy, list of indices in input vector corresponding to "raw game stats"
-            position_inds (list): lazy, list of indices in input vector corresponding to player positions
             players_inds (list): lazy, list of indices in input vector corresponding to player IDs
             teams_inds (list): lazy, list of indices in input vector corresponding to team IDs
             opponents_inds (list): lazy, list of indices in input vector corresponding to opponent IDs
@@ -41,8 +40,7 @@ class NeuralNetwork(nn.Module):
             'players_input': 300,
             'teams_input': 32,
             'opps_input': 32,
-            'stats_input': 25,
-            'positions_input': 4,
+            'stats_input': 29,
             'embedding_player': 50,
             'embedding_team': 10,
             'embedding_opp': 10,
@@ -59,8 +57,7 @@ class NeuralNetwork(nn.Module):
                     shape[key] = val
         # Indices of input vector that correspond to each "category" (needed bc they are embedded separately)
         self.stats_inds = range(0, shape['stats_input'])
-        self.position_inds = self.__index_range(self.stats_inds, shape['positions_input'])
-        self.players_inds = self.__index_range(self.position_inds, shape['players_input'])
+        self.players_inds = self.__index_range(self.stats_inds, shape['players_input'])
         self.teams_inds = self.__index_range(self.players_inds, shape['teams_input'])
         self.opponents_inds = self.__index_range(self.teams_inds, shape['opps_input'])
 
@@ -76,7 +73,7 @@ class NeuralNetwork(nn.Module):
             nn.Linear(shape['opps_input'], shape['embedding_opp'], dtype=float),
             nn.ReLU()
         )
-        n_input_to_linear_stack = sum(shape[item] for item in ['stats_input','positions_input','embedding_player','embedding_team','embedding_opp'])
+        n_input_to_linear_stack = sum(shape[item] for item in ['stats_input','embedding_player','embedding_team','embedding_opp'])
         self.linear_stack = nn.Sequential(
             nn.Linear(n_input_to_linear_stack, shape['linear_stack'], dtype=float),
             nn.ReLU(),
@@ -99,8 +96,7 @@ class NeuralNetwork(nn.Module):
         player_embedding = self.embedding_player(x[:, self.players_inds])
         team_embedding = self.embedding_team(x[:, self.teams_inds])
         opp_embedding = self.embedding_opp(x[:, self.opponents_inds])
-        x_embedded = torch.cat((x[:,
-                                  0:max(self.position_inds) + 1],
+        x_embedded = torch.cat((x[:,0:max(self.stats_inds) + 1],
                                 player_embedding,
                                 team_embedding,
                                 opp_embedding),

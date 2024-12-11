@@ -1,16 +1,16 @@
 import unittest
 import pandas.testing as pdtest
 import torch
+from torch import nn
 from torch.utils.data import DataLoader
 import os
-import shutil
 # Module under test
 from predictors import NeuralNetPredictor
 # Modules needed for test setup
-from neural_net import NeuralNetwork
+from neural_net import NeuralNetwork, HyperParameter, HyperParameterSet
 from tests.utils_for_tests import mock_data_predictors
+from config.hp_config import default_hp_values
 from misc.dataset import StatsDataset
-from misc.stat_utils import stats_to_fantasy_points
 import logging
 import logging.config
 from config.log_config import LOGGING_CONFIG
@@ -42,6 +42,22 @@ def compare_net_sizes(model1, model2):
                     return False                
     return True
 
+def check_all_model_layers_changed(model1, model2):
+    # Returns whether two Neural Networks have different parameters in every layer of the network.
+    # Used to verify that the training process affects every layer of the network (and there are no "isolated" layers).
+
+    if not compare_net_sizes(model1,model2):
+        raise ValueError('Models are not the same size/shape')
+
+    for child1, child2 in zip(model1.children(), model2.children()):
+        for layer1, layer2 in zip(child1, child2):
+            if hasattr(layer1, '_parameters'):
+                for tensor1, tensor2 in zip(layer1._parameters.values(), layer2._parameters.values()):
+                    if torch.equal(tensor1,tensor2):
+                        return False
+    return True
+
+
 class TestConstructor_NeuralNetPredictor(unittest.TestCase):
     # Set Up
     def setUp(self):
@@ -52,8 +68,7 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
             'players_input': 300,
             'teams_input': 32,
             'opps_input': 32,
-            'stats_input': 25,
-            'positions_input': 4,
+            'stats_input': 29,
             'embedding_player': 50,
             'embedding_team': 10,
             'embedding_opp': 10,
@@ -64,8 +79,7 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
             'players_input': 3,
             'teams_input': 2,
             'opps_input': 6,
-            'stats_input': 5,
-            'positions_input': 3,
+            'stats_input': 8,
             'embedding_player': 2,
             'embedding_team': 4,
             'embedding_opp': 4,
@@ -125,13 +139,23 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
             'players_input': 300,
             'teams_input': 32,
             'opps_input': 32,
-            'stats_input': 25,
-            'positions_input': 4,
+            'stats_input': 29,
             'embedding_player': 50,
             'embedding_team': 10,
             'embedding_opp': 10,
             'linear_stack': 300,
             'stats_output': 12,
+        }
+        self.weird_shape = {
+            'players_input': 1,
+            'teams_input': 1,
+            'opps_input': 1,
+            'stats_input': 1,
+            'embedding_player': 1,
+            'embedding_team': 1,
+            'embedding_opp': 1,
+            'linear_stack': 1,
+            'stats_output': 1,
         }
 
     def test_loaded_model_equals_default(self):
@@ -173,6 +197,23 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
         predictor.load(self.load_folder)
         
         self.assertNotEqual(list(predictor.model.children())[0][0].in_features, 4)
+
+    def test_load_model_of_new_shape_overwrites_model(self):
+        predictor = NeuralNetPredictor(name='test',
+                                       nn_shape = self.weird_shape)
+        predictor.load(self.load_folder)
+        expected_model = NeuralNetPredictor(load_folder=self.load_folder).model
+
+        self.assertTrue(compare_net_sizes(predictor.model, expected_model))
+
+    def test_load_model_of_different_shape_than_input_shape_overwrites_input_shape(self):
+        predictor = NeuralNetPredictor(name='test',
+                                       nn_shape = self.weird_shape,
+                                       load_folder=self.load_folder)
+        expected_pred = NeuralNetPredictor(load_folder=self.load_folder)
+
+        self.assertTrue(compare_net_sizes(predictor.model, expected_pred.model))
+        self.assertEqual(predictor.nn_shape, expected_pred.nn_shape)
 
     # Tear Down
     def tearDown(self):
@@ -216,8 +257,7 @@ class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
             'players_input': 3,
             'teams_input': 2,
             'opps_input': 6,
-            'stats_input': 5,
-            'positions_input': 3,
+            'stats_input': 8,
             'embedding_player': 2,
             'embedding_team': 4,
             'embedding_opp': 4,
@@ -305,8 +345,218 @@ class TestConfigureForTraining_NeuralNetPredictor(unittest.TestCase):
             'players_input': 3,
             'teams_input': 2,
             'opps_input': 6,
-            'stats_input': 5,
-            'positions_input': 3,
+            'stats_input': 8,
+            'embedding_player': 2,
+            'embedding_team': 4,
+            'embedding_opp': 4,
+            'linear_stack': 30,
+            'stats_output': 3,
+        }
+
+        # Hyper-parameters
+        self.mini_batch_size = 100
+        self.learning_rate = 1
+        self.lmbda = 0.001
+        self.mini_batch_size_hp = HyperParameter('mini_batch_size', optimizable=False, 
+                                                 value=self.mini_batch_size)
+        self.learning_rate_hp = HyperParameter('learning_rate', optimizable=False,
+                                               value=self.learning_rate)
+        self.lmbda_hp = HyperParameter('lmbda', optimizable=False,
+                                       value=self.lmbda)
+        self.hp_set = HyperParameterSet((self.mini_batch_size_hp,self.learning_rate_hp,self.lmbda_hp),optimize=False)
+        self.hp_dict = {'mini_batch_size': int(self.mini_batch_size),
+                        'learning_rate': self.learning_rate,
+                        'lmbda': self.lmbda}
+
+        # Custom stats list (only using a subset of all statistics)
+        self.scoring_weights = {'Pass Yds'   : 0.04,
+                                'Rush Yds'   : 0.1,
+                                'Rec Yds'    : 0.1
+        }
+        # Custom dataset
+        self.dataset = StatsDataset(name='dataset',
+                                    pbp_df=mock_data_predictors.pbp_df_neural_net,
+                                    boxscore_df=mock_data_predictors.bs_df,
+                                    id_df=mock_data_predictors.id_df)
+        # Custom dataset 2
+        pbp_df_modified = mock_data_predictors.pbp_df_neural_net.copy()
+        pbp_df_modified['Rush Yds'] *= 2
+        self.dataset2 = StatsDataset(name='dataset',
+                                     pbp_df=pbp_df_modified,
+                                     boxscore_df=mock_data_predictors.bs_df,
+                                     id_df=mock_data_predictors.id_df)
+
+        # Neural Net Predictor
+        self.predictor = NeuralNetPredictor(name='test',
+                                            nn_shape=self.mock_shape)
+
+    def test_dataloaders_configured_from_datasets_correctly(self):
+        training_data = self.dataset
+        eval_data = self.dataset2
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        train_dataloader, eval_dataloader = self.predictor.configure_for_training(training_data, eval_data)
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        expected_train_dataloader = DataLoader(training_data, batch_size=int(default_hp_values['mini_batch_size']), shuffle=True)
+        expected_eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
+
+        for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
+            self.assertTrue(result.dataset.equals(expected.dataset))
+            self.assertEqual(result.batch_sampler.batch_size, expected.batch_sampler.batch_size)    
+    
+    def test_invalid_datasets_raises_error(self):
+        with self.assertRaises(AttributeError):
+            self.predictor.configure_for_training([1,2,3], self.dataset.x_data)
+    
+    def test_hyper_parameter_set_with_all_hps_configures_all_correctly(self):
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        train_dataloader, eval_dataloader = self.predictor.configure_for_training(training_data=self.dataset,
+                                                                                  eval_data=self.dataset2,
+                                                                                  param_set=self.hp_set)
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        expected_train_dataloader = DataLoader(self.dataset, batch_size=self.mini_batch_size, shuffle=True)
+        expected_eval_dataloader = DataLoader(self.dataset2, batch_size=int(self.dataset2.x_data.shape[0]), shuffle=False)
+        expected_optimizer = torch.optim.SGD(self.predictor.model.parameters(),
+                                         lr=self.learning_rate,
+                                         weight_decay=self.lmbda)
+        
+        for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
+            self.assertTrue(result.dataset.equals(expected.dataset))
+            self.assertEqual(result.batch_sampler.batch_size, expected.batch_sampler.batch_size) 
+        self.assertEqual(self.predictor.optimizer.state_dict(), expected_optimizer.state_dict())
+    
+    def test_hyper_parameter_set_with_some_hps_configures_all_correctly(self):
+        partial_hp_set = HyperParameterSet((self.mini_batch_size_hp,self.learning_rate_hp),optimize=False)
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        train_dataloader, eval_dataloader = self.predictor.configure_for_training(training_data=self.dataset,
+                                                                                  eval_data=self.dataset2,
+                                                                                  param_set=partial_hp_set)
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        expected_train_dataloader = DataLoader(self.dataset, batch_size=self.mini_batch_size, shuffle=True)
+        expected_eval_dataloader = DataLoader(self.dataset2, batch_size=int(self.dataset2.x_data.shape[0]), shuffle=False)
+        expected_optimizer = torch.optim.SGD(self.predictor.model.parameters(),
+                                         lr=self.learning_rate,
+                                         weight_decay=default_hp_values['lmbda'])
+        
+        for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
+            self.assertTrue(result.dataset.equals(expected.dataset))
+            self.assertEqual(result.batch_sampler.batch_size, expected.batch_sampler.batch_size) 
+        self.assertEqual(self.predictor.optimizer.state_dict(), expected_optimizer.state_dict())
+    
+    def test_empty_hyper_parameter_set_configures_all_correctly(self):
+        empty_hp_set = HyperParameterSet([],optimize=False)
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        train_dataloader, eval_dataloader = self.predictor.configure_for_training(training_data=self.dataset,
+                                                                                  eval_data=self.dataset2,
+                                                                                  param_set=empty_hp_set)
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        expected_train_dataloader = DataLoader(self.dataset, batch_size=int(default_hp_values['mini_batch_size']), shuffle=True)
+        expected_eval_dataloader = DataLoader(self.dataset2, batch_size=int(self.dataset2.x_data.shape[0]), shuffle=False)
+        expected_optimizer = torch.optim.SGD(self.predictor.model.parameters(),
+                                         lr=default_hp_values['learning_rate'],
+                                         weight_decay=default_hp_values['lmbda'])
+        
+        for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
+            self.assertTrue(result.dataset.equals(expected.dataset))
+            self.assertEqual(result.batch_sampler.batch_size, expected.batch_sampler.batch_size) 
+        self.assertEqual(self.predictor.optimizer.state_dict(), expected_optimizer.state_dict())
+    
+    def test_dict_param_set_with_all_hps_configures_all_correctly(self):
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        train_dataloader, eval_dataloader = self.predictor.configure_for_training(training_data=self.dataset,
+                                                                                  eval_data=self.dataset2,
+                                                                                  param_set=self.hp_dict)
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        expected_train_dataloader = DataLoader(self.dataset, batch_size=self.mini_batch_size, shuffle=True)
+        expected_eval_dataloader = DataLoader(self.dataset2, batch_size=int(self.dataset2.x_data.shape[0]), shuffle=False)
+        expected_optimizer = torch.optim.SGD(self.predictor.model.parameters(),
+                                         lr=self.learning_rate,
+                                         weight_decay=self.lmbda)
+        
+        for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
+            self.assertTrue(result.dataset.equals(expected.dataset))
+            self.assertEqual(result.batch_sampler.batch_size, expected.batch_sampler.batch_size) 
+        self.assertEqual(self.predictor.optimizer.state_dict(), expected_optimizer.state_dict())
+
+    def test_dict_param_set_with_some_hps_configures_all_correctly(self):
+        partial_hp_dict = self.hp_dict
+        del partial_hp_dict['lmbda']
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        train_dataloader, eval_dataloader = self.predictor.configure_for_training(training_data=self.dataset,
+                                                                                  eval_data=self.dataset2,
+                                                                                  param_set=self.hp_dict)
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        expected_train_dataloader = DataLoader(self.dataset, batch_size=self.mini_batch_size, shuffle=True)
+        expected_eval_dataloader = DataLoader(self.dataset2, batch_size=int(self.dataset2.x_data.shape[0]), shuffle=False)
+        expected_optimizer = torch.optim.SGD(self.predictor.model.parameters(),
+                                         lr=self.learning_rate,
+                                         weight_decay=default_hp_values['lmbda'])
+        
+        for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
+            self.assertTrue(result.dataset.equals(expected.dataset))
+            self.assertEqual(result.batch_sampler.batch_size, expected.batch_sampler.batch_size) 
+        self.assertEqual(self.predictor.optimizer.state_dict(), expected_optimizer.state_dict())
+
+    def test_no_param_set_input_configures_all_correctly(self):
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        train_dataloader, eval_dataloader = self.predictor.configure_for_training(training_data=self.dataset,
+                                                                                  eval_data=self.dataset2,
+                                                                                  param_set=None)
+        torch.manual_seed(0) # Setting random seed to get the same data shuffle
+        expected_train_dataloader = DataLoader(self.dataset, batch_size=int(default_hp_values['mini_batch_size']), shuffle=True)
+        expected_eval_dataloader = DataLoader(self.dataset2, batch_size=int(self.dataset2.x_data.shape[0]), shuffle=False)
+        expected_optimizer = torch.optim.SGD(self.predictor.model.parameters(),
+                                         lr=default_hp_values['learning_rate'],
+                                         weight_decay=default_hp_values['lmbda'])
+        
+        for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
+            self.assertTrue(result.dataset.equals(expected.dataset))
+            self.assertEqual(result.batch_sampler.batch_size, expected.batch_sampler.batch_size) 
+        self.assertEqual(self.predictor.optimizer.state_dict(), expected_optimizer.state_dict())
+    
+    def test_invalid_param_set_input_raises_error(self):
+        with self.assertRaises(AttributeError):
+            self.predictor.configure_for_training(training_data=self.dataset, eval_data=self.dataset2, param_set=[1,2])
+    
+    def test_reset_model_true(self):
+        # Manually change model shape
+        original_in_features = list(self.predictor.model.children())[0][0].in_features
+        list(self.predictor.model.children())[0][0].in_features = original_in_features*2
+
+        # Configure model with reset_model=True
+        self.predictor.configure_for_training(training_data=self.dataset,
+                                              eval_data=self.dataset2,
+                                              reset_model=True)
+        new_in_features = list(self.predictor.model.children())[0][0].in_features
+
+        self.assertEqual(new_in_features, original_in_features)
+
+    def test_reset_model_false(self):
+        # Manually change model shape
+        original_in_features = list(self.predictor.model.children())[0][0].in_features
+        list(self.predictor.model.children())[0][0].in_features = original_in_features*2
+
+        # Configure model with reset_model=False
+        self.predictor.configure_for_training(training_data=self.dataset,
+                                              eval_data=self.dataset2,
+                                              reset_model=False)
+        new_in_features = list(self.predictor.model.children())[0][0].in_features
+
+        self.assertEqual(new_in_features, original_in_features*2)        
+    
+    def tearDown(self):
+        pass
+
+class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
+    def setUp(self):
+        torch.manual_seed(0)
+        
+        self.save_folder = 'data/test files/empty/'
+
+        self.mock_shape = {
+            'players_input': 3,
+            'teams_input': 2,
+            'opps_input': 6,
+            'stats_input': 8,
             'embedding_player': 2,
             'embedding_team': 4,
             'embedding_opp': 4,
@@ -331,13 +581,99 @@ class TestConfigureForTraining_NeuralNetPredictor(unittest.TestCase):
                                      pbp_df=pbp_df_modified,
                                      boxscore_df=mock_data_predictors.bs_df,
                                      id_df=mock_data_predictors.id_df)
+        # Hyper-parameters
+        self.loss_fn = nn.MSELoss()
+        self.loss_fn_hp = HyperParameter('loss_fn', optimizable=False, 
+                                                 value=self.loss_fn)
+        self.hp_set = HyperParameterSet((self.loss_fn_hp,),optimize=False)
+        self.hp_dict = {'loss_fn': self.loss_fn}
 
         # Neural Net Predictor
         self.predictor = NeuralNetPredictor(name='test',
-                                            nn_shape=self.mock_shape)
+                                            save_folder=self.save_folder,
+                                            nn_shape=self.mock_shape,
+                                            max_epochs=1,
+                                            n_epochs_to_stop=1)
+        self.train_dataloader, self.eval_dataloader = self.predictor.configure_for_training(training_data=self.dataset,
+                                                                                            eval_data=self.dataset2)
 
-    def test_stuff(self):
-        pass
+    def test_return_value_is_list(self):
+        val_perfs = self.predictor.train_and_validate(self.train_dataloader,
+                                                      self.eval_dataloader,
+                                                      scoring_weights=self.scoring_weights)
+        self.assertTrue(isinstance(val_perfs,list))
+    
+    def test_training_changes_model_parameters(self):
+        # Save model before training
+        self.predictor.save()
+        # Train model
+        self.predictor.train_and_validate(self.train_dataloader,
+                                          self.eval_dataloader,
+                                          scoring_weights=self.scoring_weights)
+        post_trained_model = self.predictor.model
+        # Load model from before training
+        pre_trained_model = NeuralNetPredictor(name='loaded_copy',load_folder=self.save_folder).model
+
+        self.assertTrue(check_all_model_layers_changed(pre_trained_model, post_trained_model))
+    
+    def test_max_training_iterations(self):
+        n_epochs = 2
+        self.predictor = NeuralNetPredictor(name='test',
+                                            save_folder=self.save_folder,
+                                            nn_shape=self.mock_shape,
+                                            max_epochs=n_epochs,
+                                            n_epochs_to_stop=n_epochs*2)
+        self.train_dataloader, self.eval_dataloader = self.predictor.configure_for_training(training_data=self.dataset,
+                                                                                            eval_data=self.dataset2)
+        val_perfs = self.predictor.train_and_validate(self.train_dataloader,
+                                                      self.eval_dataloader,
+                                                      scoring_weights=self.scoring_weights)
+        self.assertEqual(len(val_perfs),n_epochs)
+
+    def test_invalid_dataloaders_raises_error(self):
+        with self.assertRaises(AttributeError):
+            self.predictor.train_and_validate(train_dataloader=self.dataset,
+                                              validation_dataloader=self.dataset2,
+                                              scoring_weights=self.scoring_weights)
+    
+    def test_hyper_parameter_set_configures_all_correctly(self):
+        try:
+            self.predictor.train_and_validate(train_dataloader=self.train_dataloader,
+                                            validation_dataloader=self.eval_dataloader,
+                                            param_set=self.hp_set,
+                                            scoring_weights=self.scoring_weights)
+        except Exception as e:
+            self.fail(f'Setting hyperparameters for train_and_validate raised {type(e)} unexpectedly.')
+    
+    def test_empty_hyper_parameter_set_configures_all_correctly(self):
+        empty_hp_set = HyperParameterSet([],optimize=False)
+        try:
+            self.predictor.train_and_validate(train_dataloader=self.train_dataloader,
+                                            validation_dataloader=self.eval_dataloader,
+                                            param_set=empty_hp_set,
+                                            scoring_weights=self.scoring_weights)
+        except Exception as e:
+            self.fail(f'Setting hyperparameters for train_and_validate raised {type(e)} unexpectedly.')
+    
+    def test_dict_param_set_configures_all_correctly(self):
+        try:
+            self.predictor.train_and_validate(train_dataloader=self.train_dataloader,
+                                            validation_dataloader=self.eval_dataloader,
+                                            param_set=self.hp_dict,
+                                            scoring_weights=self.scoring_weights)
+        except Exception as e:
+            self.fail(f'Setting hyperparameters for train_and_validate raised {type(e)} unexpectedly.')
+
+    def test_no_param_set_input_configures_all_correctly(self):
+        try:
+            self.predictor.train_and_validate(train_dataloader=self.train_dataloader,
+                                            validation_dataloader=self.eval_dataloader,
+                                            param_set=None,
+                                            scoring_weights=self.scoring_weights)
+        except Exception as e:
+            self.fail(f'Setting hyperparameters for train_and_validate raised {type(e)} unexpectedly.')
 
     def tearDown(self):
-        pass
+        # Delete any files created in save folder
+        for filename in os.listdir(self.save_folder):
+            os.remove(self.save_folder+filename)

@@ -100,7 +100,7 @@ class NeuralNetPredictor(FantasyPredictor):
                 print_model_flag (bool, optional): displays Neural Network model architecture to console or a logger. 
                     Defaults to False.
 
-            Side Effects:
+            Side Effects (Modified Attributes):
                 self.model is given a new instance of NeuralNetwork
                 self.optimizer is given a new instance of torch.optim.SGD, using parameters in param_set
                     (specifically, learning_rate and lmbda [weight_decay])
@@ -220,7 +220,7 @@ class NeuralNetPredictor(FantasyPredictor):
         self.nn_shape = {
             'players_input': state_dict['embedding_player.0.weight'].shape[1],
             'teams_input': state_dict['embedding_team.0.weight'].shape[1],
-            'positions_input': 4,
+            'opps_input': state_dict['embedding_opp.0.weight'].shape[1],
             'embedding_player': state_dict['embedding_player.0.weight'].shape[0],
             'embedding_team': state_dict['embedding_team.0.weight'].shape[0],
             'embedding_opp': state_dict['embedding_opp.0.weight'].shape[0],
@@ -230,8 +230,7 @@ class NeuralNetPredictor(FantasyPredictor):
         self.nn_shape['stats_input'] = (state_dict['linear_stack.0.weight'].shape[1] -
                                 self.nn_shape['embedding_player'] -
                                 self.nn_shape['embedding_team'] -
-                                self.nn_shape['embedding_opp'] -
-                                self.nn_shape['positions_input']
+                                self.nn_shape['embedding_opp']
                                 )
 
         # Create Neural Network model with shape determined above
@@ -288,7 +287,7 @@ class NeuralNetPredictor(FantasyPredictor):
         logger.info(f'Saved PyTorch Model State to {model_save_file}')
 
 
-    def train_and_validate(self, train_dataloader, validation_dataloader, param_set=None):
+    def train_and_validate(self, train_dataloader, validation_dataloader, param_set=None, **kwargs):
         """Carries out the training process and generates predictions for a separate evaluation dataset.
 
             The model is first trained using train_dataloader and the input loss function (as well as 
@@ -298,8 +297,6 @@ class NeuralNetPredictor(FantasyPredictor):
             improving) condition are met.
 
             Args:
-                param_set (HyperParameterSet): set of hyper-parameters used in Neural Network training. Must include:
-                    
                 train_dataloader (DataLoader): data to use for Neural Net training.
                 validation_dataloader (DataLoader): data to use for Neural Net validation.
                 param_set (HyperParameterSet | dict, optional): set of hyper-parameters used in Neural Network training. 
@@ -309,6 +306,10 @@ class NeuralNetPredictor(FantasyPredictor):
                         loss_fn (function): handle denoting the loss function to use (e.g. nn.MSELoss)
                     Default values for each optional input:
                         loss_fn: nn.MSELoss
+
+            Keyword-Args:
+                All keyword arguments are passed to the eval_model method. See the related documentation for descriptions and valid inputs.
+                All keyword arguments are optional.
 
             Returns:
                 list: accuracy (quantified as average absolute prediction error) of the model's predictions on the
@@ -331,7 +332,7 @@ class NeuralNetPredictor(FantasyPredictor):
             self.__train(train_dataloader, loss_fn)
 
             # Validation
-            val_result = self.eval_model(eval_dataloader=validation_dataloader)
+            val_result = self.eval_model(eval_dataloader=validation_dataloader, **kwargs)
             val_perfs.append(np.mean(val_result.diff_pred_vs_truth(absolute=True)))
 
             # Check stopping condition
@@ -389,6 +390,6 @@ class NeuralNetPredictor(FantasyPredictor):
             self.optimizer.step()
             self.optimizer.zero_grad()
 
-            if print_losses and batch % int(num_batches / 10) == 0:
+            if print_losses and (num_batches < 10 or batch % int(num_batches / 10) == 0):
                 loss, current = loss.item(), (batch + 1) * len(x_matrix)
                 logger.debug(f'\tloss: {loss:>7f}  [{current:>5d}/{size:>5d}]')
