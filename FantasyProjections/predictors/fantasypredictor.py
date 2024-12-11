@@ -9,8 +9,8 @@
 from dataclasses import dataclass
 import logging
 import numpy as np
-from misc.nn_helper_functions import stats_to_fantasy_points
-from misc.prediction_result import PredictionResult
+from results import PredictionResult
+from misc.stat_utils import stats_to_fantasy_points
 
 # Set up logger
 logger = logging.getLogger('log')

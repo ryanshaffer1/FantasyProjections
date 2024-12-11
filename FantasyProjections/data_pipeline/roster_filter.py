@@ -7,7 +7,7 @@
 """
 
 import matplotlib.pyplot as plt
-from misc.nn_helper_functions import stats_to_fantasy_points
+from misc.stat_utils import stats_to_fantasy_points
 
 # Processes boxscore stats and rosters to create a short list of players to focus data collection on
 # Generates a csv of the players to hone in on

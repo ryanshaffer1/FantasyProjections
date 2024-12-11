@@ -2,20 +2,20 @@
 
     Classes:
         NeuralNetPredictor : child of FantasyPredictor. Predicts NFL player stats using a Neural Net.
-        NeuralNet : PyTorch-based Neural Network object with a custom network architecture.
 """
 
 from dataclasses import dataclass
 import logging
 import numpy as np
 import torch
-from torch import nn
 from torch.utils.data import DataLoader
-from config.hyper_parameter_config import default_hp_values
-from misc.nn_helper_functions import stats_to_fantasy_points
+
+from config.hp_config import default_hp_values
+from misc.stat_utils import stats_to_fantasy_points
 from misc.manage_files import create_folders
-from tuners.hyper_tuner import HyperParameterSet
-from .fantasypredictor import FantasyPredictor
+from neural_net import NeuralNetwork
+from neural_net import HyperParameterSet
+from predictors import FantasyPredictor
 
 # Set up logger
 logger = logging.getLogger('log')
@@ -159,16 +159,20 @@ class NeuralNetPredictor(FantasyPredictor):
                 PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
                     performance assessments, etc.
         """
+
         # Raise error if normalized=False in kwargs
         if 'normalized' in kwargs and not kwargs['normalized']:
-            raise(ValueError('NeuralNetPredictor evaluation data must be normalized.'))
+            raise ValueError('NeuralNetPredictor evaluation data must be normalized.')
         kwargs['normalized'] = True
 
         # Create dataloader if only a dataset is passed as input
         if not eval_dataloader:
             eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
-        # Override data in eval_data (in case both are passed, or eval_data is used in following code)
+        # Override data in eval_data (in case both are passed, or eval_data is used in following code) and reset index
         eval_data = eval_dataloader.dataset
+        eval_data.x_df = eval_data.x_df.reset_index(drop=True)
+        eval_data.y_df = eval_data.y_df.reset_index(drop=True)
+        eval_data.id_data = eval_data.id_data.reset_index(drop=True)
 
         # List of stats being used to compute fantasy score
         stat_columns = eval_dataloader.dataset.y_df.columns.tolist()
@@ -388,112 +392,3 @@ class NeuralNetPredictor(FantasyPredictor):
             if print_losses and batch % int(num_batches / 10) == 0:
                 loss, current = loss.item(), (batch + 1) * len(x_matrix)
                 logger.debug(f'\tloss: {loss:>7f}  [{current:>5d}/{size:>5d}]')
-
-
-class NeuralNetwork(nn.Module):
-    """Neural Network model implemented using PyTorch.nn, tailored to the data structures and needs of fantasy_projections.
-
-        Attributes:
-            stats_inds (list): lazy, list of indices in input vector corresponding to "raw game stats"
-            position_inds (list): lazy, list of indices in input vector corresponding to player positions
-            players_inds (list): lazy, list of indices in input vector corresponding to player IDs
-            teams_inds (list): lazy, list of indices in input vector corresponding to team IDs
-            opponents_inds (list): lazy, list of indices in input vector corresponding to opponent IDs
-            embedding_player (nn.Sequential): network layer embedding the player ID information. Parallel to other embedding layers.
-            embedding_team (nn.Sequential): network layer embedding the team ID information. Parallel to other embedding layers.
-            embedding_opp (nn.Sequential): network layer embedding the opponent ID information. Parallel to other embedding layers.
-            linear_stack (nn.Sequential): network layer(s) containing interconnections between embeddings/other stats and output layer.
-
-        Public Methods:
-            forward : Defines the feedforward flow of information through the network, including the embedding and linear stack layers.
-    """
-
-    # CONSTRUCTOR
-    def __init__(self,shape=None):
-        """Initializes a NeuralNetwork with a network architecture defined in FantasyProjections project docs.
-
-            Args:
-                shape (dict, optional): number of neurons in each layer of the network, keyed by the names of each layer. 
-                Defaults to dict default_shape.
-                
-        """
-        super().__init__()
-
-        # Shape of neural network (can be reconfigured during object initialization)
-        default_shape = {
-            'players_input': 300,
-            'teams_input': 32,
-            'opps_input': 32,
-            'stats_input': 25,
-            'positions_input': 4,
-            'embedding_player': 50,
-            'embedding_team': 10,
-            'embedding_opp': 10,
-            'linear_stack': 300,
-            'stats_output': 12,
-        }
-
-        # Establish shape based on optional inputs
-        if not shape:
-            shape = default_shape
-        else:
-            for (key,val) in default_shape.items():
-                if key not in shape:
-                    shape[key] = val
-        # Indices of input vector that correspond to each "category" (needed bc they are embedded separately)
-        self.stats_inds = range(0, shape['stats_input'])
-        self.position_inds = self.__index_range(self.stats_inds, shape['positions_input'])
-        self.players_inds = self.__index_range(self.position_inds, shape['players_input'])
-        self.teams_inds = self.__index_range(self.players_inds, shape['teams_input'])
-        self.opponents_inds = self.__index_range(self.teams_inds, shape['opps_input'])
-
-        self.embedding_player = nn.Sequential(
-            nn.Linear(shape['players_input'], shape['embedding_player'], dtype=float),
-            nn.ReLU()
-        )
-        self.embedding_team = nn.Sequential(
-            nn.Linear(shape['teams_input'], shape['embedding_team'], dtype=float),
-            nn.ReLU()
-        )
-        self.embedding_opp = nn.Sequential(
-            nn.Linear(shape['opps_input'], shape['embedding_opp'], dtype=float),
-            nn.ReLU()
-        )
-        n_input_to_linear_stack = sum(shape[item] for item in ['stats_input','positions_input','embedding_player','embedding_team','embedding_opp'])
-        self.linear_stack = nn.Sequential(
-            nn.Linear(n_input_to_linear_stack, shape['linear_stack'], dtype=float),
-            nn.ReLU(),
-            nn.Linear(shape['linear_stack'], shape['stats_output'], dtype=float),
-            nn.Sigmoid()
-        )
-
-    # PUBLIC METHODS
-
-    def forward(self, x):
-        """Defines the feedforward flow of information through the network, including the embedding and linear stack layers.
-
-            Args:
-                x (tensor): input vector into Neural Net
-
-            Returns:
-                tensor: output vector from Neural Net based on provided input
-        """
-
-        player_embedding = self.embedding_player(x[:, self.players_inds])
-        team_embedding = self.embedding_team(x[:, self.teams_inds])
-        opp_embedding = self.embedding_opp(x[:, self.opponents_inds])
-        x_embedded = torch.cat((x[:,
-                                  0:max(self.position_inds) + 1],
-                                player_embedding,
-                                team_embedding,
-                                opp_embedding),
-                               dim=1)
-        logits = self.linear_stack(x_embedded)
-        return logits
-
-
-    # PRIVATE METHODS
-
-    def __index_range(self, prev_range, length):
-        # Returns the next range of length "length", starting from the end of a previous range "prev_range"
-        return range(max(prev_range) + 1, max(prev_range) + 1 + length)

@@ -9,8 +9,8 @@ import json
 import logging
 import torch
 from sleeper_wrapper import Stats, Players
-from misc.nn_helper_functions import stats_to_fantasy_points, remove_game_duplicates
-from .fantasypredictor import FantasyPredictor
+from misc.stat_utils import stats_to_fantasy_points, remove_game_duplicates
+from predictors import FantasyPredictor
 
 # Set up logger
 logger = logging.getLogger('log')

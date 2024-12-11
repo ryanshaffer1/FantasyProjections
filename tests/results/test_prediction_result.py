@@ -1,12 +1,12 @@
 import unittest
 import pandas.testing as pdtest
 # Module under test
-from misc.prediction_result import PredictionResult, PredictionResultGroup
+from results import PredictionResult, PredictionResultGroup
 # Modules needed for test setup
 import tests.utils_for_tests.mock_data as mock_data
 from misc.dataset import StatsDataset
-from misc.nn_helper_functions import stats_to_fantasy_points
-from predictors.alternate_predictors import PerfectPredictor
+from misc.stat_utils import stats_to_fantasy_points
+from predictors.perfect_predictor import PerfectPredictor
 import logging
 import logging.config
 from config.log_config import LOGGING_CONFIG

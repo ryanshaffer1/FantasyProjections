@@ -6,7 +6,7 @@
 """
 
 import pandas as pd
-from misc.nn_helper_functions import normalize_stat
+from misc.stat_utils import normalize_stat
 from misc.manage_files import create_folders
 
 def preprocess_nn_data(midgame_input, final_stats_input,

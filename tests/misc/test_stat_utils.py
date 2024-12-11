@@ -4,7 +4,7 @@ import pandas as pd
 import pandas.testing as pdtest
 import torch
 # Module under test
-from misc import nn_helper_functions as proj
+from misc import stat_utils as proj
 # Modules needed for test setup
 import tests.utils_for_tests.mock_data as mock_data
 from misc.dataset import StatsDataset

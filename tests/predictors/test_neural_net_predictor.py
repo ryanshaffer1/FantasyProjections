@@ -5,11 +5,12 @@ from torch.utils.data import DataLoader
 import os
 import shutil
 # Module under test
-from predictors.neural_net_predictor import NeuralNetPredictor, NeuralNetwork
+from predictors import NeuralNetPredictor
 # Modules needed for test setup
+from neural_net import NeuralNetwork
 from tests.utils_for_tests import mock_data_predictors
 from misc.dataset import StatsDataset
-from misc.nn_helper_functions import stats_to_fantasy_points
+from misc.stat_utils import stats_to_fantasy_points
 import logging
 import logging.config
 from config.log_config import LOGGING_CONFIG

@@ -9,8 +9,8 @@ from dataclasses import dataclass
 import logging
 import numpy as np
 from misc.manage_files import create_folders
-from .plot_grid_search_results import plot_grid_search_results
 from .hyper_tuner import HyperParamTuner
+from .plot_grid_search_results import plot_grid_search_results
 
 # Set up logger
 logger = logging.getLogger('log')

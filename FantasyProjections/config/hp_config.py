@@ -10,7 +10,8 @@
 """
 
 from torch import nn
-from tuners.hyper_tuner import HyperParameter, HyperParameterSet
+from neural_net import HyperParameter
+from neural_net import HyperParameterSet
 
 # Hyper-Parameter Tuning Settings
 hp_tuner_settings = {

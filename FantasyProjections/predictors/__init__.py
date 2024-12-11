@@ -1,0 +1,5 @@
+from .fantasypredictor import FantasyPredictor
+from .last_n_predictor import LastNPredictor
+from .neural_net_predictor import NeuralNetPredictor
+from .perfect_predictor import PerfectPredictor
+from .sleeper_predictor import SleeperPredictor

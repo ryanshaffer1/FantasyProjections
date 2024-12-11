@@ -10,7 +10,7 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import team_abbreviations
-from misc.nn_helper_functions import stats_to_fantasy_points
+from misc.stat_utils import stats_to_fantasy_points
 
 # Timing inputs (global variables) used to prevent network overload/shutoff
 last_req_time = datetime.now()

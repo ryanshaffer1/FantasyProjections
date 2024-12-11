@@ -14,17 +14,14 @@ import matplotlib.pyplot as plt
 
 from config.log_config import LOGGING_CONFIG
 from config import data_vis_config
-from config import hyper_parameter_config
+from config import hp_config
 
 from misc.dataset import StatsDataset
 from misc.manage_files import move_logfile
-from misc.prediction_result import PredictionResultGroup, PredictionResult
 
-from tuners.grid_search_tuner import GridSearchTuner
-
-from predictors.neural_net_predictor import NeuralNetPredictor
-from predictors.sleeper_predictor import SleeperPredictor
-from predictors.alternate_predictors import LastNPredictor, PerfectPredictor
+from tuners import GridSearchTuner
+from predictors import NeuralNetPredictor, SleeperPredictor, PerfectPredictor, LastNPredictor
+from results import PredictionResultGroup, PredictionResult
 
 # Output files
 FOLDER_PREFIX = ''
@@ -73,7 +70,7 @@ for dataset in (training_data,validation_data,test_data):
     logger.info(f'{dataset.name} Dataset size: {dataset.x_data.shape[0]}')
 
 # Tuning algorithm for Neural Net Hyper-Parameters
-param_tuner = GridSearchTuner(hyper_parameter_config.param_set,save_folder,**hyper_parameter_config.hp_tuner_settings)
+param_tuner = GridSearchTuner(hp_config.param_set,save_folder,**hp_config.hp_tuner_settings)
 
 # Initialize and train neural net
 nn_settings = {

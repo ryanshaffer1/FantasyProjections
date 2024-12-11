@@ -3,12 +3,12 @@ import pandas.testing as pdtest
 import os
 import shutil
 # Module under test
-from predictors.sleeper_predictor import SleeperPredictor
+from predictors import SleeperPredictor
 # Modules needed for test setup
 from tests.utils_for_tests import mock_data_predictors
 from tests.utils_for_tests.skip_tests_config import SKIP_SLEEPER_TESTS
 from misc.dataset import StatsDataset
-from misc.nn_helper_functions import stats_to_fantasy_points
+from misc.stat_utils import stats_to_fantasy_points
 import logging
 import logging.config
 from config.log_config import LOGGING_CONFIG

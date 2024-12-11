@@ -11,7 +11,7 @@
 
 import pandas as pd
 import numpy as np
-from misc.nn_helper_functions import stats_to_fantasy_points
+from misc.stat_utils import stats_to_fantasy_points
 from .data_helper_functions import calc_game_time_elapsed
 
 def parse_play_by_play(pbp_df, roster_df,

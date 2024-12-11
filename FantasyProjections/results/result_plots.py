@@ -16,7 +16,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from misc.nn_helper_functions import linear_regression
+from misc.stat_utils import linear_regression
 
 # Bold text on everything
 plt.rcParams['font.weight'] = 'bold'
@@ -240,7 +240,7 @@ def data_slice_to_plot(result, plot_slice, legend_slice, return_lists=True):
 
     # Break up into multiple x/y data sets if legend slices are input
     if legend_slice:
-        df_lists = [[] for df in dfs_to_slice]
+        df_lists = [[] for _ in dfs_to_slice]
         for key in legend_slice:
             for val in legend_slice[key]:
                 indices_to_keep = id_df.apply(check_df_for_slice, args=(key,val,'list'), axis=1)

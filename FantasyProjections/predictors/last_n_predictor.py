@@ -2,14 +2,13 @@
 
     Classes:
         LastNPredictor : child of FantasyPredictor. Predicts NFL player stats using an average of the player's stats in recent games.
-        PerfectPredictor : child of FantasyPredictor. Predicts NFL player stats using the true NFL stats, giving perfect predictions.
 """
 
 from dataclasses import dataclass
 import numpy as np
 import torch
-from misc.nn_helper_functions import stats_to_fantasy_points, remove_game_duplicates
-from .fantasypredictor import FantasyPredictor
+from misc.stat_utils import stats_to_fantasy_points, remove_game_duplicates
+from predictors import FantasyPredictor
 
 @dataclass
 class LastNPredictor(FantasyPredictor):
@@ -164,47 +163,3 @@ class LastNPredictor(FantasyPredictor):
             else:
                 answer.append([np.nan] * y_data.shape[1])
         return answer
-
-
-@dataclass
-class PerfectPredictor(FantasyPredictor):
-    """Predictor of NFL players' stats in games, using the true NFL stats, giving perfect predictions.
-    
-        Sub-class of FantasyPredictor.
-
-        Args:
-            name (str): name of the predictor object, used for logging/display purposes.
-
-        Public Methods:
-            eval_model : Generates predicted stats for an input evaluation dataset, using the true stats for the same dataset.
-    """
-
-    # CONSTRUCTOR
-    # N/A - Fully constructed by parent __init__()
-
-    # PUBLIC METHODS
-
-    def eval_model(self, eval_data, **kwargs):
-        """Generates predicted stats for an input evaluation dataset, using the true stats for the same dataset.
-
-            Args:
-                eval_data (StatsDataset): data to use for Predictor evaluation (e.g. validation or test data).
-
-            Keyword-Args:
-                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor. 
-                See the related documentation for descriptions and valid inputs. All keyword arguments are optional.
-
-            Returns:
-                PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
-                    performance assessments, etc.
-        """
-
-        # True stats from eval data
-        stat_truths = self.eval_truth(eval_data, **kwargs)
-        # Predicts equal truth
-        stat_predicts = stat_truths
-
-        # Create result object
-        result = self._gen_prediction_result(stat_predicts, stat_truths, eval_data, **kwargs)
-
-        return result
