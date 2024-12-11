@@ -57,7 +57,7 @@ class LastNPredictor(FantasyPredictor):
         if all_data is None:
             all_data = eval_data
 
-        # Override default kwargs to stats_to_fantasy_points 
+        # Override default kwargs to stats_to_fantasy_points
         kwargs['normalized'] = kwargs.get('normalized',True)
 
         # Drop all the duplicated rows that are for the same game, and only
