@@ -101,13 +101,13 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
     def test_eval_model_gives_correct_results(self):
         result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
 
-        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts, check_dtype=False)
+        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
 
     def test_eval_model_no_data_input_gives_correct_results(self):
         self.predictor = SleeperPredictor(name='test')
         result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
 
-        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts, check_dtype=False)
+        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
 
     def test_eval_model_nonexistent_data_files_gives_correct_results(self):
         self.predictor = SleeperPredictor(name='test',
@@ -115,19 +115,19 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
                                           proj_dict_file=self.nonexistent_file_2)
         result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
 
-        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts, check_dtype=False)
+        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
 
     def test_year_outside_of_sleeper_data_gives_zeros(self):
         self.dataset.id_data['Year'] = self.dataset.id_data['Year']+10 # Set the year far in the future so that Sleeper can't find these games
         result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
 
-        pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts*0, check_dtype=False)
+        pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper*0, check_dtype=False)
 
     def test_player_outside_of_sleeper_data_gives_zeros(self):
         self.dataset.id_data['Player'] = self.dataset.id_data['Player'] + '_test'
         result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
 
-        pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts*0, check_dtype=False)
+        pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper*0, check_dtype=False)
 
     def test_improper_fantasy_point_kwargs_gives_error(self):
         self.scoring_weights['XYZ'] = 100
@@ -139,13 +139,13 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
                                            normalized=False,
                                            scoring_weights=self.scoring_weights)
 
-        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts, check_dtype=False)
+        pdtest.assert_frame_equal(result.predicts,mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
 
     def test_input_normalized_true(self):
         result = self.predictor.eval_model(eval_data=self.dataset,
                                            normalized=True,
                                            scoring_weights=self.scoring_weights)
-        expected_predicts_normalized_true = stats_to_fantasy_points(mock_data_predictors.expected_predicts,
+        expected_predicts_normalized_true = stats_to_fantasy_points(mock_data_predictors.expected_predicts_sleeper,
                                                                     normalized=True,
                                                                     scoring_weights=self.scoring_weights)
 

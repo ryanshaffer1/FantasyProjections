@@ -60,7 +60,7 @@ map_to_second_to_last_game = pd.Series(data=[
 ])
 
 # SleeperPredictor variables
-expected_predicts = pd.DataFrame(data=[
+expected_predicts_sleeper = pd.DataFrame(data=[
                                     [0.000000, 30.490000, 21.670000, 5.2160],
                                     [0.000000, 23.410000, 19.900000, 4.3310],
                                     [0.000000, 22.030001, 18.320000, 4.0350],

@@ -115,7 +115,7 @@ class NeuralNetPredictor(FantasyPredictor):
             If both are input, eval_dataloader will be used.
 
             Args:
-                eval_data (Dataset, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
+                eval_data (StatsDataset, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
                 eval_dataloader (DataLoader, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
 
             Returns:
@@ -167,21 +167,21 @@ class NeuralNetPredictor(FantasyPredictor):
         # Establish shape of the model based on data within file
         state_dict = torch.load(model_file, weights_only=True)
         shape = {
-        'players_input': state_dict['embedding_player.0.weight'].shape[1],
-        'teams_input': state_dict['embedding_team.0.weight'].shape[1],
-        'positions_input': 4,
-        'embedding_player': state_dict['embedding_player.0.weight'].shape[0],
-        'embedding_team': state_dict['embedding_team.0.weight'].shape[0],
-        'embedding_opp': state_dict['embedding_opp.0.weight'].shape[0],
-        'linear_stack': state_dict['linear_stack.0.weight'].shape[0],
-        'stats_output': state_dict['linear_stack.2.weight'].shape[0],
+            'players_input': state_dict['embedding_player.0.weight'].shape[1],
+            'teams_input': state_dict['embedding_team.0.weight'].shape[1],
+            'positions_input': 4,
+            'embedding_player': state_dict['embedding_player.0.weight'].shape[0],
+            'embedding_team': state_dict['embedding_team.0.weight'].shape[0],
+            'embedding_opp': state_dict['embedding_opp.0.weight'].shape[0],
+            'linear_stack': state_dict['linear_stack.0.weight'].shape[0],
+            'stats_output': state_dict['linear_stack.2.weight'].shape[0],
         }
         shape['stats_input'] = (state_dict['linear_stack.0.weight'].shape[1] -
-                            shape['embedding_player'] -
-                            shape['embedding_team'] -
-                            shape['embedding_opp'] -
-                            shape['positions_input']
-                            )
+                                shape['embedding_player'] -
+                                shape['embedding_team'] -
+                                shape['embedding_opp'] -
+                                shape['positions_input']
+                                )
 
         # Create Neural Network model with shape determined above
         model = NeuralNetwork(shape=shape).to(self.device)
