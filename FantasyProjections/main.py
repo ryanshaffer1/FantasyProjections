@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from config.log_config import LOGGING_CONFIG
 from config import data_vis_config
 from config import hyper_parameter_config
+
 from misc.dataset import StatsDataset
 from misc.manage_files import move_logfile
 from misc.prediction_result import PredictionResultGroup, PredictionResult
@@ -71,7 +72,7 @@ test_data_pregame.name = 'Test (Pre-Game)'
 for dataset in (training_data,validation_data,test_data):
     logger.info(f'{dataset.name} Dataset size: {dataset.x_data.shape[0]}')
 
-# Tuning algorithm for Hyper-Parameters
+# Tuning algorithm for Neural Net Hyper-Parameters
 param_tuner = GridSearchTuner(hyper_parameter_config.param_set,save_folder,**hyper_parameter_config.hp_tuner_settings)
 
 # Initialize and train neural net
@@ -80,19 +81,19 @@ nn_settings = {
     'n_epochs_to_stop': 5}
 # neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, **nn_settings)
 neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_settings)
-param_tuner.tune_neural_net(neural_net, training_data, validation_data)
+# param_tuner.tune_neural_net(neural_net, training_data, validation_data)
+train_dataloader, validation_dataloader = neural_net.configure_for_training(training_data=training_data,
+                                                                            eval_data=validation_data)
+val_perfs = neural_net.train_and_validate(train_dataloader,validation_dataloader)
 
-# Create Sleeper prediction model
+
+# Alternate predictors
 sleeper_predictor = SleeperPredictor(name='Sleeper',
                                      player_dict_file=SLEEPER_PLAYER_DICT_FILE,
                                      proj_dict_file=SLEEPER_PROJ_DICT_FILE,
-                                     update_players=False)
-
-# Create Naive prediction model
-naive_predictor = LastNPredictor(name='Naive: Previous Game', n=3)
-
-# Create Perfect prediction model
-perfect_predictor = PerfectPredictor(name='Perfect Predictor')
+                                     update_players=False) # Create Sleeper prediction model
+naive_predictor = LastNPredictor(name='Naive: Previous Game', n=3) # Create Naive prediction model
+perfect_predictor = PerfectPredictor(name='Perfect Predictor') # Create Perfect prediction model
 
 # Evaluate Model(s) against Test Data
 nn_result = neural_net.eval_model(eval_data=test_data)

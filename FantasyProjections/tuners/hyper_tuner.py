@@ -123,6 +123,7 @@ class HyperParameterSet():
             get : Returns a HyperParameter from a HyperParameterSet based on the HyperParameter's name.
             refine_grid : Implements Recursive Grid Search by generating new gridpoints/values for each HyperParameter, "zooming in" closer to the values at the provided index.
             set_values : Sets value of all HyperParameter objects in set to value at a specific index within the list of values.
+            to_dict : Converts object data to a dict, where each key is the name of a HyperParameter, and each value is the HyperParameter's current value.
     """
 
     hyper_parameters: tuple
@@ -226,6 +227,15 @@ class HyperParameterSet():
             for hp in self.hyper_parameters:
                 hp.set_value(ind)
 
+
+    def to_dict(self):
+        """Converts object data to a dict, where each key is the name of a HyperParameter, and each value is the HyperParameter's current value.
+
+            Returns:
+                dict: dictionary mapping HyperParameters in the set to their current values.
+        """
+        hp_dict = {hp.name:hp.value for hp in self.hyper_parameters}
+        return hp_dict
 
     # PRIVATE METHODS
 

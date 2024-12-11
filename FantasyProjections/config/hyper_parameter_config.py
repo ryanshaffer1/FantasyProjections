@@ -2,6 +2,7 @@
 
     Variables: 
         hp_tuner_settings (dict): Defines settings ingested by the hyperparameter tuner.
+        default_hp_values (dict): Basic (initial or default) value to use for each Neural Net hyper-parameter
         mini_batch_size (HyperParameter): size of training data batches used in SGD training iterations
         learning_rate (HyperParameter): Learning Rate used in SGD optimizer
         lmbda (HyperParameter): L2 Regularization Parameter used in SGD optimizer
@@ -20,10 +21,17 @@ hp_tuner_settings = {
     'plot_tuning_results': True,
 }
 
+default_hp_values = {
+    'mini_batch_size': 1000,
+    'learning_rate': 50,
+    'lmbda': 0,
+    'loss_fn': nn.MSELoss()
+}
+
 # Hyper-parameters (automatically tuned if optimize_hypers = True)
 mini_batch_size = HyperParameter('mini_batch_size',
                                 optimizable=False,
-                                value=1000,
+                                value=default_hp_values['mini_batch_size'],
                                 #  val_range = [1000,10000],
                                 #  val_range=[100,10000],
                                 #  val_scale='log',
@@ -31,21 +39,21 @@ mini_batch_size = HyperParameter('mini_batch_size',
                                 )
 learning_rate = HyperParameter('learning_rate',
                             optimizable=True,
-                            value=50,
+                            value=default_hp_values['learning_rate'],
                             # val_range=[5,50],
                             val_range=[1e-2,100],
                             val_scale='log',
                             num_steps=hp_tuner_settings['hyper_tuner_steps_per_dim'])
 lmbda = HyperParameter('lmbda',
                     optimizable=True,
-                    value=0,
+                    value=default_hp_values['lmbda'],
                     # val_range=[1e-7,1e-5],
                     val_range=[1e-7,1e-3],
                     val_scale='log',
                     num_steps=hp_tuner_settings['hyper_tuner_steps_per_dim'])
 loss_fn = HyperParameter('loss_fn',
                         optimizable=False,
-                        value=nn.MSELoss()
+                        value=default_hp_values['loss_fn']
                         # if optimizable, add kwargs: ,val_range=[nn.MSELoss(),nn.CrossEntropyLoss()],val_scale='selection')
                         )
 

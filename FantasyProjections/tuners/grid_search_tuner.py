@@ -71,12 +71,16 @@ class GridSearchTuner(HyperParamTuner):
                 for hp in self.param_set.hyper_parameters:
                     logger.info(f"\t{hp.name} = {hp.value}")
 
-                train_dataloader, validation_dataloader = net.configure_for_training(self.param_set, training_data, validation_data)
+                train_dataloader, validation_dataloader = net.configure_for_training(training_data=training_data,
+                                                                                     eval_data=validation_data,
+                                                                                     param_set=self.param_set)
 
                 # ---------------------
                 # Model Training and Validation Testing
                 # ---------------------
-                val_perfs = net.train_and_validate(self.param_set, train_dataloader, validation_dataloader)
+                val_perfs = net.train_and_validate(train_dataloader,
+                                                   validation_dataloader,
+                                                   param_set=self.param_set)
 
                 # Track validation performance for the set of hyperparameters used
                 self.model_perf_list.append(val_perfs[-1])
