@@ -116,7 +116,7 @@ if __name__ == "__main__":
     pbp_df = pd.read_csv(source_folder+'midgame_data_to_nn.csv', usecols=['Elapsed Time','Field Position', 'Pass Yds', 'Rush Yds','Rec Yds'])
     bs_df = pd.read_csv(source_folder+'final_stats_to_nn.csv', usecols=['Pass Yds', 'Rush Yds','Rec Yds'])
 
-    all_data = StatsDataset(name='all data', pbp_df=pbp_df, boxscore_df=bs_df, id_df=id_df)
+    all_data = StatsDataset(name='all data', id_df=id_df, pbp_df=pbp_df, boxscore_df=bs_df)
     slice1 = all_data.slice_by_criteria(inplace=False, players=['Austin Ekeler'], years=[2024], weeks=[1,2,3,4,5], elapsed_time=[0])
     slice2 = all_data.slice_by_criteria(inplace=False, players=['Jayden Daniels'], years=[2024], weeks=[3], elapsed_time=[0])
     slice3 = all_data.slice_by_criteria(inplace=False, players=['Zach Ertz'], years=[2023], weeks=[4,5,6], elapsed_time=[0])
@@ -139,7 +139,8 @@ if __name__ == "__main__":
         string = f'{name} = pd.DataFrame(data=[{data_string}], columns={column_string})\n'
         return string
 
-    def build_neural_net_input(id_df, pbp_df):
+    def build_neural_net_input(id_df, pbp_data, pbp_columns):
+        pbp_df = pd.DataFrame(data=pbp_data, columns=pbp_columns)
         # Encode each non-numeric, relevant pbp field (Player, Team, Position) in a "word bank":
         fields = ["Position", "Player", "Team", "Opponent"]
         for field in fields:
@@ -147,11 +148,17 @@ if __name__ == "__main__":
             pbp_df = pd.concat((pbp_df, word_bank_df), axis=1)
         return pbp_df
 
-    nn_pbp_df = build_neural_net_input(unittest_dataset.id_data, unittest_dataset.x_df)
+    nn_pbp_df = build_neural_net_input(unittest_dataset.id_data, unittest_dataset.x_data, unittest_dataset.x_data_columns)
 
     with open('test.txt','w') as file:
-        for df, name in zip([unittest_dataset.id_data, unittest_dataset.x_df, unittest_dataset.y_df, nn_pbp_df],
-                            ['id_df','pbp_df','bs_df', 'pbp_df_neural_net']):
+        for data, columns, name in zip([unittest_dataset.id_data, unittest_dataset.x_data, unittest_dataset.y_data, nn_pbp_df],
+                                       [[],unittest_dataset.x_data_columns,unittest_dataset.y_data_columns,[]],
+                                       ['id_df','pbp_df','bs_df', 'pbp_df_neural_net']):
+            if columns:
+                df = pd.DataFrame(data=data,columns=columns)
+            else:
+                df = data
+
             dataframe_string = dataframe_to_hardcoded_string(df, name)
             print(dataframe_string)
             file.write(dataframe_string)

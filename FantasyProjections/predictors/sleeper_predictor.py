@@ -9,7 +9,7 @@ import json
 import logging
 import torch
 from sleeper_wrapper import Stats, Players
-from misc.stat_utils import stats_to_fantasy_points, remove_game_duplicates
+from misc.stat_utils import stats_to_fantasy_points
 from predictors import FantasyPredictor
 
 # Set up logger
@@ -85,11 +85,11 @@ class SleeperPredictor(FantasyPredictor):
         """
 
         # List of stats being used to compute fantasy score
-        stat_columns = eval_data.y_df.columns.tolist()
+        stat_columns = eval_data.y_data_columns
         num_stats = len(stat_columns)
 
         # Remove duplicated games from eval data (only one projection per game from Sleeper)
-        eval_data = remove_game_duplicates(eval_data)
+        eval_data = eval_data.remove_game_duplicates()
 
         # Gather projections data from Sleeper API
         self.all_proj_dict = self.__gather_sleeper_proj(eval_data)

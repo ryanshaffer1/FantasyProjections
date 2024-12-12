@@ -4,7 +4,6 @@
         normalize_stat : Converts statistics from true values (i.e. football stats) to normalized values (scaled between 0 and 1).
         unnormalize_stat : Converts statistics from normalized values (scaled between 0 and 1) back to true values (i.e. actual football stats).
         stats_to_fantasy_points : Calculates Fantasy Points corresponding to an input stat line, based on fantasy scoring rules.
-        remove_game_duplicates : Filters evaluation data to only contain one entry per unique game/player.
         gen_random_games : Generates random game/player combinations from input dataset, with no repeating.
         linear_regression : Performs Simple Linear Regression on x_data and y_data to determine line of best fit (slope, intercept) and coefficient of determination (r_squared).
 """
@@ -148,39 +147,6 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm
         raise IndexError('Index Error: statistics cannot be matched to weights. stat_indices must be input, or set to "default"') from e
 
     return stat_line
-
-
-def remove_game_duplicates(eval_data):
-    """Filters evaluation data to only contain one entry per unique game/player.
-    
-        Removes all but the first row in id_data for each Player/Year/Week combination. (First row is typically when Elapsed Time = 0).
-        Adjusts all applicable attributes in StatsDataset: x_data, y_data, x_df, y_df, id_data
-
-        Args:
-            eval_data (StatsDataset): data containing NFL game/player final statistics
-
-        Returns:
-            StatsDataset: copy of input StatsDataset, modified to only have one row per unique game/player
-    """
-
-    # Make a copy
-    new_dataset = eval_data.copy()
-
-    # Obtain indices of duplicated rows to remove
-    duplicated_rows_eval_data = new_dataset.id_data.reset_index().duplicated(subset=[
-        'Player', 'Year', 'Week'])
-
-    # Remove duplicated rows from each attribute of new dataset
-    new_dataset.x_data = new_dataset.x_data[np.logical_not(duplicated_rows_eval_data)]
-    new_dataset.y_data = new_dataset.y_data[np.logical_not(duplicated_rows_eval_data)]
-    new_dataset.x_df = new_dataset.x_df.reset_index(
-        drop=True).loc[np.logical_not(duplicated_rows_eval_data)].reset_index(drop=True)
-    new_dataset.y_df = new_dataset.y_df.reset_index(
-        drop=True).loc[np.logical_not(duplicated_rows_eval_data)].reset_index(drop=True)
-    new_dataset.id_data = new_dataset.id_data.reset_index(
-        drop=True).loc[np.logical_not(duplicated_rows_eval_data)].reset_index(drop=True)
-
-    return new_dataset
 
 
 def gen_random_games(id_df, n_random, game_ids=None):

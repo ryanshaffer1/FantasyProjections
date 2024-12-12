@@ -49,7 +49,7 @@ if __name__ == "__main__":
     pbp_df = pd.read_csv(source_folder+'midgame_data_to_nn.csv', usecols=['Elapsed Time','Field Position', 'Pass Yds', 'Rush Yds','Rec Yds'])
     bs_df = pd.read_csv(source_folder+'final_stats_to_nn.csv', usecols=['Pass Yds', 'Rush Yds','Rec Yds'])
 
-    all_data = StatsDataset(name='all data', pbp_df=pbp_df, boxscore_df=bs_df, id_df=id_df)
+    all_data = StatsDataset(name='all data', id_df=id_df, pbp_df=pbp_df, boxscore_df=bs_df)
     slice1 = all_data.slice_by_criteria(inplace=False, players=['Austin Ekeler'], years=[2024], weeks=[1], elapsed_time=[0,1,2,3])
     slice2 = all_data.slice_by_criteria(inplace=False, players=['Olamide Zaccheaus'], years=[2024], weeks=[4], elapsed_time=[22,23,24])
     slice3 = all_data.slice_by_criteria(inplace=False, players=['Jayden Daniels'], years=[2024], weeks=[3], elapsed_time=[18])
@@ -75,7 +75,14 @@ if __name__ == "__main__":
         return string
 
     with open('test.txt','w') as file:
-        for df, name in zip([unittest_dataset.id_data, unittest_dataset.x_df, unittest_dataset.y_df],['id_df','pbp_df','bs_df']):
+        for data, columns, name in zip([unittest_dataset.id_data, unittest_dataset.x_data, unittest_dataset.y_data],
+                                      [[],unittest_dataset.x_data_columns,unittest_dataset.y_data_columns],
+                                      ['id_df','pbp_df','bs_df']):
+            if columns:
+                df = pd.DataFrame(data=data,columns=columns)
+            else:
+                df = data
+
             dataframe_string = dataframe_to_hardcoded_string(df, name)
             print(dataframe_string)
             file.write(dataframe_string)

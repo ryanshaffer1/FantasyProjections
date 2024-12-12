@@ -89,9 +89,9 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
         }
         # Custom dataset
         self.dataset = StatsDataset(name='dataset',
+                                    id_df=mock_data_predictors.id_df,
                                     pbp_df=mock_data_predictors.pbp_df,
-                                    boxscore_df=mock_data_predictors.bs_df,
-                                    id_df=mock_data_predictors.id_df)
+                                    boxscore_df=mock_data_predictors.bs_df)
         # Sleeper Predictor
         self.predictor = SleeperPredictor(name='test',
                                           player_dict_file=self.sleeper_player_dict_file,

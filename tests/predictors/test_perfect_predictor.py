@@ -42,9 +42,9 @@ class TestEvalModel_PerfectPredictor(unittest.TestCase):
         }
 
         self.dataset = StatsDataset(name='dataset',
+                                    id_df=mock_data.id_df,
                                     pbp_df=mock_data.pbp_df,
-                                    boxscore_df=mock_data.bs_df,
-                                    id_df=mock_data.id_df)
+                                    boxscore_df=mock_data.bs_df)
         self.predictor = PerfectPredictor('test')
         self.truths = self.predictor.eval_truth(eval_data=self.dataset, scoring_weights=self.scoring_weights)
 

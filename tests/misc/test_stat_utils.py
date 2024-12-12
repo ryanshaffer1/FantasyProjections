@@ -7,7 +7,6 @@ import torch
 from misc import stat_utils as proj
 # Modules needed for test setup
 import tests.utils_for_tests.mock_data as mock_data
-from misc.dataset import StatsDataset
 from config import stats_config
 import logging
 import logging.config
@@ -407,36 +406,6 @@ class TestStatsToFantasyPoints_CustomWeights(unittest.TestCase):
 
         with self.assertRaises(KeyError):
             proj.stats_to_fantasy_points(one_df_without_stat_a, scoring_weights=self.weights)
-
-    # Tear Down
-    def tearDown(self):
-        pass
-
-class TestRemoveGameDuplicates(unittest.TestCase):
-    # Set Up
-    def setUp(self):
-        # Dataset with duplicate games (e.g. multiple entries for same player/week)
-        id_df = mock_data.id_df.copy()
-        pbp_df = mock_data.pbp_df.copy()
-        bs_df = mock_data.bs_df.copy()
-        self.dummy_dataset = StatsDataset(name='dataset',
-                                          pbp_df=pbp_df,
-                                          boxscore_df=bs_df,
-                                          id_df=id_df)
-
-        # Desired result: dataset with a single row per player/game
-        unique_game_indices = np.logical_not(id_df.duplicated(subset=('Player','Year','Week'),keep='first'))
-        id_df_no_dupe_games = id_df[unique_game_indices].reset_index(drop=True)
-        pbp_df_no_dupe_games = pbp_df[unique_game_indices].reset_index(drop=True)
-        bs_df_no_dupe_games = bs_df[unique_game_indices].reset_index(drop=True)
-        self.dataset_no_dupe_games = StatsDataset(name='dataset',
-                                            pbp_df=pbp_df_no_dupe_games,
-                                            boxscore_df=bs_df_no_dupe_games,
-                                            id_df=id_df_no_dupe_games)
-
-    def test_correct_duplicates_removed(self):
-        result = proj.remove_game_duplicates(self.dummy_dataset)
-        self.assertTrue(result.equals(self.dataset_no_dupe_games))
 
     # Tear Down
     def tearDown(self):

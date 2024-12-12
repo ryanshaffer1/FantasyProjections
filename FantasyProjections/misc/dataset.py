@@ -7,6 +7,7 @@
 
 import logging
 import random
+import numpy as np
 import pandas as pd
 import pandas.testing as pdtest
 import torch
@@ -20,39 +21,48 @@ class StatsDataset(Dataset):
 
         Attributes:
             name (str): name of the StatsDataset object, used for logging/display purposes.
-            x_df (pandas.DataFrame): DataFrame containing all play-by-play (i.e. midgame) data from the NFL games in question.
-                The data in x_df must be gathered, parsed, and pre-processed using functions in data_pipeline.
-            x_data (tensor): data from x_df converted to tensor format for faster computations.
+            x_data (torch.Tensor): Tensor (matrix) containing all play-by-play (i.e. midgame) data from the NFL games in question. 
                 Corresponds to pre-game/mid-game inputs into a Predictor.
-            y_df (pandas.DataFrame): DataFrame containing all boxscore (i.e. final) stats data from the NFL games in question.
-                The data in y_df must be gathered, parsed, and pre-processed using functions in data_pipeline.
-            y_data (tensor): data from y_df converted to tensor format for faster computations.
+                The data in x_data must be gathered, parsed, and pre-processed using functions in data_pipeline.
+            x_data_columns (list): Labels for each column of data in x_data
+            y_data (tensor): Tensor (matrix) containing all boxscore (i.e. final) stats data from the NFL games in question.
                 Corresponds to "true" stats, though in this dataset they are normalized and not true statistics.
+                The data in y_data must be gathered, parsed, and pre-processed using functions in data_pipeline.
+            y_data_columns (list): Labels for each column of data in y_data
             id_data (pandas.DataFrame): DataFrame containing all game/player ID data from the NFL games in question.
                 The data in id_data must be gathered, parsed, and pre-processed using functions in data_pipeline.
 
         Public Methods:
             concat : Append two StatsDatasets into one larger StatsDataset, either in-place or returning a new StatsDataset.
             slice_by_criteria : Remove all data from a StatsDataset except the entries that meet a set of criteria.
+            remove_game_duplicates : Filters evaluation data to only contain one entry per unique game/player.
             copy : Return a copy of the StatsDataset object. All attributes (e.g. DataFrames) are copies of the originals, not views.
             equals : Compares two StatsDataset objects and returns whether all their data are equal. Optionally can check non-data attributes for equality.
     """
 
     # CONSTRUCTOR
 
-    def __init__(self, name, pbp_df, boxscore_df,
-                 id_df, **kwargs):
+    def __init__(self, name, id_df,
+                 pbp_df=None, boxscore_df=None,
+                 x_data=None, x_data_columns=None, y_data=None, y_data_columns=None,
+                 **kwargs):
         """Constructor for StatsDataset
 
-            Args:
+            Args (Required):
                 name (str): name of the StatsDataset object, used for logging/display purposes.
+                id_df (pandas.DataFrame): DataFrame containing all game/player ID data from the NFL games in question.
+                    The data in id_df must be gathered, parsed, and pre-processed using functions in data_pipeline.
+            Args (Initialization Option 1):
                 pbp_df (pandas.DataFrame): DataFrame containing all play-by-play (i.e. midgame) data from the NFL games in question.
                     The data in pbp_df must be gathered, parsed, and pre-processed using functions in data_pipeline.
                 boxscore_df (pandas.DataFrame): DataFrame containing all boxscore (i.e. final) stats data from the NFL games in question.
                     The data in boxscore_df must be gathered, parsed, and pre-processed using functions in data_pipeline.
-                id_df (pandas.DataFrame): DataFrame containing all game/player ID data from the NFL games in question.
-                    The data in id_df must be gathered, parsed, and pre-processed using functions in data_pipeline.
-            
+            Args (Initialization Option 2):
+                x_data (torch.Tensor): Matrix containing all play-by-play (i.e. midgame) data from the NFL games in question.
+                x_data_columns (list): Labels for each column of data in x_data
+                y_data (torch.Tensor): Matrix containing all boxscore (i.e. final) stats data from the NFL games in question.
+                y_data_columns (list): Labels for each column of data in y_data
+
             Keyword-Args:
                 start_index (int, optional): First index to use in DataFrames (if taking consecutive data from the DataFrames). 
                     Defaults to None (start of DataFrame).
@@ -64,9 +74,6 @@ class StatsDataset(Dataset):
                 teams (list, optional): Team names from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 players (list, optional): Player names from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 elapsed_time (list, optional): Game times from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
-
-            Raises:
-                TypeError: inputs pbp_df, boxscore_df, and/or id_df are not of type pandas.DataFrame.
         """
         # Handle optional inputs and assign default values not passed
         start_index = kwargs.get('start_index', None) # Default starts at the beginning of the array
@@ -75,19 +82,35 @@ class StatsDataset(Dataset):
         # Other valid kwargs that are not currently initialized to default
         # values: weeks, years, teams, players, elapsed_time
 
-        # Check input data types
-        if not(isinstance(pbp_df,pd.DataFrame) and isinstance(boxscore_df,pd.DataFrame) and isinstance(id_df,pd.DataFrame)):
-            raise TypeError('Invalid input type to StatsDataset.')
+        # Check that ID data is valid
+        if not isinstance(id_df,pd.DataFrame):
+            raise TypeError('Invalid id_df input type to StatsDataset.')
+        # Check that x data is valid
+        if not (isinstance(pbp_df, pd.DataFrame) or (isinstance(x_data, torch.Tensor) and isinstance(x_data_columns, list))):
+            raise TypeError('Invalid x_data/play-by-play input type to StatsDataset.')
+        # Check that y data is valid
+        if not (isinstance(boxscore_df, pd.DataFrame) or (isinstance(y_data, torch.Tensor) and isinstance(y_data_columns, list))):
+            raise TypeError('Invalid y_data/boxscore input type to StatsDataset.')
 
         # Name
         self.name = name
 
         # Process DFs; convert numeric data (inputs "x" and desired
         # outputs "y") to tensors
-        self.x_df = pbp_df
-        self.x_data = torch.tensor(self.x_df.values)
-        self.y_df = boxscore_df
-        self.y_data = torch.tensor(self.y_df.values)
+        if pbp_df is not None:
+            self.x_data = torch.tensor(pbp_df.values)
+            self.x_data_columns = pbp_df.columns.to_list()
+        else:
+            self.x_data = x_data
+            self.x_data_columns = x_data_columns
+
+        if boxscore_df is not None:
+            self.y_data = torch.tensor(boxscore_df.values)
+            self.y_data_columns = boxscore_df.columns.to_list()
+        else:
+            self.y_data = y_data
+            self.y_data_columns = y_data_columns
+
         self.id_data = id_df
 
         # Trim to only the desired data, according to multiple possible methods:
@@ -98,8 +121,6 @@ class StatsDataset(Dataset):
 
         # 2. using start_index and num_to_use
         else:
-            self.x_df = self.x_df.iloc[start_index:end_index]
-            self.y_df = self.y_df.iloc[start_index:end_index]
             self.x_data = self.x_data[start_index:end_index]
             self.y_data = self.y_data[start_index:end_index]
             self.id_data = self.id_data.iloc[start_index:end_index]
@@ -109,8 +130,6 @@ class StatsDataset(Dataset):
             indices = list(range(self.x_data.shape[0]))
             random.seed(10)
             random.shuffle(indices)
-            self.x_df = self.x_df.iloc[indices]
-            self.y_df = self.y_df.iloc[indices]
             self.x_data = self.x_data[indices]
             self.y_data = self.y_data[indices]
             self.id_data = self.id_data.iloc[indices]
@@ -133,10 +152,10 @@ class StatsDataset(Dataset):
         """
 
         # Check that data labels match each other
-        if self.x_df.columns.to_list() != other.x_df.columns.to_list():
+        if self.x_data_columns != other.x_data_columns:
             logging.error(f'Error: x data labels do not match for DataFrames {self.name} and {other.name}')
             raise NameError(f'x data labels do not match for DataFrames {self.name} and {other.name}')
-        if self.y_df.columns.to_list() != other.y_df.columns.to_list():
+        if self.y_data_columns != other.y_data_columns:
             logging.error(f'Warning: y data labels do not match for DataFrames {self.name} and {other.name}')
             raise NameError(f'y data labels do not match for DataFrames {self.name} and {other.name}')
         if self.id_data.columns.to_list() != other.id_data.columns.to_list():
@@ -146,30 +165,26 @@ class StatsDataset(Dataset):
         # Concatenate data structures
         joined_x_data = torch.cat((self.x_data, other.x_data))
         joined_y_data = torch.cat((self.y_data, other.y_data))
-        joined_x_df = pd.concat((self.x_df, other.x_df)).reset_index(drop=True)
-        joined_y_df = pd.concat((self.y_df, other.y_df)).reset_index(drop=True)
         joined_id_data = pd.concat((self.id_data, other.id_data)).reset_index(drop=True)
 
         # Return in place (modify self)
         if inplace:
             self.x_data = joined_x_data
             self.y_data = joined_y_data
-            self.x_df = joined_x_df
-            self.y_df = joined_y_df
             self.id_data = joined_id_data
 
         # Return new object
         else:
             new_dataset = StatsDataset(
-                self.name,
-                joined_x_df,
-                joined_y_df,
-                joined_id_data)
+                name=self.name,
+                id_df=joined_id_data,
+                x_data=joined_x_data, x_data_columns=self.x_data_columns,
+                y_data=joined_y_data, y_data_columns=self.y_data_columns)
             return new_dataset
         return None
 
 
-    def slice_by_criteria(self,inplace=True,**kwargs):
+    def slice_by_criteria(self, inplace=True,**kwargs):
         """Removes all data from a StatsDataset except the entries that meet a set of criteria.
 
             Args:
@@ -196,23 +211,59 @@ class StatsDataset(Dataset):
             [f'`{criteria_var_to_col[crit]}` in @kwargs["{crit}"]'
                 for crit in self.valid_criteria if kwargs.get(crit)])
         try:
-            indices = self.id_data.query(df_query).index.values
+            row_nums = self.id_data.reset_index().query(df_query).index.values
         except ValueError:
             logging.warning('Invalid criteria (or no criteria) passed to method slice_by_criteria. No slicing will be performed.')
-            indices = self.id_data.index.values
+            row_nums = self.id_data.reset_index().index.values
 
         if inplace:
-            self.x_df = self.x_df.loc[indices]
-            self.x_data = self.x_data[indices]
-            self.y_df = self.y_df.loc[indices]
-            self.y_data = self.y_data[indices]
-            self.id_data = self.id_data.loc[indices]
+            self.x_data = self.x_data[row_nums]
+            self.y_data = self.y_data[row_nums]
+            self.id_data = self.id_data.iloc[row_nums]
         else:
             new_dataset = StatsDataset(
-                self.name,
-                self.x_df.loc[indices],
-                self.y_df.loc[indices],
-                self.id_data.loc[indices])
+                name=self.name,
+                id_df=self.id_data.iloc[row_nums],
+                x_data=self.x_data[row_nums], x_data_columns=self.x_data_columns,
+                y_data=self.y_data[row_nums], y_data_columns=self.y_data_columns)
+            return new_dataset
+        return None
+
+
+    def remove_game_duplicates(self, inplace=False):
+        """Filters evaluation data to only contain one entry per unique game/player.
+        
+            Removes all but the first row in id_data for each Player/Year/Week combination. (First row is typically when Elapsed Time = 0).
+            Adjusts all applicable attributes in StatsDataset: x_data, y_data, id_data
+
+            Args:
+                inplace (bool, optional): If True, self is modified in-place; if False, a new StatsDataset is returned. Defaults to True.
+
+            Returns:
+                [None | StatsDataset]: If inplace==True (default), returns None. 
+                    If inplace==False, returns the modified StatsDataset with only one row per unique game/player
+        """
+
+        # Obtain indices of duplicated rows to remove
+        duplicated_rows = self.id_data.reset_index().duplicated(subset=[
+            'Player', 'Year', 'Week'])
+
+        # Remove duplicated rows from each attribute of new dataset
+        new_x_data = self.x_data[np.logical_not(duplicated_rows)]
+        new_y_data = self.y_data[np.logical_not(duplicated_rows)]
+        new_id_data = self.id_data.reset_index(
+            drop=True).loc[np.logical_not(duplicated_rows)].reset_index(drop=True)
+
+        if inplace:
+            self.x_data = new_x_data
+            self.y_data = new_y_data
+            self.id_data = new_id_data
+        else:
+            new_dataset = StatsDataset(
+                name=self.name,
+                id_df=new_id_data,
+                x_data=new_x_data, x_data_columns=self.x_data_columns,
+                y_data=new_y_data, y_data_columns=self.y_data_columns)
             return new_dataset
         return None
 
@@ -225,9 +276,9 @@ class StatsDataset(Dataset):
         """
 
         return StatsDataset(name=self.name,
-                            pbp_df=self.x_df,
-                            boxscore_df=self.y_df,
-                            id_df=self.id_data)
+                            id_df=self.id_data,
+                            x_data=self.x_data, x_data_columns=self.x_data_columns,
+                            y_data=self.y_data, y_data_columns=self.y_data_columns)
 
 
     def equals(self, other, check_non_data_attributes=False):
@@ -252,15 +303,15 @@ class StatsDataset(Dataset):
 
         # Compare non-pandas data
         x_data_equal = torch.equal(self.x_data, other.x_data)
+        x_data_columns_equal = self.x_data_columns == other.x_data_columns
         y_data_equal = torch.equal(self.y_data, other.y_data)
+        y_data_columns_equal = self.y_data_columns == other.y_data_columns
         # If a non-pandas attribute is False, return False
-        if not (x_data_equal and y_data_equal):
+        if not (x_data_equal and x_data_columns_equal and y_data_equal and y_data_columns_equal):
             return False
 
         # Compare pandas object attributes
         try:
-            pdtest.assert_frame_equal(self.x_df,other.x_df,check_dtype=False)
-            pdtest.assert_frame_equal(self.y_df,other.y_df,check_dtype=False)
             pdtest.assert_frame_equal(self.id_data,other.id_data,check_dtype=False)
         except AssertionError:
             return False

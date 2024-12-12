@@ -43,14 +43,15 @@ class TestEvalTruth_FantasyPredictor(unittest.TestCase):
         }
 
         self.dataset = StatsDataset(name='dataset',
+                                    id_df=mock_data.id_df,
                                     pbp_df=mock_data.pbp_df,
-                                    boxscore_df=mock_data.bs_df,
-                                    id_df=mock_data.id_df)
+                                    boxscore_df=mock_data.bs_df)
         self.predictor = FantasyPredictor('test')
    
     def test_correct_calculation_of_fantasy_points(self):
         result = self.predictor.eval_truth(self.dataset, scoring_weights=self.scoring_weights)
-        expected = stats_to_fantasy_points(self.dataset.y_df, normalized=True, scoring_weights=self.scoring_weights)
+        expected = stats_to_fantasy_points(self.dataset.y_data, stat_indices=self.dataset.y_data_columns,
+                                           normalized=True, scoring_weights=self.scoring_weights)
         pdtest.assert_frame_equal(result,expected)        
 
     def test_improper_fantasy_point_kwargs_gives_error(self):
@@ -60,7 +61,8 @@ class TestEvalTruth_FantasyPredictor(unittest.TestCase):
 
     def test_input_normalized_false(self):
         result = self.predictor.eval_truth(self.dataset, normalized=False, scoring_weights=self.scoring_weights)
-        expected = stats_to_fantasy_points(self.dataset.y_df, normalized=False, scoring_weights=self.scoring_weights)
+        expected = stats_to_fantasy_points(self.dataset.y_data, stat_indices=self.dataset.y_data_columns,
+                                           normalized=False, scoring_weights=self.scoring_weights)
         pdtest.assert_frame_equal(result,expected)        
 
     def tearDown(self):
@@ -75,9 +77,9 @@ class TestGenPredictionResult_FantasyPredictor(unittest.TestCase):
         }
 
         self.dataset = StatsDataset(name='dataset',
+                                    id_df=mock_data.id_df,
                                     pbp_df=mock_data.pbp_df,
-                                    boxscore_df=mock_data.bs_df,
-                                    id_df=mock_data.id_df)
+                                    boxscore_df=mock_data.bs_df)
         self.predictor = FantasyPredictor('test')
         self.predicts = self.predictor.eval_truth(eval_data=self.dataset, scoring_weights=self.scoring_weights)
         self.truths = self.predictor.eval_truth(eval_data=self.dataset, scoring_weights=self.scoring_weights)

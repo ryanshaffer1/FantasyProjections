@@ -4,6 +4,7 @@
         PredictionResult : Class containing a set of NFL games/players being evaluated, a prediction of their stats, and their true stats.
 """
 
+import pandas as pd
 from config import stats_config
 from misc.stat_utils import stats_to_fantasy_points, gen_random_games
 from .result_plots import gen_scatterplots, plot_game_timeline, plot_error_histogram
@@ -158,7 +159,8 @@ class PredictionResult():
         # - normalized defaults to True in this implementation.
 
         # Make copy of dataset
-        pbp_df = self.dataset.x_df.copy().reset_index(drop=True)
+        pbp_df = pd.DataFrame(data=self.dataset.x_data,
+                              columns=self.dataset.x_data_columns)
 
         # Extract any necessary keyword argument values
         kwargs['normalized'] = kwargs.get('normalized',True) # Note this defaults to True instead of the standard False

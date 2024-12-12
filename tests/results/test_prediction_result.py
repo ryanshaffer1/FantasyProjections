@@ -25,9 +25,9 @@ class TestConstructor_PredictionResult(unittest.TestCase):
         }
 
         self.dataset = StatsDataset(name='dataset',
+                                    id_df=mock_data.id_df,
                                     pbp_df=mock_data.pbp_df,
-                                    boxscore_df=mock_data.bs_df,
-                                    id_df=mock_data.id_df)
+                                    boxscore_df=mock_data.bs_df)
 
         # Create a Predictor: perfect prediction model
         self.predictor = PerfectPredictor(name='Perfect Predictor')
@@ -54,7 +54,8 @@ class TestConstructor_PredictionResult(unittest.TestCase):
                                              truths=self.truths, 
                                              predictor_name=self.predictor.name,
                                              scoring_weights=self.scoring_weights)
-        expected_pbp_result = stats_to_fantasy_points(self.dataset.x_df,normalized=True,scoring_weights=self.scoring_weights)
+        expected_pbp_result = stats_to_fantasy_points(self.dataset.x_data, stat_indices=self.dataset.x_data_columns,
+                                                      normalized=True, scoring_weights=self.scoring_weights)
 
         pdtest.assert_frame_equal(prediction_result.pbp_df,expected_pbp_result)
     
@@ -65,7 +66,8 @@ class TestConstructor_PredictionResult(unittest.TestCase):
                                              predictor_name=self.predictor.name,
                                              normalized=False,
                                              scoring_weights=self.scoring_weights)
-        expected_pbp_result = stats_to_fantasy_points(self.dataset.x_df,normalized=False,scoring_weights=self.scoring_weights)
+        expected_pbp_result = stats_to_fantasy_points(self.dataset.x_data, stat_indices=self.dataset.x_data_columns,
+                                                      normalized=False, scoring_weights=self.scoring_weights)
 
         pdtest.assert_frame_equal(prediction_result.pbp_df,expected_pbp_result)
     
@@ -117,9 +119,9 @@ class TestDiffPredVsTruth_PredictionResult(unittest.TestCase):
         }
 
         self.dataset = StatsDataset(name='dataset',
+                                    id_df=mock_data.id_df,
                                     pbp_df=mock_data.pbp_df,
-                                    boxscore_df=mock_data.bs_df,
-                                    id_df=mock_data.id_df)
+                                    boxscore_df=mock_data.bs_df)
 
         # Create a Predictor: perfect prediction model
         self.predictor = PerfectPredictor(name='Perfect Predictor')
@@ -166,9 +168,9 @@ class TestConstructor_PredictionResultGroup(unittest.TestCase):
         }
 
         self.dataset = StatsDataset(name='dataset',
+                                    id_df=mock_data.id_df,
                                     pbp_df=mock_data.pbp_df,
-                                    boxscore_df=mock_data.bs_df,
-                                    id_df=mock_data.id_df)
+                                    boxscore_df=mock_data.bs_df)
 
         # Create two Predictors: perfect prediction models
         self.predictor1 = PerfectPredictor(name='Perfect Predictor 1')

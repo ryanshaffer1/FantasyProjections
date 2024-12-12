@@ -168,14 +168,11 @@ class NeuralNetPredictor(FantasyPredictor):
         # Create dataloader if only a dataset is passed as input
         if not eval_dataloader:
             eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
-        # Override data in eval_data (in case both are passed, or eval_data is used in following code) and reset index
+        # Override data in eval_data (in case both are passed, or eval_data is used in following code)
         eval_data = eval_dataloader.dataset
-        eval_data.x_df = eval_data.x_df.reset_index(drop=True)
-        eval_data.y_df = eval_data.y_df.reset_index(drop=True)
-        eval_data.id_data = eval_data.id_data.reset_index(drop=True)
 
         # List of stats being used to compute fantasy score
-        stat_columns = eval_dataloader.dataset.y_df.columns.tolist()
+        stat_columns = eval_dataloader.dataset.y_data_columns
 
         # Gather all predicted/true outputs for the input dataset
         self.model.eval()

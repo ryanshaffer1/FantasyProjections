@@ -272,16 +272,16 @@ class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
         }
         # Custom dataset
         self.dataset = StatsDataset(name='dataset',
+                                    id_df=mock_data_predictors.id_df,
                                     pbp_df=mock_data_predictors.pbp_df_neural_net,
-                                    boxscore_df=mock_data_predictors.bs_df,
-                                    id_df=mock_data_predictors.id_df)
+                                    boxscore_df=mock_data_predictors.bs_df)
         # Custom dataset 2
         pbp_df_modified = mock_data_predictors.pbp_df_neural_net.copy()
         pbp_df_modified['Rush Yds'] *= 2
         self.dataset2 = StatsDataset(name='dataset',
+                                     id_df=mock_data_predictors.id_df,
                                      pbp_df=pbp_df_modified,
-                                     boxscore_df=mock_data_predictors.bs_df,
-                                     id_df=mock_data_predictors.id_df)
+                                     boxscore_df=mock_data_predictors.bs_df)
 
         # Neural Net Predictor
         self.predictor = NeuralNetPredictor(name='test',
@@ -375,16 +375,16 @@ class TestConfigureForTraining_NeuralNetPredictor(unittest.TestCase):
         }
         # Custom dataset
         self.dataset = StatsDataset(name='dataset',
+                                    id_df=mock_data_predictors.id_df,
                                     pbp_df=mock_data_predictors.pbp_df_neural_net,
-                                    boxscore_df=mock_data_predictors.bs_df,
-                                    id_df=mock_data_predictors.id_df)
+                                    boxscore_df=mock_data_predictors.bs_df)
         # Custom dataset 2
         pbp_df_modified = mock_data_predictors.pbp_df_neural_net.copy()
         pbp_df_modified['Rush Yds'] *= 2
         self.dataset2 = StatsDataset(name='dataset',
+                                     id_df=mock_data_predictors.id_df,
                                      pbp_df=pbp_df_modified,
-                                     boxscore_df=mock_data_predictors.bs_df,
-                                     id_df=mock_data_predictors.id_df)
+                                     boxscore_df=mock_data_predictors.bs_df)
 
         # Neural Net Predictor
         self.predictor = NeuralNetPredictor(name='test',
@@ -571,16 +571,16 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
         }
         # Custom dataset
         self.dataset = StatsDataset(name='dataset',
+                                    id_df=mock_data_predictors.id_df,
                                     pbp_df=mock_data_predictors.pbp_df_neural_net,
-                                    boxscore_df=mock_data_predictors.bs_df,
-                                    id_df=mock_data_predictors.id_df)
+                                    boxscore_df=mock_data_predictors.bs_df)
         # Custom dataset 2
         pbp_df_modified = mock_data_predictors.pbp_df_neural_net.copy()
         pbp_df_modified['Rush Yds'] *= 2
         self.dataset2 = StatsDataset(name='dataset',
+                                     id_df=mock_data_predictors.id_df,
                                      pbp_df=pbp_df_modified,
-                                     boxscore_df=mock_data_predictors.bs_df,
-                                     id_df=mock_data_predictors.id_df)
+                                     boxscore_df=mock_data_predictors.bs_df)
         # Hyper-parameters
         self.loss_fn = nn.MSELoss()
         self.loss_fn_hp = HyperParameter('loss_fn', optimizable=False, 

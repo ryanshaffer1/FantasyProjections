@@ -56,7 +56,7 @@ for name,file in zip(['pbp','boxscore','IDs'],[PBP_DATAFILE, BOXSCORE_DATAFILE, 
     logger.debug(f'{name}: {file}')
 
 # Training, validation, and test datasets
-all_data = StatsDataset('All', pbp_df, boxscore_df, id_df)
+all_data = StatsDataset('All', id_df=id_df, pbp_df=pbp_df, boxscore_df=boxscore_df)
 training_data = all_data.slice_by_criteria(inplace=False, years=range(2021,2022))
 training_data.concat(all_data.slice_by_criteria(inplace=False, years=[2023], weeks=range(1,12)))
 training_data.name = 'Training'

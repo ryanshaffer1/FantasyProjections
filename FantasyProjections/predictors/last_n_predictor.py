@@ -7,7 +7,7 @@
 from dataclasses import dataclass
 import numpy as np
 import torch
-from misc.stat_utils import stats_to_fantasy_points, remove_game_duplicates
+from misc.stat_utils import stats_to_fantasy_points
 from predictors import FantasyPredictor
 
 @dataclass
@@ -62,8 +62,8 @@ class LastNPredictor(FantasyPredictor):
         # Drop all the duplicated rows that are for the same game, and only
         # dependent on elapsed game time - that variable is irrelevant here, so we
         # can greatly simplify
-        eval_data = remove_game_duplicates(eval_data)
-        all_data = remove_game_duplicates(all_data)
+        eval_data = eval_data.remove_game_duplicates()
+        all_data = all_data.remove_game_duplicates()
 
         # For every row in all_data, find the index in all_data that contains the previous game played by the same player
         all_ids = self.__link_previous_games(all_data)
@@ -76,7 +76,7 @@ class LastNPredictor(FantasyPredictor):
             lambda x: all_ids.loc[(x['Player'], x['Year'], x['Week']), 'tensor'], axis=1)
         prev_game_stats = torch.tensor(prev_game_stats_df.to_list())
         # List of stats being used to compute fantasy score
-        stat_columns = eval_data.y_df.columns.tolist()
+        stat_columns = eval_data.y_data_columns
 
         # Un-normalize and compute Fantasy score
         stat_predicts = stats_to_fantasy_points(
