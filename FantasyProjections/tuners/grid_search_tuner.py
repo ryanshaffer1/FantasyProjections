@@ -52,6 +52,41 @@ class GridSearchTuner(HyperParamTuner):
 
     # PUBLIC METHODS
 
+    # def tune_hyper_parameters(self, net, training_data, validation_data, **kwargs):
+    #     for tune_layer in range(self.hyper_tuner_layers):
+    #         logger.info(f'Optimization Round {tune_layer+1} of {self.hyper_tuner_layers} -------------------------------')
+    #         # Iterate through all combinations of hyperparameters
+    #         for grid_ind in range(self.param_set.total_gridpoints):
+    #             # Set and display hyperparameters for current run
+    #             self.param_set.set_values(grid_ind)
+    #             logger.info(f'HP Grid Point {grid_ind+1} of {self.param_set.total_gridpoints}: -------------------- ')
+    #             for hp in self.param_set.hyper_parameters:
+    #                 logger.info(f"\t{hp.name} = {hp.value}")
+
+    #             # ---------------------
+    #             # Model Training and Validation Testing
+    #             # ---------------------
+    #             val_perfs = net.train_and_validate(training_data=training_data,
+    #                                                validation_data=validation_data,
+    #                                                param_set=self.param_set)
+
+    #             # Track validation performance for the set of hyperparameters used
+    #             self.model_perf_list.append(val_perfs[-1])
+    #             # Save the model if it is the best performing so far
+    #             if grid_ind == np.nanargmin(self.model_perf_list):
+    #                 net.save()
+
+    #         # Print some results, determine whether to perform another layer of grid search, and if so, refine the mesh
+    #         self.__next_hp_layer(net,tune_layer)
+
+    #     # After grid search finishes, plot results
+    #     if len(self.hyper_tuning_table) > 0 and self.plot_tuning_results:
+    #         plot_grid_search_results(self.save_file,self.param_set,variables=('learning_rate','lmbda'))
+
+    #     # Set the model back to the highest performing config
+    #     net.load(net.save_folder,print_loaded_model=False)
+
+
     def tune_neural_net(self, net, training_data, validation_data):
         """Performs iterative training and validation of a Neural Net to find an optimal combination of HyperParameters. Implements recursive grid search to optimize.
 
@@ -71,16 +106,10 @@ class GridSearchTuner(HyperParamTuner):
                 for hp in self.param_set.hyper_parameters:
                     logger.info(f"\t{hp.name} = {hp.value}")
 
-                train_dataloader, validation_dataloader = net.configure_for_training(training_data=training_data,
-                                                                                     eval_data=validation_data,
-                                                                                     param_set=self.param_set)
-
                 # ---------------------
                 # Model Training and Validation Testing
                 # ---------------------
-                val_perfs = net.train_and_validate(train_dataloader,
-                                                   validation_dataloader,
-                                                   param_set=self.param_set)
+                val_perfs = net.train_and_validate(training_data=training_data, validation_data=validation_data, param_set=self.param_set)
 
                 # Track validation performance for the set of hyperparameters used
                 self.model_perf_list.append(val_perfs[-1])

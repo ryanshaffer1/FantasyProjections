@@ -30,7 +30,6 @@ from results import PredictionResultGroup, PredictionResult
 FOLDER_PREFIX = ''
 save_folder = f'models/{FOLDER_PREFIX}{datetime.strftime(datetime.now(),'%Y%m%d_%H%M%S')}/'
 LOAD_FOLDER = 'models/11222024003003/'
-# LOAD_FOLDER = 'models/20241218_144745/'
 
 # ---------------------
 # Data Setup
@@ -81,18 +80,15 @@ param_tuner = GridSearchTuner(param_set,save_folder,**hp_config.hp_tuner_setting
 # Initialize and train neural net
 # neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, **nn_config.nn_train_settings)
 neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_config.nn_train_settings)
-param_tuner.tune_neural_net(neural_net, training_data, validation_data)
-# train_dataloader, validation_dataloader = neural_net.configure_for_training(training_data=training_data,
-#                                                                             eval_data=validation_data)
-# val_perfs = neural_net.train_and_validate(train_dataloader,validation_dataloader)
-
+# param_tuner.tune_neural_net(neural_net, training_data, validation_data)
+val_perfs = neural_net.train_and_validate(training_data=training_data, validation_data=validation_data)
 
 # Alternate predictors
 sleeper_predictor = SleeperPredictor(name='Sleeper',
                                      player_dict_file=SLEEPER_PLAYER_DICT_FILE,
                                      proj_dict_file=SLEEPER_PROJ_DICT_FILE,
                                      update_players=False) # Create Sleeper prediction model
-naive_predictor = LastNPredictor(name='Naive: Previous Game', n=3) # Create Naive prediction model
+naive_predictor = LastNPredictor(name='Last N Games Predictor', n=3) # Create Naive prediction model
 perfect_predictor = PerfectPredictor(name='Perfect Predictor') # Create Perfect prediction model
 
 # Evaluate Model(s) against Test Data

@@ -16,6 +16,7 @@ from misc.stat_utils import stats_to_fantasy_points
 from misc.manage_files import create_folders
 from neural_net import NeuralNetwork
 from neural_net import HyperParameterSet
+from neural_net.nn_utils import compare_net_sizes
 from predictors import FantasyPredictor
 
 # Set up logger
@@ -45,8 +46,10 @@ class NeuralNetPredictor(FantasyPredictor):
         
         Public Methods:
             modify_hyper_parameter_values : Configures the neural net's hyper-parameters based on an input parameter set.
-            configure_for_training : Sets up DataLoader, NeuralNetwork, and optimizer objects to train with provided implementation details.
+            configure_dataloader : Sets up DataLoader object for training with provided implementation details.
+            configure_model_and_optimizer : Sets up NeuralNetwork and optimizer objects to train with provided implementation details.
             eval_model : Generates predicted stats for an input evaluation dataset, as computed by the NeuralNetwork.
+            modify_hyper_parameter_values : Configures the neural net's hyper-parameters based on an input parameter set.
             load : Initializes a NeuralNetwork and optimizer using specifications saved to file.
             print : Displays the NeuralNetwork architecture and parameter size to console or to a logger.
             save : Stores NeuralNetwork and optimizer specifications to file.
@@ -85,61 +88,64 @@ class NeuralNetPredictor(FantasyPredictor):
 
     # PUBLIC METHODS
 
-    def configure_for_training(self, training_data, eval_data, param_set=None, **kwargs):
-        """Sets up DataLoader, NeuralNetwork, and optimizer objects to train with provided implementation details.
+    def configure_dataloader(self, dataset, **kwargs):
+        """Sets up DataLoader object for training with provided implementation details.
 
             Args:
-                training_data (StatsDataset): data to use for Neural Net training
-                eval_data (StatsDataset): data to use for Neural Net evaluation (e.g. validation or test data)
-                param_set (HyperParameterSet | dict, optional): set of hyper-parameters used in Neural Network training. 
-                    If HyperParameterSet, may include:
-                        mini_batch_size (HyperParameter): size of training data batches used in SGD training iterations.
-                        learning_rate (HyperParameter): Learning Rate used in SGD optimizer.
-                        lmbda (HyperParameter): L2 Regularization Parameter used in SGD optimizer.
-                    If dict, may include: 
-                        mini_batch_size (int): size of training data batches used in SGD training iterations.
-                        learning_rate (float): Learning Rate used in SGD optimizer.
-                        lmbda (float): L2 Regularization Parameter used in SGD optimizer.
+                dataset (StatsDataset): data to package into Dataloader
+
+            Keyword-Arguments:
+                shuffle (bool, optional): Whether to randomly shuffle the data in the dataset when creating the Dataloader. Defaults to False.
+                mini_batch (bool, optional): Whether to break the dataset into mini "batches" when creating the Dataloader (helpful for Neural Net training data).
+                    If True, the batch size is determined by the mini_batch_size attribute of the NeuralNetPredictor object.
+                    If False, the batch size is equivalent to the dataset size.
+                    Defaults to False.
+
+            Returns:
+                DataLoader: Training DataLoader to use in training. Optionally batched/shuffled based on method inputs.
+        """
+
+        # Optional keyword arguments
+        shuffle = kwargs.get('shuffle', False)
+        mini_batch = kwargs.get('mini_batch', False)
+
+        # Set batch size
+        if mini_batch:
+            batch_size = int(self.mini_batch_size)
+        else:
+            batch_size = dataset.x_data.shape[0]
+
+        # Create and return dataloader
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+        return dataloader
+
+
+    def configure_model_and_optimizer(self, **kwargs):
+        """Sets up NeuralNetwork and optimizer objects to train with provided implementation details.
 
             Keyword-Args:
-                reset_model (bool, optional): whether to continue using an existing NN model or re-generate the NN. Defaults to True.
-                    Note that the optimizer will be reset either way. If an existing optimizer is desired, set the same hyper-parameters in param_set.
                 print_model_flag (bool, optional): displays Neural Network model architecture to console or a logger. 
                     Defaults to True.
 
             Side Effects (Modified Attributes):
                 self.model is given a new instance of NeuralNetwork
-                self.optimizer is given a new instance of torch.optim.SGD, using parameters in param_set
-                    (specifically, learning_rate and lmbda [weight_decay])
+                self.optimizer is given a new instance of torch.optim.SGD
+                Note: both of these attributes are configured based on other attributes of the NeuralNetPredictor object. These include:
+                    .nn_shape
+                    .learning_rate
+                    .lmbda
 
-            Returns:
-                DataLoader: Training DataLoader to use in training. Batched per mini_batch_size, and shuffled.
-                DataLoader: Evaluation DataLoader to use in results evaluation. Not batched or shuffled.
         """
-
         # Optional keyword arguments
-        reset_model = kwargs.get('reset_model', True)
         print_model_flag = kwargs.get('print_model_flag', True)
 
-        # Set hyper-parameter values
-        if param_set:
-            self.__modify_hyper_parameter_values(param_set)
-
-        # Configure data loaders
-        train_dataloader = DataLoader(training_data, batch_size=int(self.mini_batch_size), shuffle=True)
-        eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
-
-        # Initialize Neural Network object, configure optimizer, optionally print info on model
-        if reset_model:
-            self.model = NeuralNetwork(shape=self.nn_shape).to(self.device)
+        self.model = NeuralNetwork(shape=self.nn_shape).to(self.device)
         self.optimizer = torch.optim.SGD(self.model.parameters(),
                                          lr=self.learning_rate,
                                          weight_decay=self.lmbda)
 
         if print_model_flag:
             self.print(self.model, log=True)
-
-        return train_dataloader, eval_dataloader
 
 
     def eval_model(self, eval_data=None, eval_dataloader=None, **kwargs):
@@ -249,6 +255,47 @@ class NeuralNetPredictor(FantasyPredictor):
             self.print(self.model, log=True)
 
 
+    def modify_hyper_parameter_values(self, param_set):
+        """Configures the neural net's hyper-parameters based on an input parameter set.
+
+            Args:
+                param_set (HyperParameterSet | dict, optional): set of hyper-parameters used in Neural Network training. 
+                    If HyperParameterSet, may include:
+                        mini_batch_size (HyperParameter): size of training data batches used in SGD training iterations.
+                        learning_rate (HyperParameter): Learning Rate used in SGD optimizer.
+                        lmbda (HyperParameter): L2 Regularization Parameter used in SGD optimizer.
+                        loss_fn (HyperParameter): handle denoting the loss function to use (e.g. nn.MSELoss)
+                        {nn_shape key} (HyperParameter): any of the key names in the Neural Network shape dictionary, defining the number of neurons in that layer.
+                    If dict, may include: 
+                        mini_batch_size (int): size of training data batches used in SGD training iterations.
+                        learning_rate (float): Learning Rate used in SGD optimizer.
+                        lmbda (float): L2 Regularization Parameter used in SGD optimizer.
+                        loss_fn (function): handle denoting the loss function to use (e.g. nn.MSELoss)
+                        {nn_shape key} (int): any of the key names in the Neural Network shape dictionary, defining the number of neurons in that layer.
+                    Default values for each hyper-parameter are controlled in hp_config.py.
+
+            Side Effects (Modified Attributes):
+                Each hyper-parameter corresponds to a NeuralNetPredictor attribute with the same name*. If the hyper-parameter is 
+                modified in the param_set, this attribute will be modified to match.
+                *The class attribute .nn_shape encompasses many hyper-parameters regarding the shape of the Network.
+        """
+
+        # Convert param_set to dictionary
+        if isinstance(param_set, HyperParameterSet):
+            param_set = param_set.to_dict()
+        if param_set is None:
+            param_set = {}
+
+        # Extract values of hyper-parameters present in param_set
+        self.mini_batch_size = int(param_set.get('mini_batch_size', self.mini_batch_size))
+        self.learning_rate = param_set.get('learning_rate', self.learning_rate)
+        self.lmbda = param_set.get('lmbda', self.lmbda)
+        self.loss_fn = param_set.get('loss_fn', self.loss_fn)
+        # Fold network-shape hyper-parameters into nn_shape attribute
+        for shape_param in self.nn_shape.keys():
+            self.nn_shape[shape_param] = param_set.get(shape_param,self.nn_shape[shape_param])
+
+
     def print(self, model, log=False):
         """Displays the NeuralNetwork architecture and parameter size to console or to a logger.
             
@@ -287,7 +334,9 @@ class NeuralNetPredictor(FantasyPredictor):
         logger.info(f'Saved PyTorch Model State to {model_save_file}')
 
 
-    def train_and_validate(self, train_dataloader, validation_dataloader, param_set=None, **kwargs):
+    def train_and_validate(self, train_dataloader=None, validation_dataloader=None,
+                           training_data=None, validation_data=None,
+                           param_set=None, **kwargs):
         """Carries out the training process and generates predictions for a separate evaluation dataset.
 
             The model is first trained using train_dataloader and the input loss function (as well as 
@@ -316,7 +365,14 @@ class NeuralNetPredictor(FantasyPredictor):
 
         # Set hyper-parameter values
         if param_set:
-            self.__modify_hyper_parameter_values(param_set)
+            self.modify_hyper_parameter_values(param_set)
+
+        # Configure neural net and dataloaders for training
+        if (train_dataloader is None) or (validation_dataloader is None):
+            train_dataloader = self.configure_dataloader(training_data, mini_batch=True, shuffle=True)
+            validation_dataloader = self.configure_dataloader(validation_data, mini_batch=False, shuffle=False)
+        if not self.__model_and_optimizer_up_to_date():
+            self.configure_model_and_optimizer()
 
         # Training/validation loop
         val_perfs = []
@@ -366,45 +422,13 @@ class NeuralNetPredictor(FantasyPredictor):
                 and perfs[-1] - perfs[-n_epochs_to_stop - 1] >= -improvement_threshold * perfs[-1])
 
 
-    def __modify_hyper_parameter_values(self, param_set):
-        """Configures the neural net's hyper-parameters based on an input parameter set.
-
-            Args:
-                param_set (HyperParameterSet | dict, optional): set of hyper-parameters used in Neural Network training. 
-                    If HyperParameterSet, may include:
-                        mini_batch_size (HyperParameter): size of training data batches used in SGD training iterations.
-                        learning_rate (HyperParameter): Learning Rate used in SGD optimizer.
-                        lmbda (HyperParameter): L2 Regularization Parameter used in SGD optimizer.
-                        loss_fn (HyperParameter): handle denoting the loss function to use (e.g. nn.MSELoss)
-                        {nn_shape key} (HyperParameter): any of the key names in the Neural Network shape dictionary, defining the number of neurons in that layer.
-                    If dict, may include: 
-                        mini_batch_size (int): size of training data batches used in SGD training iterations.
-                        learning_rate (float): Learning Rate used in SGD optimizer.
-                        lmbda (float): L2 Regularization Parameter used in SGD optimizer.
-                        loss_fn (function): handle denoting the loss function to use (e.g. nn.MSELoss)
-                        {nn_shape key} (int): any of the key names in the Neural Network shape dictionary, defining the number of neurons in that layer.
-                    Default values for each hyper-parameter are controlled in hp_config.py.
-
-            Side Effects (Modified Attributes):
-                Each hyper-parameter corresponds to a NeuralNetPredictor attribute with the same name*. If the hyper-parameter is 
-                modified in the param_set, this attribute will be modified to match.
-                *The class attribute .nn_shape encompasses many hyper-parameters regarding the shape of the Network.
-        """
-
-        # Convert param_set to dictionary
-        if isinstance(param_set, HyperParameterSet):
-            param_set = param_set.to_dict()
-        if param_set is None:
-            param_set = {}
-
-        # Extract values of hyper-parameters present in param_set
-        self.mini_batch_size = int(param_set.get('mini_batch_size', self.mini_batch_size))
-        self.learning_rate = param_set.get('learning_rate', self.learning_rate)
-        self.lmbda = param_set.get('lmbda', self.lmbda)
-        self.loss_fn = param_set.get('loss_fn', self.loss_fn)
-        # Fold network-shape hyper-parameters into nn_shape attribute
-        for shape_param in self.nn_shape.keys():
-            self.nn_shape[shape_param] = param_set.get(shape_param,self.nn_shape[shape_param])
+    def __model_and_optimizer_up_to_date(self):
+        # Checks whether the properties of self.model are consistent with the shape in self.nn_shape
+        # and the properties of self.optimizer are consistent with the NeuralNetPredictor's other attributes (like learning_rate)
+        return compare_net_sizes(self.model, NeuralNetwork(shape=self.nn_shape)) and (
+            self.optimizer == torch.optim.SGD(self.model.parameters(),
+                                              lr=self.learning_rate,
+                                              weight_decay=self.lmbda))
 
 
     def __train(self, dataloader, loss_fn, print_losses=True):
