@@ -9,7 +9,8 @@ from predictors import NeuralNetPredictor
 # Modules needed for test setup
 from neural_net import NeuralNetwork, HyperParameter, HyperParameterSet
 from tests.utils_for_tests import mock_data_predictors
-from config.hp_config import default_hp_values
+from config.hp_config import hp_defaults
+from config.nn_config import default_nn_shape
 from misc.dataset import StatsDataset
 import logging
 import logging.config
@@ -63,18 +64,7 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
     def setUp(self):
         self.save_folder = 'data/test files/'
         self.load_folder = 'data/test files/'
-        
-        self.default_shape = {
-            'players_input': 300,
-            'teams_input': 32,
-            'opps_input': 32,
-            'stats_input': 29,
-            'embedding_player': 50,
-            'embedding_team': 10,
-            'embedding_opp': 10,
-            'linear_stack': 300,
-            'stats_output': 12,
-        }
+
         self.shape_2 = {
             'players_input': 3,
             'teams_input': 2,
@@ -94,7 +84,7 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
         self.assertEqual(predictor.name, name)
         self.assertIsNone(predictor.save_folder)
         self.assertIsNone(predictor.load_folder)
-        self.assertIsNone(predictor.nn_shape)
+        self.assertEqual(predictor.nn_shape, default_nn_shape)
         self.assertEqual(predictor.max_epochs, 100)
         self.assertEqual(predictor.n_epochs_to_stop, 5)
         self.assertTrue(predictor.device in ['cpu','mpu','cuda'])
@@ -106,14 +96,14 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
         predictor = NeuralNetPredictor(name=name,
                                        save_folder=self.save_folder,
                                        load_folder=self.load_folder,
-                                       nn_shape=self.default_shape,
+                                       nn_shape=default_nn_shape,
                                        max_epochs=1,
                                        n_epochs_to_stop=2)
         
         self.assertEqual(predictor.name, name)
         self.assertEqual(predictor.save_folder, self.save_folder)
         self.assertEqual(predictor.load_folder, self.load_folder)
-        self.assertEqual(predictor.nn_shape, self.default_shape)
+        self.assertEqual(predictor.nn_shape, default_nn_shape)
         self.assertEqual(predictor.max_epochs, 1)
         self.assertEqual(predictor.n_epochs_to_stop, 2)
         self.assertTrue(predictor.device in ['cpu','mpu','cuda'])
@@ -134,18 +124,7 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
     # Set Up
     def setUp(self):
         self.load_folder = 'data/test files/'
-                
-        self.default_shape = {
-            'players_input': 300,
-            'teams_input': 32,
-            'opps_input': 32,
-            'stats_input': 29,
-            'embedding_player': 50,
-            'embedding_team': 10,
-            'embedding_opp': 10,
-            'linear_stack': 300,
-            'stats_output': 12,
-        }
+
         self.weird_shape = {
             'players_input': 1,
             'teams_input': 1,
@@ -175,9 +154,8 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
     def test_loaded_nn_shape_equals_default(self):
         predictor = NeuralNetPredictor(name='test',
                                        load_folder=self.load_folder)
-        expected_shape = self.default_shape
         
-        self.assertEqual(predictor.nn_shape, expected_shape)
+        self.assertEqual(predictor.nn_shape, default_nn_shape)
 
     def test_invalid_folder_gives_error(self):
         with self.assertRaises(FileNotFoundError):
@@ -396,7 +374,7 @@ class TestConfigureForTraining_NeuralNetPredictor(unittest.TestCase):
         torch.manual_seed(0) # Setting random seed to get the same data shuffle
         train_dataloader, eval_dataloader = self.predictor.configure_for_training(training_data, eval_data)
         torch.manual_seed(0) # Setting random seed to get the same data shuffle
-        expected_train_dataloader = DataLoader(training_data, batch_size=int(default_hp_values['mini_batch_size']), shuffle=True)
+        expected_train_dataloader = DataLoader(training_data, batch_size=int(hp_defaults['mini_batch_size']['value']), shuffle=True)
         expected_eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
 
         for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
@@ -435,7 +413,7 @@ class TestConfigureForTraining_NeuralNetPredictor(unittest.TestCase):
         expected_eval_dataloader = DataLoader(self.dataset2, batch_size=int(self.dataset2.x_data.shape[0]), shuffle=False)
         expected_optimizer = torch.optim.SGD(self.predictor.model.parameters(),
                                          lr=self.learning_rate,
-                                         weight_decay=default_hp_values['lmbda'])
+                                         weight_decay=hp_defaults['lmbda']['value'])
         
         for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
             self.assertTrue(result.dataset.equals(expected.dataset))
@@ -449,11 +427,11 @@ class TestConfigureForTraining_NeuralNetPredictor(unittest.TestCase):
                                                                                   eval_data=self.dataset2,
                                                                                   param_set=empty_hp_set)
         torch.manual_seed(0) # Setting random seed to get the same data shuffle
-        expected_train_dataloader = DataLoader(self.dataset, batch_size=int(default_hp_values['mini_batch_size']), shuffle=True)
+        expected_train_dataloader = DataLoader(self.dataset, batch_size=int(hp_defaults['mini_batch_size']['value']), shuffle=True)
         expected_eval_dataloader = DataLoader(self.dataset2, batch_size=int(self.dataset2.x_data.shape[0]), shuffle=False)
         expected_optimizer = torch.optim.SGD(self.predictor.model.parameters(),
-                                         lr=default_hp_values['learning_rate'],
-                                         weight_decay=default_hp_values['lmbda'])
+                                         lr=hp_defaults['learning_rate']['value'],
+                                         weight_decay=hp_defaults['lmbda']['value'])
         
         for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
             self.assertTrue(result.dataset.equals(expected.dataset))
@@ -489,7 +467,7 @@ class TestConfigureForTraining_NeuralNetPredictor(unittest.TestCase):
         expected_eval_dataloader = DataLoader(self.dataset2, batch_size=int(self.dataset2.x_data.shape[0]), shuffle=False)
         expected_optimizer = torch.optim.SGD(self.predictor.model.parameters(),
                                          lr=self.learning_rate,
-                                         weight_decay=default_hp_values['lmbda'])
+                                         weight_decay=hp_defaults['lmbda']['value'])
         
         for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
             self.assertTrue(result.dataset.equals(expected.dataset))
@@ -502,11 +480,11 @@ class TestConfigureForTraining_NeuralNetPredictor(unittest.TestCase):
                                                                                   eval_data=self.dataset2,
                                                                                   param_set=None)
         torch.manual_seed(0) # Setting random seed to get the same data shuffle
-        expected_train_dataloader = DataLoader(self.dataset, batch_size=int(default_hp_values['mini_batch_size']), shuffle=True)
+        expected_train_dataloader = DataLoader(self.dataset, batch_size=int(hp_defaults['mini_batch_size']['value']), shuffle=True)
         expected_eval_dataloader = DataLoader(self.dataset2, batch_size=int(self.dataset2.x_data.shape[0]), shuffle=False)
         expected_optimizer = torch.optim.SGD(self.predictor.model.parameters(),
-                                         lr=default_hp_values['learning_rate'],
-                                         weight_decay=default_hp_values['lmbda'])
+                                         lr=hp_defaults['learning_rate']['value'],
+                                         weight_decay=hp_defaults['lmbda']['value'])
         
         for (result, expected) in zip([train_dataloader, eval_dataloader], [expected_train_dataloader, expected_eval_dataloader]):
             self.assertTrue(result.dataset.equals(expected.dataset))

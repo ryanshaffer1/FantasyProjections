@@ -6,6 +6,7 @@
 
 import torch
 from torch import nn
+from config.nn_config import default_nn_shape
 
 class NeuralNetwork(nn.Module):
     """Neural Network model implemented using PyTorch.nn, tailored to the data structures and needs of fantasy_projections.
@@ -31,30 +32,26 @@ class NeuralNetwork(nn.Module):
             Args:
                 shape (dict, optional): number of neurons in each layer of the network, keyed by the names of each layer. 
                 Defaults to dict default_shape.
-                
+
+            Raises:
+                ValueError: non-numeric value passed in shape.
         """
         super().__init__()
 
-        # Shape of neural network (can be reconfigured during object initialization)
-        default_shape = {
-            'players_input': 300,
-            'teams_input': 32,
-            'opps_input': 32,
-            'stats_input': 29,
-            'embedding_player': 50,
-            'embedding_team': 10,
-            'embedding_opp': 10,
-            'linear_stack': 300,
-            'stats_output': 12,
-        }
-
         # Establish shape based on optional inputs
         if not shape:
-            shape = default_shape
+            shape = default_nn_shape
         else:
-            for (key,val) in default_shape.items():
+            for (key,val) in default_nn_shape.items():
                 if key not in shape:
                     shape[key] = val
+
+        # Ensure all values are of type int
+        try:
+            shape = {key:int(val) for key,val in shape.items()}
+        except ValueError as e:
+            raise ValueError('Neural Net input with a non-numeric value in shape') from e
+
         # Indices of input vector that correspond to each "category" (needed bc they are embedded separately)
         self.stats_inds = range(0, shape['stats_input'])
         self.players_inds = self.__index_range(self.stats_inds, shape['players_input'])

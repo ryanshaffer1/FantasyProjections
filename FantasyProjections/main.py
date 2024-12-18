@@ -15,9 +15,12 @@ import matplotlib.pyplot as plt
 from config.log_config import LOGGING_CONFIG
 from config import data_vis_config
 from config import hp_config
+from config import nn_config
 
 from misc.dataset import StatsDataset
 from misc.manage_files import move_logfile
+
+from neural_net import HyperParameterSet
 
 from tuners import GridSearchTuner
 from predictors import NeuralNetPredictor, SleeperPredictor, PerfectPredictor, LastNPredictor
@@ -27,6 +30,7 @@ from results import PredictionResultGroup, PredictionResult
 FOLDER_PREFIX = ''
 save_folder = f'models/{FOLDER_PREFIX}{datetime.strftime(datetime.now(),'%Y%m%d_%H%M%S')}/'
 LOAD_FOLDER = 'models/11222024003003/'
+# LOAD_FOLDER = 'models/20241218_144745/'
 
 # ---------------------
 # Data Setup
@@ -70,18 +74,17 @@ for dataset in (training_data,validation_data,test_data):
     logger.info(f'{dataset.name} Dataset size: {dataset.x_data.shape[0]}')
 
 # Tuning algorithm for Neural Net Hyper-Parameters
-param_tuner = GridSearchTuner(hp_config.param_set,save_folder,**hp_config.hp_tuner_settings)
+param_set = HyperParameterSet(hp_dict=hp_config.hp_defaults,
+                              optimize=hp_config.hp_tuner_settings['optimize_hypers'])
+param_tuner = GridSearchTuner(param_set,save_folder,**hp_config.hp_tuner_settings)
 
 # Initialize and train neural net
-nn_settings = {
-    'max_epochs': 1,
-    'n_epochs_to_stop': 5}
-# neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, **nn_settings)
-neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_settings)
-# param_tuner.tune_neural_net(neural_net, training_data, validation_data)
-train_dataloader, validation_dataloader = neural_net.configure_for_training(training_data=training_data,
-                                                                            eval_data=validation_data)
-val_perfs = neural_net.train_and_validate(train_dataloader,validation_dataloader)
+# neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, **nn_config.nn_train_settings)
+neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_config.nn_train_settings)
+param_tuner.tune_neural_net(neural_net, training_data, validation_data)
+# train_dataloader, validation_dataloader = neural_net.configure_for_training(training_data=training_data,
+#                                                                             eval_data=validation_data)
+# val_perfs = neural_net.train_and_validate(train_dataloader,validation_dataloader)
 
 
 # Alternate predictors

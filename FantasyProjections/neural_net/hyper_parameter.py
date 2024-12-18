@@ -7,6 +7,7 @@
 
 from dataclasses import dataclass, field, InitVar
 import numpy as np
+from config.hp_config import hp_tuner_settings, hp_defaults
 
 @dataclass
 class HyperParameter():
@@ -20,8 +21,8 @@ class HyperParameter():
                 - lmbda
                 - loss_fn
                 - mini_batch_size
-            optimizable (bool): Whether the hyper-parameter can be modified by a HyperParameter Tuner. (Whether it is actually optimized depends on the tuner.)
-                Note that optimizable is not tracked as an object attribute, being redundant to other data.
+            optimizable (bool, optional): Whether the hyper-parameter can be modified by a HyperParameter Tuner. (Whether it is actually optimized depends on the tuner.)
+                Note that optimizable is not tracked as an object attribute, being redundant to other data. Defaults to False.
             value (float, optional): Initial value to assume if not optimizing. Defaults to 0.
             val_range (list, optional): Minimum and maximum values to use if optimizing. Defaults to [self.value] (preventing optimizing).
             val_scale (str, optional): Type of scale to use when setting values within val_range. Defaults to "none". Options include:
@@ -43,16 +44,19 @@ class HyperParameter():
 
     # CONSTRUCTOR
     name: str
-    optimizable: InitVar[bool | None]
-    value: float = 0
+    optimizable: InitVar[bool] = False
+    value: int = None
     values: list = field(init=False)
     val_range: list = None
     val_scale: str = 'none'
-    num_steps: int = 1
+    num_steps: int = hp_tuner_settings['hyper_tuner_steps_per_dim']
 
     def __post_init__(self, optimizable):
         # Evaluates as part of the Constructor.
         # Generates attributes that are not simple data copies of inputs.
+
+        if self.value is None:
+            self.value = hp_defaults.get(self.name, {}).get('value',0)
 
         self.values = [self.value] # This may be overwritten by a HyperParameterSet object, if optimizing
         if not self.val_range or not optimizable:
@@ -73,10 +77,10 @@ class HyperParameter():
             match self.val_scale:
                 case 'linear':
                     self.gridpoints = np.interp(range(self.num_steps), [
-                                                0, self.num_steps - 1], self.val_range)
+                                                0, self.num_steps - 1], self.val_range).tolist()
                 case 'log':
-                    self.gridpoints = 10**np.interp(
-                        range(self.num_steps), [0, self.num_steps - 1], np.log10(self.val_range))
+                    self.gridpoints = (10**np.interp(
+                        range(self.num_steps), [0, self.num_steps - 1], np.log10(self.val_range))).tolist()
                 # Not as sure about the proper handling of these:
                 case 'none':
                     self.val_range = self.value

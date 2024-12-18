@@ -5,18 +5,15 @@
         HyperParameterSet : Groups HyperParameter objects together and allows for simultaneous modification of multiple HyperParameters.
 """
 
-from dataclasses import dataclass
 import numpy as np
+from . import HyperParameter
 
-@dataclass
 class HyperParameterSet():
     """Groups HyperParameter objects together and allows for simultaneous modification of multiple HyperParameters.
     
-        Args:
-            hyper_parameters (tuple): tuple of HyperParameter objects. All HyperParameters must be initialized prior to initializing HyperParameterSet.
+        Attributes:
+            hyper_parameters (tuple): tuple of HyperParameter objects contained within the HyperParameterSet.
             optimize (bool): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
-        
-        Additional Class Attributes:
             total_gridpoints (int): Number of unique combinations of HyperParameter values.
 
         Public Methods:
@@ -25,11 +22,35 @@ class HyperParameterSet():
             set_values : Sets value of all HyperParameter objects in set to value at a specific index within the list of values.
             to_dict : Converts object data to a dict, where each key is the name of a HyperParameter, and each value is the HyperParameter's current value.
     """
+    def __init__(self,
+                 hp_set: tuple = None,
+                 hp_dict: dict = None,
+                 **kwargs):
+        """Constructor for HyperParameterSet.
 
-    hyper_parameters: tuple
-    optimize: bool = True
+            One of the following initialization options must be followed. If both inputs are passed, hyper_parameters takes precedence.
 
-    def __post_init__(self):
+            Args (Initialization Option 1):
+                hp_set (tuple, optional): tuple of pre-initialized HyperParameter objects.
+            Args (Initialization Option 2):
+                hp_dict (dict, optional): dictionary containing names of each HyperParameter as keys, mapping to a dictionary 
+                    listing all attributes for that HyperParameter (any attributes not set will be assigned the default values in HyperParameter init).
+
+            Keyword-Args: 
+                optimize (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), 
+                    or stick to the initial values provided. Defaults to True.
+        """
+        # Optional keyword arguments
+        self.optimize = kwargs.get('optimize', True)
+
+        if hp_set is not None:
+            self.hyper_parameters = hp_set
+        else:
+            if hp_dict is None:
+                raise ValueError('Input must be provided to initialize HyperParameterSet!')
+
+            self.__gen_hp_set(hp_dict)
+
         # Evaluates as part of the Constructor.
         # Generates attributes that are not simple data copies of inputs.
 
@@ -103,7 +124,7 @@ class HyperParameterSet():
                             hp.gridpoints[gridpoints_ind])) / 2)
                         maxval = 10**((np.log10(hp.gridpoints[gridpoints_ind]) + np.log10(
                             hp.gridpoints[gridpoints_ind + 1])) / 2)
-                    hp.val_range = [minval, maxval]
+                    hp.val_range = [float(minval), float(maxval)]
                 case 'selection':
                     # No setting a range, just select the value that performed
                     # best
@@ -146,8 +167,19 @@ class HyperParameterSet():
         # n-dimensional grid of hyperparameters)
         self.total_gridpoints = 1
         for ind, hp in enumerate(self.hyper_parameters):
-            hp.values = np.repeat(hp.gridpoints, self.total_gridpoints)
+            hp.values = np.repeat(hp.gridpoints, self.total_gridpoints).tolist()
             for prev in self.hyper_parameters[:ind]:
-                prev.values = np.array(list(prev.values) * hp.num_steps)
+                prev.values = np.array(list(prev.values) * hp.num_steps).tolist()
 
             self.total_gridpoints *= hp.num_steps
+
+    def __gen_hp_set(self, hp_dict):
+        # Converts a dict of dicts (where each key is the name of a HyperParameter, and each value is the attributes for that HyperParameter)
+        # into a list of HyperParameter objects.
+        hp_set = []
+
+        for key, values in hp_dict.items():
+            hyper_parameter = HyperParameter(name=key, **values)
+            hp_set.append(hyper_parameter)
+
+        self.hyper_parameters = tuple(hp_set)
