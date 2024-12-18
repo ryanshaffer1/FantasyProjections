@@ -11,7 +11,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from config.hp_config import hp_defaults
-from config.nn_config import default_nn_shape
+from config.nn_config import default_nn_shape, nn_train_settings
 from misc.stat_utils import stats_to_fantasy_points
 from misc.manage_files import create_folders
 from neural_net import NeuralNetwork
@@ -56,8 +56,8 @@ class NeuralNetPredictor(FantasyPredictor):
     # CONSTRUCTOR
     save_folder: str = None
     load_folder: str = None
-    max_epochs: int = 100
-    n_epochs_to_stop: int = 5
+    max_epochs: int = nn_train_settings['max_epochs']
+    n_epochs_to_stop: int = nn_train_settings['n_epochs_to_stop']
     # hyper-parameters
     nn_shape: dict = None
     mini_batch_size: int = hp_defaults['mini_batch_size']['value']
@@ -267,6 +267,7 @@ class NeuralNetPredictor(FantasyPredictor):
             print('')
             print(model)
             print(f'Total tunable parameters: {total_params}')
+
 
     def save(self):
         """Stores NeuralNetwork and optimizer specifications to file.

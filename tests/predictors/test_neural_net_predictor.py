@@ -10,7 +10,7 @@ from predictors import NeuralNetPredictor
 from neural_net import NeuralNetwork, HyperParameter, HyperParameterSet
 from tests.utils_for_tests import mock_data_predictors
 from config.hp_config import hp_defaults
-from config.nn_config import default_nn_shape
+from config.nn_config import default_nn_shape, nn_train_settings
 from misc.dataset import StatsDataset
 import logging
 import logging.config
@@ -85,8 +85,8 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
         self.assertIsNone(predictor.save_folder)
         self.assertIsNone(predictor.load_folder)
         self.assertEqual(predictor.nn_shape, default_nn_shape)
-        self.assertEqual(predictor.max_epochs, 100)
-        self.assertEqual(predictor.n_epochs_to_stop, 5)
+        self.assertEqual(predictor.max_epochs, nn_train_settings['max_epochs'])
+        self.assertEqual(predictor.n_epochs_to_stop, nn_train_settings['n_epochs_to_stop'])
         self.assertTrue(predictor.device in ['cpu','mpu','cuda'])
         self.assertTrue(isinstance(predictor.model, NeuralNetwork))
         self.assertTrue(isinstance(predictor.optimizer,torch.optim.SGD))
