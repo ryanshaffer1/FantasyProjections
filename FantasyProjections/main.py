@@ -80,8 +80,11 @@ param_tuner = GridSearchTuner(param_set,save_folder,**hp_config.hp_tuner_setting
 # Initialize and train neural net
 # neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, **nn_config.nn_train_settings)
 neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_config.nn_train_settings)
-# param_tuner.tune_neural_net(neural_net, training_data, validation_data)
-val_perfs = neural_net.train_and_validate(training_data=training_data, validation_data=validation_data)
+param_tuner.tune_hyper_parameters(eval_function=neural_net.train_and_validate,
+                                  save_function=neural_net.save, reset_function=neural_net.load,
+                                  eval_kwargs = {'training_data':training_data, 'validation_data':validation_data},
+                                  reset_kwargs = {'model_folder':save_folder})
+# neural_net.train_and_validate(training_data=training_data, validation_data=validation_data)
 
 # Alternate predictors
 sleeper_predictor = SleeperPredictor(name='Sleeper',

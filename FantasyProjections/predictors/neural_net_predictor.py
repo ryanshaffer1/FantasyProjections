@@ -390,7 +390,8 @@ class NeuralNetPredictor(FantasyPredictor):
                 logger.info('Learning has stopped, terminating training process')
                 break
 
-        return val_perfs
+        # Return final validation performance, and all validation performances
+        return val_perfs[-1], val_perfs
 
 
     # PRIVATE METHODS

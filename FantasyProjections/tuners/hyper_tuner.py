@@ -26,7 +26,7 @@ class HyperParamTuner():
             plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
         
         Additional Class Attributes:
-            model_perf_list (list): Performance of Neural Net (e.g. Validation Error, loss, etc.) after each tuning iteration
+            perf_list (list): Performance of Neural Net (e.g. Validation Error, loss, etc.) after each tuning iteration
             hyper_tuning_table (list): Table recording HyperParameter values and subsequent Neural Network performance after each tuning iteration
 
         Public Methods:
@@ -44,7 +44,7 @@ class HyperParamTuner():
         # Generates attributes that are not simple data copies of inputs.
 
         # Initialize attributes to use later in tuning
-        self.model_perf_list = [] # List of model performance values for all combos of hyperparameter values
+        self.perf_list = [] # List of model performance values for all combos of hyperparameter values
         self.hyper_tuning_table = []
 
 
@@ -68,12 +68,12 @@ class HyperParamTuner():
         for hp in self.param_set.hyper_parameters:
             curr_results_table.append(hp.values)
         # Add performance of the model to the array
-        curr_results_table.append(self.model_perf_list)
+        curr_results_table.append(self.perf_list)
         # Add additional data to array
         for val in addl_columns.values():
             if len(val) == 1:
-                curr_results_table.append(val*len(self.model_perf_list))
-            elif len(val) == len(self.model_perf_list):
+                curr_results_table.append(val*len(self.perf_list))
+            elif len(val) == len(self.perf_list):
                 curr_results_table.append(val)
 
         # Append the transpose of the curr_results_table to the results_array

@@ -614,10 +614,11 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
                                               validation_data=self.eval_dataloader,
                                               scoring_weights=self.scoring_weights)
 
-    def test_return_value_is_list(self):
-        val_perfs = self.predictor.train_and_validate(self.train_dataloader,
+    def test_return_value_types(self):
+        final_val_perf, val_perfs = self.predictor.train_and_validate(self.train_dataloader,
                                                       self.eval_dataloader,
                                                       scoring_weights=self.scoring_weights)
+        self.assertTrue(isinstance(final_val_perf,float))
         self.assertTrue(isinstance(val_perfs,list))
     
     def test_training_changes_model_parameters(self):
@@ -641,7 +642,7 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
                                             max_epochs=n_epochs,
                                             n_epochs_to_stop=n_epochs*2)
 
-        val_perfs = self.predictor.train_and_validate(self.train_dataloader,
+        _, val_perfs = self.predictor.train_and_validate(self.train_dataloader,
                                                       self.eval_dataloader,
                                                       scoring_weights=self.scoring_weights)
         self.assertEqual(len(val_perfs),n_epochs)
