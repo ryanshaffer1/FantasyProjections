@@ -12,7 +12,6 @@ hp_tuner_settings = {
     'optimize_hypers': True,
     'hyper_tuner_layers': 2,
     'hyper_tuner_steps_per_dim': 2,
-    'scale_epochs_over_layers': True, # If True, max_epochs and n_epochs_to_stop will double with each layer of the hyperparameter grid search
     'plot_tuning_results': True,
 }
 

@@ -25,13 +25,17 @@ class HyperParameterSet():
 
             Args (Initialization Option 1):
                 hp_set (tuple, optional): tuple of pre-initialized HyperParameter objects.
+                    Note: a singular HyperParameter object may be passed; it will be converted to a tuple of length 1.
             Args (Initialization Option 2):
                 hp_dict (dict, optional): dictionary containing names of each HyperParameter as keys, mapping to a dictionary 
                     listing all attributes for that HyperParameter (any attributes not set will be assigned the default values in HyperParameter init).
         """
 
         if hp_set is not None:
-            self.hyper_parameters = hp_set
+            if hasattr(hp_set,'__iter__'):
+                self.hyper_parameters = hp_set
+            else:
+                self.hyper_parameters = (hp_set,)
         else:
             if hp_dict is None:
                 raise ValueError('Input must be provided to initialize HyperParameterSet!')
@@ -63,7 +67,7 @@ class HyperParameterSet():
         """
 
         for hp in self.hyper_parameters:
-            hp.set_value(ind)
+            hp.value = hp.values[ind]
 
 
     def to_dict(self):

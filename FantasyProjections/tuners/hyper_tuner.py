@@ -79,8 +79,13 @@ class HyperParamTuner():
         # Append the transpose of the curr_results_table to the results_array
         self.hyper_tuning_table = self.hyper_tuning_table + list(map(list, zip(*curr_results_table)))
 
+        # Convert to dataframe (in order to add column labels)
+        column_names = [hp.name for hp in self.param_set.hyper_parameters]
+        column_names.extend(['Model Performance'] + list(addl_columns.keys()))
+        hyper_tuning_df = pd.DataFrame(self.hyper_tuning_table,columns=column_names)
+
+        # Optionally save to file
         if filename:
-            # Convert to dataframe (in order to add column labels) and save to file
-            column_names = [hp.name for hp in self.param_set.hyper_parameters]
-            column_names.extend(['Model Performance'] + list(addl_columns.keys()))
-            pd.DataFrame(self.hyper_tuning_table,columns=column_names).to_csv(filename)
+            hyper_tuning_df.to_csv(filename)
+
+        return hyper_tuning_df

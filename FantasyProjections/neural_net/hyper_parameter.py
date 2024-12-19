@@ -5,7 +5,7 @@
         HyperParameter : Class handling the value and variations of a Neural Net Hyper-Parameter.
 """
 
-from dataclasses import dataclass, InitVar
+from dataclasses import dataclass
 from config.hp_config import hp_defaults
 
 @dataclass
@@ -35,17 +35,17 @@ class HyperParameter():
                 Unique values may repeat.
 
         Public Methods:
-            set_value : Sets HyperParameter attribute value to a specific index within the list of values.
+            None
     """
 
     # CONSTRUCTOR
     name: str
-    optimizable: InitVar[bool] = False
+    optimizable: bool = False
     value: int = None
     val_range: list = None
     val_scale: str = 'none'
 
-    def __post_init__(self, optimizable):
+    def __post_init__(self):
         # Evaluates as part of the Constructor.
         # Generates attributes that are not simple data copies of inputs.
 
@@ -53,17 +53,5 @@ class HyperParameter():
             self.value = hp_defaults.get(self.name, {}).get('value',0)
 
         self.values = [self.value] # This may be overwritten later, if optimizing hyper-parameters
-        if not self.val_range or not optimizable:
+        if not self.val_range or not self.optimizable:
             self.val_range = [self.value]
-
-
-    # PUBLIC METHODS
-
-    def set_value(self, i):
-        """Sets HyperParameter attribute value to a specific index within the list of values (list determined by a HyperParameterTuner).
-
-            Args:
-                i (int): Index of object attribute values to use as new self.value.
-        """
-
-        self.value = self.values[i]
