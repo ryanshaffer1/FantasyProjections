@@ -322,7 +322,7 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
                                         value=self.loss_fn)
         self.linear_stack_hp = HyperParameter('linear_stack',optimizable=False,
                                               value=self.linear_stack)
-        self.hp_set = HyperParameterSet((self.mini_batch_size_hp,self.learning_rate_hp,self.lmbda_hp,self.loss_fn_hp,self.linear_stack_hp),optimize=False)
+        self.hp_set = HyperParameterSet((self.mini_batch_size_hp,self.learning_rate_hp,self.lmbda_hp,self.loss_fn_hp,self.linear_stack_hp))
         self.hp_dict = {'mini_batch_size': int(self.mini_batch_size),
                         'learning_rate': self.learning_rate,
                         'lmbda': self.lmbda,
@@ -349,7 +349,7 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
         self.assertEqual(self.predictor.nn_shape['linear_stack'], self.hp_set.get('linear_stack').value)
     
     def test_hyper_parameter_set_with_some_hps_configures_all_correctly(self):
-        partial_hp_set = HyperParameterSet((self.mini_batch_size_hp, self.learning_rate_hp),optimize=False)
+        partial_hp_set = HyperParameterSet((self.mini_batch_size_hp, self.learning_rate_hp))
         self.predictor.modify_hyper_parameter_values(param_set=partial_hp_set)
         
         self.assertEqual(self.predictor.mini_batch_size, self.hp_set.get('mini_batch_size').value)
@@ -359,7 +359,7 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
         self.assertEqual(self.predictor.nn_shape['linear_stack'], self.mock_shape['linear_stack'])
     
     def test_empty_hyper_parameter_set_configures_all_correctly(self):
-        empty_hp_set = HyperParameterSet([],optimize=False)
+        empty_hp_set = HyperParameterSet([])
         self.predictor.modify_hyper_parameter_values(param_set=empty_hp_set)
         
         self.assertEqual(self.predictor.mini_batch_size, hp_defaults['mini_batch_size']['value'])
@@ -567,7 +567,7 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
         self.loss_fn = nn.MSELoss()
         self.loss_fn_hp = HyperParameter('loss_fn', optimizable=False, 
                                                  value=self.loss_fn)
-        self.hp_set = HyperParameterSet((self.loss_fn_hp,),optimize=False)
+        self.hp_set = HyperParameterSet((self.loss_fn_hp,))
         self.hp_dict = {'loss_fn': self.loss_fn}
 
         # Neural Net Predictor
@@ -657,7 +657,7 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             self.fail(f'Setting hyperparameters for train_and_validate raised {type(e)} unexpectedly.')
     
     def test_empty_hyper_parameter_set_configures_all_correctly(self):
-        empty_hp_set = HyperParameterSet([],optimize=False)
+        empty_hp_set = HyperParameterSet([])
         try:
             self.predictor.train_and_validate(train_dataloader=self.train_dataloader,
                                             validation_dataloader=self.eval_dataloader,

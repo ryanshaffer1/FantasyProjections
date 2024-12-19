@@ -5,9 +5,8 @@
         HyperParameter : Class handling the value and variations of a Neural Net Hyper-Parameter.
 """
 
-from dataclasses import dataclass, field, InitVar
-import numpy as np
-from config.hp_config import hp_tuner_settings, hp_defaults
+from dataclasses import dataclass, InitVar
+from config.hp_config import hp_defaults
 
 @dataclass
 class HyperParameter():
@@ -30,15 +29,12 @@ class HyperParameter():
                 - "linear"
                 - "log"
                 - "selection"
-            num_steps (int, optional): Number of unique values to use when optimizing. Defaults to 1 (preventing optimizing).
         
         Additional Class Attributes:
             values (list): Sequence of values to use as the value attribute over successive tuning iterations. Determined by a HyperParameterTuner.
                 Unique values may repeat.
-            gridpoints (list): Array of unique values (with no repetition) to use in a grid search HyperParameter optimization.
 
         Public Methods:
-            gen_gridpoints : Generates list of unique values to use in a grid search HyperParamater optimization.
             set_value : Sets HyperParameter attribute value to a specific index within the list of values.
     """
 
@@ -46,10 +42,8 @@ class HyperParameter():
     name: str
     optimizable: InitVar[bool] = False
     value: int = None
-    values: list = field(init=False)
     val_range: list = None
     val_scale: str = 'none'
-    num_steps: int = hp_tuner_settings['hyper_tuner_steps_per_dim']
 
     def __post_init__(self, optimizable):
         # Evaluates as part of the Constructor.
@@ -58,44 +52,12 @@ class HyperParameter():
         if self.value is None:
             self.value = hp_defaults.get(self.name, {}).get('value',0)
 
-        self.values = [self.value] # This may be overwritten by a HyperParameterSet object, if optimizing
+        self.values = [self.value] # This may be overwritten later, if optimizing hyper-parameters
         if not self.val_range or not optimizable:
             self.val_range = [self.value]
-        self.gen_gridpoints()
 
 
     # PUBLIC METHODS
-
-    def gen_gridpoints(self):
-        """Generates list of unique values to use in a grid search HyperParamater optimization.
-        
-            Uses object attributes val_range, val_scale, and num_steps. 
-            Creates object attribute gridpoints. May update num_steps to 1 if necessary.        
-        """
-
-        if len(self.val_range) > 1:
-            match self.val_scale:
-                case 'linear':
-                    self.gridpoints = np.interp(range(self.num_steps), [
-                                                0, self.num_steps - 1], self.val_range).tolist()
-                case 'log':
-                    self.gridpoints = (10**np.interp(
-                        range(self.num_steps), [0, self.num_steps - 1], np.log10(self.val_range))).tolist()
-                # Not as sure about the proper handling of these:
-                case 'none':
-                    self.val_range = self.value
-                    self.gridpoints = self.val_range
-                    self.num_steps = 1
-                case 'selection':
-                    self.gridpoints = self.val_range
-                    self.num_steps = len(self.val_range)
-                case _:
-                    self.gridpoints = self.val_range
-                    self.num_steps = 1
-        else:
-            self.gridpoints = [self.value]
-            self.num_steps = 1
-
 
     def set_value(self, i):
         """Sets HyperParameter attribute value to a specific index within the list of values (list determined by a HyperParameterTuner).

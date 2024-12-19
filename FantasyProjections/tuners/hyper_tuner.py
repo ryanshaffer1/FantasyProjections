@@ -63,7 +63,7 @@ class HyperParamTuner():
             for key, val in addl_columns.items():
                 addl_columns[key] = [val] if not hasattr(val,'__iter__') else val
 
-        # Create array of all hyperparameter values in current run ("layer") of grid search
+        # Create array of all hyperparameter values in current tuning "batch"
         curr_results_table = []
         for hp in self.param_set.hyper_parameters:
             curr_results_table.append(hp.values)
