@@ -14,6 +14,8 @@ class HyperParameterSet():
             hyper_parameters (tuple): tuple of HyperParameter objects contained within the HyperParameterSet.
 
         Public Methods:
+            copy : Returns a copy of the HyperParameterSet object.
+            equals : Returns true if the two HyperParameterSet objects contain the same data.
             get : Returns a HyperParameter from a HyperParameterSet based on the HyperParameter's name.
             set_values : Sets value of all HyperParameter objects in set to value at a specific index within the list of values.
             to_dict : Converts object data to a dict, where each key is the name of a HyperParameter, and each value is the HyperParameter's current value.
@@ -33,9 +35,9 @@ class HyperParameterSet():
 
         if hp_set is not None:
             if hasattr(hp_set,'__iter__'):
-                self.hyper_parameters = hp_set
+                self.hyper_parameters = tuple(hp.copy() for hp in hp_set)
             else:
-                self.hyper_parameters = (hp_set,)
+                self.hyper_parameters = (hp_set.copy(),)
         else:
             if hp_dict is None:
                 raise ValueError('Input must be provided to initialize HyperParameterSet!')
@@ -43,6 +45,21 @@ class HyperParameterSet():
 
 
     # PUBLIC METHODS
+
+    def copy(self):
+        """Returns a copy of the HyperParameterSet object.
+        """
+
+        return HyperParameterSet(self.hyper_parameters)
+
+    def equals(self, other):
+        """Returns true if the two HyperParameterSet objects contain the same data.
+        
+            Args:
+                other (HyperParameterSet): Object to compare against self.        
+        """
+
+        return self.hyper_parameters == other.hyper_parameters
 
     def get(self,hp_name):
         """Returns a HyperParameter from a HyperParameterSet based on the HyperParameter's name.

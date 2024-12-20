@@ -35,7 +35,7 @@ class HyperParameter():
                 Unique values may repeat.
 
         Public Methods:
-            None
+            copy : Returns a copy of the HyperParameterSet object.
     """
 
     # CONSTRUCTOR
@@ -44,6 +44,7 @@ class HyperParameter():
     value: int = None
     val_range: list = None
     val_scale: str = 'none'
+    values: list = None
 
     def __post_init__(self):
         # Evaluates as part of the Constructor.
@@ -52,6 +53,22 @@ class HyperParameter():
         if self.value is None:
             self.value = hp_defaults.get(self.name, {}).get('value',0)
 
-        self.values = [self.value] # This may be overwritten later, if optimizing hyper-parameters
+        if self.values is None:
+            self.values = [self.value] # This may be overwritten later, if optimizing hyper-parameters
+
         if not self.val_range or not self.optimizable:
             self.val_range = [self.value]
+
+
+    # PUBLIC METHODS
+
+    def copy(self):
+        """Returns a copy of the HyperParameter object.
+        """
+        new_hp = HyperParameter(name=self.name,
+                                optimizable=self.optimizable,
+                                value=self.value,
+                                val_range=self.val_range,
+                                val_scale=self.val_scale,
+                                values=self.values)
+        return new_hp

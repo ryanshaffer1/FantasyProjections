@@ -7,25 +7,20 @@
         HyperParameterTuner : Base class for Tuner objects which modify values of a HyperParameterSet in order to optimize Neural Net performance according to some algorithm.
 """
 
-from dataclasses import dataclass
 import pandas as pd
-from neural_net import HyperParameterSet
 
-@dataclass
 class HyperParamTuner():
     """Base class for Tuner objects which modify values of a HyperParameterSet in order to optimize Neural Net performance according to some algorithm.
     
         Sub-classes implement specific prediction algorithms, including:
                 GridSearchTuner: optimizes HyperParameters using a Recursive Grid Search algorithm.
     
-        Args:
+        Attributes:
             param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
             save_folder (str): path to folder where any tuning performance logs should be saved.
             optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
                 Defaults to False.
             plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
-        
-        Additional Class Attributes:
             perf_list (list): Performance of Neural Net (e.g. Validation Error, loss, etc.) after each tuning iteration
             hyper_tuning_table (list): Table recording HyperParameter values and subsequent Neural Network performance after each tuning iteration
 
@@ -33,15 +28,25 @@ class HyperParamTuner():
             None
     """
 
+    def __init__(self, param_set, save_folder, **kwargs):
+        """Constructor for HyperParamTuner
 
-    param_set: HyperParameterSet
-    save_folder: str
-    optimize_hypers: bool = False
-    plot_tuning_results: bool = False
+            Args:
+                param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
+                save_folder (str): path to folder where any tuning performance logs should be saved.
+                optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
+                    Defaults to False.
+                plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
+            
+            Additional Class Attributes (generated, not passed as inputs):
+                perf_list (list): Performance of Neural Net (e.g. Validation Error, loss, etc.) after each tuning iteration
+                hyper_tuning_table (list): Table recording HyperParameter values and subsequent Neural Network performance after each tuning iteration
+        """
 
-    def __post_init__(self):
-        # Evaluates as part of the Constructor.
-        # Generates attributes that are not simple data copies of inputs.
+        self.param_set = param_set.copy()
+        self.save_folder = save_folder
+        self.optimize_hypers = kwargs.pop('optimize_hypers', False)
+        self.plot_tuning_results = kwargs.pop('plot_tuning_results', False)
 
         # Initialize attributes to use later in tuning
         self.perf_list = [] # List of model performance values for all combos of hyperparameter values

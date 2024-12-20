@@ -28,7 +28,7 @@ class TestConstructor_HyperParamTuner(unittest.TestCase):
     def test_basic_attributes_no_optional_inputs(self):
         tuner = HyperParamTuner(self.hp_set, self.save_folder)
 
-        self.assertEqual(tuner.param_set, self.hp_set)
+        self.assertTrue(tuner.param_set.equals(self.hp_set))
         self.assertEqual(tuner.save_folder, self.save_folder)
         self.assertEqual(tuner.optimize_hypers, False)
         self.assertEqual(tuner.plot_tuning_results, False)
@@ -38,7 +38,7 @@ class TestConstructor_HyperParamTuner(unittest.TestCase):
     def test_basic_attributes_all_optional_inputs(self):
         tuner = HyperParamTuner(self.hp_set, self.save_folder, optimize_hypers=True, plot_tuning_results=True)
 
-        self.assertEqual(tuner.param_set, self.hp_set)
+        self.assertTrue(tuner.param_set.equals(self.hp_set))
         self.assertEqual(tuner.save_folder, self.save_folder)
         self.assertEqual(tuner.optimize_hypers, True)
         self.assertEqual(tuner.plot_tuning_results, True)

@@ -5,7 +5,6 @@
             Child of HyperParameterTuner.
 """
 
-from dataclasses import dataclass
 import logging
 import numpy as np
 from misc.manage_files import create_folders
@@ -15,7 +14,6 @@ from .plot_grid_search_results import plot_grid_search_results
 # Set up logger
 logger = logging.getLogger('log')
 
-@dataclass
 class GridSearchTuner(HyperParamTuner):
     """Optimizes HyperParameters of a Neural Network for best performance (minimum evaluation error after training) via a Recursive Grid Search algorithm.
     
@@ -43,11 +41,33 @@ class GridSearchTuner(HyperParamTuner):
             tune_hyper_parameters : Performs iterative evaluation of a function that depends on HyperParameters to find an optimal combination of HyperParameters.
     """
 
-    hyper_tuner_layers: int = 1
-    hyper_tuner_steps_per_dim: int = 3
 
-    def __post_init__(self):
-        super().__post_init__()
+    def __init__(self, *args, hyper_tuner_layers=1, hyper_tuner_steps_per_dim=3, **kwargs):
+        """Constructor for GridSearchTuner object.
+
+            Args:
+                param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
+                save_folder (str): path to folder where any tuning performance logs should be saved.
+                optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
+                    Defaults to False.
+                plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
+                hyper_tuner_layers (int, optional): Number of grid search layers to perform (each recursion layer is "zooming in" closer to a local optima.) Defaults to 1 (no zooming in).
+                hyper_tuner_steps_per_dim (int, optional): Number of unique values to use for each optimizable HyperParameter. Defaults to 3.
+
+            Additional Class Attributes:
+                save_file (str): path to file where tuning performance log will be saved. Filename is "hyper_grid.csv".
+                total_cominations (int): Number of unique combinations of HyperParameter values.
+
+            Adds Public Attributes to Other Classes:
+                HyperParameter objects within param_set:
+                    gridpoints (list): Array of unique values (with no repetition) to use in a grid search HyperParameter optimization.
+        """
+
+        super().__init__(*args, **kwargs)
+
+        self.hyper_tuner_layers = hyper_tuner_layers
+        self.hyper_tuner_steps_per_dim = hyper_tuner_steps_per_dim
+
         self.save_file = self.save_folder + 'hyper_grid.csv'
 
         # Generate initial grid points

@@ -56,7 +56,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
     def test_basic_attributes_no_optional_inputs(self):
         tuner = GridSearchTuner(self.hp_set, self.save_folder)
 
-        self.assertEqual(tuner.param_set, self.hp_set)
+        self.assertTrue(tuner.param_set.equals(self.hp_set))
         self.assertEqual(tuner.save_folder, self.save_folder)
         self.assertEqual(tuner.optimize_hypers, False)
         self.assertEqual(tuner.plot_tuning_results, False)
@@ -69,7 +69,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
     def test_basic_attributes_all_optional_inputs(self):
         tuner = GridSearchTuner(self.hp_set, self.save_folder, **self.settings)
 
-        self.assertEqual(tuner.param_set, self.hp_set)
+        self.assertFalse(tuner.param_set.equals(self.hp_set)) # Not equal because values in param_set are modified by the tuner during init
         self.assertEqual(tuner.save_folder, self.save_folder)
         self.assertEqual(tuner.optimize_hypers, self.settings['optimize_hypers'])
         self.assertEqual(tuner.plot_tuning_results, self.settings['plot_tuning_results'])
@@ -83,7 +83,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         del self.settings['hyper_tuner_layers']
         tuner = GridSearchTuner(self.hp_set, self.save_folder, **self.settings)
 
-        self.assertEqual(tuner.param_set, self.hp_set)
+        self.assertFalse(tuner.param_set.equals(self.hp_set)) # Not equal because values in param_set are modified by the tuner during init
         self.assertEqual(tuner.save_folder, self.save_folder)
         self.assertEqual(tuner.optimize_hypers, self.settings['optimize_hypers'])
         self.assertEqual(tuner.plot_tuning_results, self.settings['plot_tuning_results'])
