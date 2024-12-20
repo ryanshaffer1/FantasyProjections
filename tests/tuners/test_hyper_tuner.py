@@ -23,23 +23,23 @@ class TestConstructor_HyperParamTuner(unittest.TestCase):
         self.hp2 = HyperParameter(name='hp2', value=-1, optimizable=True, val_range=[-2,-0.5],val_scale='linear')
         self.hp_set = HyperParameterSet(hp_set=(self.hp1,self.hp2))
 
-        self.save_folder = 'data/test files/empty/'
+        self.save_file = 'data/test files/empty/hyper_tuner.csv'
 
     def test_basic_attributes_no_optional_inputs(self):
-        tuner = HyperParamTuner(self.hp_set, self.save_folder)
+        tuner = HyperParamTuner(self.hp_set, save_file=self.save_file)
 
         self.assertTrue(tuner.param_set.equals(self.hp_set))
-        self.assertEqual(tuner.save_folder, self.save_folder)
+        self.assertEqual(tuner.save_file, self.save_file)
         self.assertEqual(tuner.optimize_hypers, False)
         self.assertEqual(tuner.plot_tuning_results, False)
         self.assertEqual(tuner.perf_list, [])
         self.assertEqual(tuner.hyper_tuning_table, [])
 
     def test_basic_attributes_all_optional_inputs(self):
-        tuner = HyperParamTuner(self.hp_set, self.save_folder, optimize_hypers=True, plot_tuning_results=True)
+        tuner = HyperParamTuner(self.hp_set, save_file=self.save_file, optimize_hypers=True, plot_tuning_results=True)
 
         self.assertTrue(tuner.param_set.equals(self.hp_set))
-        self.assertEqual(tuner.save_folder, self.save_folder)
+        self.assertEqual(tuner.save_file, self.save_file)
         self.assertEqual(tuner.optimize_hypers, True)
         self.assertEqual(tuner.plot_tuning_results, True)
         self.assertEqual(tuner.perf_list, [])
@@ -47,7 +47,7 @@ class TestConstructor_HyperParamTuner(unittest.TestCase):
 
     def test_missing_inputs_raises_error(self):
         with self.assertRaises(TypeError):
-            HyperParamTuner(self.hp_set)
+            HyperParamTuner(save_file=self.save_file)
 
     # Tear Down
     def tearDown(self):
@@ -69,7 +69,7 @@ class TestSaveHPTuningResults_HyperParamTuner(unittest.TestCase):
         self.hp2.values = self.values_hp2
 
         self.hp_set = HyperParameterSet(hp_set=(self.hp1,self.hp2))
-        self.tuner = HyperParamTuner(self.hp_set, self.save_folder)
+        self.tuner = HyperParamTuner(self.hp_set, save_file=self.save_file)
         
         self.tuner.perf_list = [0,1,2,3]
 

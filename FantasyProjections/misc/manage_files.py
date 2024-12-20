@@ -24,6 +24,7 @@ def create_folders(folders):
             folders (list or str): Folder or list of folders that may or may not already exist.
                 If a folder does exist, this function will not modify it. If a function does not exist,
                 this function will create it.
+                If a file is input, tries to get the parent folder.
     """
 
     # Handle case of single folder being passed
@@ -31,6 +32,9 @@ def create_folders(folders):
         folders = [folders]
 
     for folder in folders:
+        if '.' in folder:
+            folder = '/'.join(folder.split('/')[:-1])+'/'
+
         if not os.path.exists(folder):
             os.makedirs(folder)
             logger.info(f'Created folder {folder}')

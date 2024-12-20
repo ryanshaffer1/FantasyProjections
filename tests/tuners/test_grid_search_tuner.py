@@ -44,7 +44,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
                                        1000,1000,1000,1000,1000,
                                        10000,10000,10000,10000,10000]}
 
-        self.save_folder = 'data/test files/empty/'
+        self.save_file = 'data/test files/empty/hyper_tuner.csv'
 
         self.settings = {
             'optimize_hypers': True,
@@ -54,55 +54,52 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         }
 
     def test_basic_attributes_no_optional_inputs(self):
-        tuner = GridSearchTuner(self.hp_set, self.save_folder)
+        tuner = GridSearchTuner(self.hp_set, save_file=self.save_file)
 
         self.assertTrue(tuner.param_set.equals(self.hp_set))
-        self.assertEqual(tuner.save_folder, self.save_folder)
+        self.assertEqual(tuner.save_file, self.save_file)
         self.assertEqual(tuner.optimize_hypers, False)
         self.assertEqual(tuner.plot_tuning_results, False)
         self.assertEqual(tuner.hyper_tuner_layers, 1)
         self.assertEqual(tuner.hyper_tuner_steps_per_dim, 3)
         self.assertEqual(tuner.perf_list, [])
         self.assertEqual(tuner.hyper_tuning_table, [])
-        self.assertEqual(tuner.save_file, self.save_folder+'hyper_grid.csv')
 
     def test_basic_attributes_all_optional_inputs(self):
-        tuner = GridSearchTuner(self.hp_set, self.save_folder, **self.settings)
+        tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **self.settings)
 
         self.assertFalse(tuner.param_set.equals(self.hp_set)) # Not equal because values in param_set are modified by the tuner during init
-        self.assertEqual(tuner.save_folder, self.save_folder)
+        self.assertEqual(tuner.save_file, self.save_file)
         self.assertEqual(tuner.optimize_hypers, self.settings['optimize_hypers'])
         self.assertEqual(tuner.plot_tuning_results, self.settings['plot_tuning_results'])
         self.assertEqual(tuner.hyper_tuner_layers, self.settings['hyper_tuner_layers'])
         self.assertEqual(tuner.hyper_tuner_steps_per_dim, self.settings['hyper_tuner_steps_per_dim'])
         self.assertEqual(tuner.perf_list, [])
         self.assertEqual(tuner.hyper_tuning_table, [])
-        self.assertEqual(tuner.save_file, self.save_folder+'hyper_grid.csv')
 
     def test_basic_attributes_some_optional_inputs(self):
         del self.settings['hyper_tuner_layers']
-        tuner = GridSearchTuner(self.hp_set, self.save_folder, **self.settings)
+        tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **self.settings)
 
         self.assertFalse(tuner.param_set.equals(self.hp_set)) # Not equal because values in param_set are modified by the tuner during init
-        self.assertEqual(tuner.save_folder, self.save_folder)
+        self.assertEqual(tuner.save_file, self.save_file)
         self.assertEqual(tuner.optimize_hypers, self.settings['optimize_hypers'])
         self.assertEqual(tuner.plot_tuning_results, self.settings['plot_tuning_results'])
         self.assertEqual(tuner.hyper_tuner_layers, 1)
         self.assertEqual(tuner.hyper_tuner_steps_per_dim, self.settings['hyper_tuner_steps_per_dim'])
         self.assertEqual(tuner.perf_list, [])
         self.assertEqual(tuner.hyper_tuning_table, [])
-        self.assertEqual(tuner.save_file, self.save_folder+'hyper_grid.csv')
 
     def test_missing_required_inputs_raises_error(self):
         with self.assertRaises(TypeError):
-            GridSearchTuner(self.hp_set, **self.settings)
+            GridSearchTuner(**self.settings)
 
     def test_gridpoints_and_value_combos_optimize_hypers_true(self):
         settings = {
             'optimize_hypers': True,
             'hyper_tuner_steps_per_dim': 5,
         }
-        tuner = GridSearchTuner(self.hp_set, self.save_folder, **settings)
+        tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **settings)
 
         num_opt_hps = sum([1 if hp.optimizable else 0 for hp in self.hp_set.hyper_parameters])
         expected_total_combinations = settings['hyper_tuner_steps_per_dim']**(num_opt_hps)
@@ -117,7 +114,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
             'optimize_hypers': False,
             'hyper_tuner_steps_per_dim': 5,
         }
-        tuner = GridSearchTuner(self.hp_set, self.save_folder, **settings)
+        tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **settings)
 
         expected_total_combinations = 1
 
@@ -134,7 +131,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
             'optimize_hypers': True,
             'hyper_tuner_steps_per_dim': 5,
         }
-        tuner = GridSearchTuner(hp_set, self.save_folder, **settings)
+        tuner = GridSearchTuner(hp_set, save_file=self.save_file, **settings)
 
         expected_total_combinations = 15
         expected_gridpoints = {'hp1':[4],
@@ -160,7 +157,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
             'optimize_hypers': True,
             'hyper_tuner_steps_per_dim': 5,
         }
-        tuner = GridSearchTuner(hp_set, self.save_folder, **settings)
+        tuner = GridSearchTuner(hp_set, save_file=self.save_file, **settings)
 
         expected_total_combinations = 5
         expected_gridpoints = {'hp1':[4],
@@ -182,7 +179,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
             'optimize_hypers': True,
             'hyper_tuner_steps_per_dim': 5,
         }
-        tuner = GridSearchTuner(hp_set, self.save_folder, **settings)
+        tuner = GridSearchTuner(hp_set, save_file=self.save_file, **settings)
 
         expected_total_combinations = 10
         expected_gridpoints = {'hp1':[4],
@@ -206,7 +203,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
             'optimize_hypers': True,
             'hyper_tuner_steps_per_dim': 5,
         }
-        tuner = GridSearchTuner(hp_set, self.save_folder, **settings)
+        tuner = GridSearchTuner(hp_set, save_file=self.save_file, **settings)
 
         expected_total_combinations = 5
         expected_gridpoints = {'hp1':[4],
@@ -233,7 +230,7 @@ class TestTuneHyperParameters_GridSearchTuner(unittest.TestCase):
         self.hp3 = HyperParameter(name='hp3', value=100, optimizable=True, val_range=[1,10000],val_scale='log')
         self.hp_set = HyperParameterSet(hp_set=(self.hp1,self.hp2,self.hp3))
 
-        self.save_folder = 'data/test files/empty/'
+        self.save_file = 'data/test files/empty/tuner_test.csv'
 
         self.settings = {
             'optimize_hypers': True,
@@ -242,7 +239,7 @@ class TestTuneHyperParameters_GridSearchTuner(unittest.TestCase):
             'plot_tuning_results': False,
         }
 
-        self.tuner = GridSearchTuner(self.hp_set, self.save_folder, **self.settings)
+        self.tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **self.settings)
 
         self.eval_function = lambda param_set: param_set.get('hp1').value + 5*param_set.get('hp2').value + np.sqrt(param_set.get('hp3').value)
         self.max_val = 101.5
@@ -372,7 +369,7 @@ class TestRefineGrid_GridSearchTuner(unittest.TestCase):
         self.hp3 = HyperParameter(name='hp3', value=100, optimizable=True, val_range=[1,10000],val_scale='log')
         self.hp_set = HyperParameterSet(hp_set=(self.hp1,self.hp2,self.hp3))
 
-        self.save_folder = 'data/test files/empty/'
+        self.save_file = 'data/test files/empty/hyper_tuner.csv'
 
         self.settings = {
             'optimize_hypers': True,
@@ -381,7 +378,7 @@ class TestRefineGrid_GridSearchTuner(unittest.TestCase):
             'plot_tuning_results': False,
         }
 
-        self.tuner = GridSearchTuner(self.hp_set, self.save_folder, **self.settings)
+        self.tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **self.settings)
 
         self.eval_function = lambda param_set: (param_set.get('hp2').value - (-0.5))**2 + (param_set.get('hp3').value - np.sqrt(10))**2
         self.max_val = 101.5
@@ -409,7 +406,7 @@ class TestRefineGrid_GridSearchTuner(unittest.TestCase):
     def test_refines_to_correct_selection_value(self):
         hp4 = HyperParameter(name='hp4', value='a', optimizable=True, val_range=['a','b'],val_scale='selection')
         hp_set = HyperParameterSet(hp_set=(self.hp1,self.hp2,self.hp3, hp4))
-        tuner = GridSearchTuner(hp_set, self.save_folder, **self.settings)
+        tuner = GridSearchTuner(hp_set, save_file=self.save_file, **self.settings)
 
         optimal_ind = 2
         tuner.refine_grid(optimal_ind)

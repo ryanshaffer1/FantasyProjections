@@ -17,7 +17,7 @@ class HyperParamTuner():
     
         Attributes:
             param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
-            save_folder (str): path to folder where any tuning performance logs should be saved.
+            save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
             optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
                 Defaults to False.
             plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
@@ -28,12 +28,12 @@ class HyperParamTuner():
             None
     """
 
-    def __init__(self, param_set, save_folder, **kwargs):
+    def __init__(self, param_set, **kwargs):
         """Constructor for HyperParamTuner
 
             Args:
                 param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
-                save_folder (str): path to folder where any tuning performance logs should be saved.
+                save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
                 optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
                     Defaults to False.
                 plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
@@ -44,7 +44,7 @@ class HyperParamTuner():
         """
 
         self.param_set = param_set.copy()
-        self.save_folder = save_folder
+        self.save_file = kwargs.pop('save_file', None)
         self.optimize_hypers = kwargs.pop('optimize_hypers', False)
         self.plot_tuning_results = kwargs.pop('plot_tuning_results', False)
 
