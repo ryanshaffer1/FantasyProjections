@@ -109,7 +109,6 @@ if __name__ == "__main__":
     import os
     sys.path.append(os.getcwd()+'/FantasyProjections')
     from misc.dataset import StatsDataset
-    from data_pipeline.preprocess_nn_data import add_word_bank_to_df
     
     source_folder = 'C:/Users/rshaf/OneDrive/Documents/Projects/FantasyProjections/data2/to_nn/'
     id_df = pd.read_csv(source_folder+'data_ids.csv')
@@ -141,12 +140,10 @@ if __name__ == "__main__":
 
     def build_neural_net_input(id_df, pbp_data, pbp_columns):
         pbp_df = pd.DataFrame(data=pbp_data, columns=pbp_columns)
-        # Encode each non-numeric, relevant pbp field (Player, Team, Position) in a "word bank":
+        # One-Hot Encode each non-numeric, relevant pbp field (Player, Team, Position):
         fields = ["Position", "Player", "Team", "Opponent"]
-        for field in fields:
-            word_bank_df = add_word_bank_to_df(field, id_df)
-            pbp_df = pd.concat((pbp_df, word_bank_df), axis=1)
-        return pbp_df
+        encoded_fields_df = pd.get_dummies(id_df[fields],columns=fields,dtype=int)
+        pbp_df = pd.concat((pbp_df,encoded_fields_df),axis=1)
 
     nn_pbp_df = build_neural_net_input(unittest_dataset.id_data, unittest_dataset.x_data, unittest_dataset.x_data_columns)
 

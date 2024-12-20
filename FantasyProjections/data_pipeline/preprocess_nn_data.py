@@ -2,7 +2,6 @@
 
     Functions:
         preprocess_nn_data : Converts NFL stats data from raw statistics to a Neural Network-readable format.
-        add_word_bank_to_df : Converts a column of unique values from a DataFrame into a series of columns in a new DataFrame, each one corresponding to one of the values.
 """
 
 import pandas as pd
@@ -125,13 +124,10 @@ def preprocess_nn_data(midgame_input, final_stats_input,
     final_stats_input = final_stats_input[final_stats_numeric_columns]
     final_stats_input = normalize_stat(final_stats_input)
 
-    # Encode each non-numeric, relevant pbp field (Player, Team, Position) in a "word bank":
+    # One-Hot Encode each non-numeric, relevant pbp field (Player, Team, Position):
     fields = ["Position", "Player", "Team", "Opponent"]
-    for field in fields:
-        word_bank_df = add_word_bank_to_df(field, id_df)
-        midgame_input = pd.concat((midgame_input, word_bank_df), axis=1)
-
-
+    encoded_fields_df = pd.get_dummies(id_df[fields],columns=fields,dtype=int)
+    midgame_input = pd.concat((midgame_input,encoded_fields_df),axis=1)
     print('Data pre-processed for projections')
 
     # Save data
@@ -145,25 +141,3 @@ def preprocess_nn_data(midgame_input, final_stats_input,
 
     return midgame_input, final_stats_input, id_df
 
-
-def add_word_bank_to_df(field, id_df):
-    """Converts a column of unique values from a DataFrame into a series of columns in a new DataFrame, each one corresponding to one of the values.
-        For each row of the DataFrame, a 1 is placed in the column corresponding to its original value, and 0's are placed in every other new column.
-        Note that no columns are removed from the original DataFrames, including the column used to generate the word bank.
-        
-        Args:
-            field (str): Name of column in id_df to "enumerate" (convert into distinct columns). Example: "Player"
-            id_df (pandas.DataFrame): DataFrame containing the player/game info, including the column of unique values.
-
-        Returns:
-            pandas.DataFrame: DataFrame containing the series of columns, each corresponding to a unique value in the input DataFrame column.
-    """
-
-    word_bank = id_df[field].unique()
-    word_bank.sort()
-    print(f"{len(word_bank)} unique {field}s")
-    word_bank_df = pd.DataFrame(columns=field + "=" + word_bank)
-    for entry in word_bank:
-        word_bank_df[field + "=" + entry] = (id_df[field] == entry).astype(int)
-
-    return word_bank_df
