@@ -259,10 +259,11 @@ class GridSearchTuner(HyperParamTuner):
         # Generates the grid for the next layer of a recursive grid search.
 
         if self.optimize_hypers:
+            # Save the results of the previous layer
             if self.save_file is not None:
-                # Save the results of the previous layer
                 create_folders(self.save_file)
-                self._save_hp_tuning_results(addl_columns={'Grid Search Layer': tune_layer}, filename=self.save_file)
+            self._save_hp_tuning_results(addl_columns={'Grid Search Layer': tune_layer}, filename=self.save_file)
+
             # Print out optimal performance
             logger.info(
                 f'Layer {tune_layer+1} '

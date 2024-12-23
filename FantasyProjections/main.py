@@ -81,7 +81,7 @@ neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn
 
 if hp_config.hp_tuner_settings['optimize_hypers']:
     # Tuning algorithm for Neural Net Hyper-Parameters
-    param_tuner = GridSearchTuner(param_set,save_folder,**hp_config.hp_tuner_settings)
+    param_tuner = GridSearchTuner(param_set, save_file=save_folder+'hyper_tuner.csv', **hp_config.hp_tuner_settings)
     param_tuner.tune_hyper_parameters(eval_function=neural_net.train_and_validate,
                                     save_function=neural_net.save, reset_function=neural_net.load,
                                     eval_kwargs = {'training_data':training_data, 'validation_data':validation_data},

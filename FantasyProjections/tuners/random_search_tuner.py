@@ -153,8 +153,10 @@ class RandomSearchTuner(HyperParamTuner):
 
         if self.optimize_hypers:
             # Save the results of the search
-            create_folders(self.save_file)
+            if self.save_file:
+                create_folders(self.save_file)
             self._save_hp_tuning_results(filename=self.save_file)
+
             # Print out optimal performance
             logger.info(
                 f'Random Search (n={self.population_size}) '

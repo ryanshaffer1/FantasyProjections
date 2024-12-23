@@ -125,7 +125,7 @@ def _configure_legend(ax, legend_groups, legend_group_markers, legend_column):
     # Generate and place legend
     if len(legend_groups) > 1:
         # Create dummy plots using each legend marker (with no color) in order to get a handle on a plot of each symbol with no formatting
-        new_handles = [ax.plot(np.nan,marker=legend_group_markers[i],ls='',mfc='w',mec='k',ms=10)[0] for i in range(len(legend_groups))]
+        new_handles = [ax.plot(np.nan,marker=legend_group_markers[i%len(legend_group_markers)],ls='',mfc='w',mec='k',ms=10)[0] for i in range(len(legend_groups))]
         ax.legend(handles=new_handles,labels=[f'{legend_column} {layer+1}' for layer in legend_groups],
                 bbox_to_anchor=(0.06,0.94),loc='upper left'
         )
