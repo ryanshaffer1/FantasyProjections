@@ -102,9 +102,9 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **settings)
 
         num_opt_hps = sum([1 if hp.optimizable else 0 for hp in self.hp_set.hyper_parameters])
-        expected_total_combinations = settings['hyper_tuner_steps_per_dim']**(num_opt_hps)
+        expected_combinations = settings['hyper_tuner_steps_per_dim']**(num_opt_hps)
 
-        self.assertEqual(tuner.total_combinations, expected_total_combinations)
+        self.assertEqual(tuner.n_value_combinations, expected_combinations)
         for hp, hp_name in zip(tuner.param_set.hyper_parameters, self.expected_gridpoints):
             self.assertEqual(hp.gridpoints, self.expected_gridpoints[hp_name])
             self.assertEqual(hp.values, self.expected_values[hp_name])
@@ -116,9 +116,9 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         }
         tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **settings)
 
-        expected_total_combinations = 1
+        expected_combinations = 1
 
-        self.assertEqual(tuner.total_combinations, expected_total_combinations)
+        self.assertEqual(tuner.n_value_combinations, expected_combinations)
         for hp in tuner.param_set.hyper_parameters:
             self.assertEqual(hp.values, [hp.value])
             with self.assertRaises(AttributeError):
@@ -133,11 +133,11 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         }
         tuner = GridSearchTuner(hp_set, save_file=self.save_file, **settings)
 
-        expected_total_combinations = 15
+        expected_combinations = 15
         expected_gridpoints = {'hp1':[4],
                                'hp2':[-2.5, -2, -1.5, -1, -0.5],
                                'hp3':['a','b','c']}
-        expected_values = {'hp1':[4]*expected_total_combinations,
+        expected_values = {'hp1':[4]*expected_combinations,
                            'hp2':[-2.5, -2, -1.5, -1, -0.5,
                                   -2.5, -2, -1.5, -1, -0.5,
                                   -2.5, -2, -1.5, -1, -0.5,],
@@ -145,7 +145,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
                                   'b','b','b','b','b',
                                   'c','c','c','c','c']}        
 
-        self.assertEqual(tuner.total_combinations, expected_total_combinations)
+        self.assertEqual(tuner.n_value_combinations, expected_combinations)
         for hp, hp_name in zip(tuner.param_set.hyper_parameters, expected_gridpoints):
             self.assertEqual(hp.gridpoints, expected_gridpoints[hp_name])
             self.assertEqual(hp.values, expected_values[hp_name])
@@ -159,15 +159,15 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         }
         tuner = GridSearchTuner(hp_set, save_file=self.save_file, **settings)
 
-        expected_total_combinations = 5
+        expected_combinations = 5
         expected_gridpoints = {'hp1':[4],
                                'hp2':[-2.5, -2, -1.5, -1, -0.5],
                                'hp3':[5]}
-        expected_values = {'hp1':[4]*expected_total_combinations,
+        expected_values = {'hp1':[4]*expected_combinations,
                            'hp2':[-2.5, -2, -1.5, -1, -0.5],
                            'hp3':[5,5,5,5,5]}
 
-        self.assertEqual(tuner.total_combinations, expected_total_combinations)
+        self.assertEqual(tuner.n_value_combinations, expected_combinations)
         for hp, hp_name in zip(tuner.param_set.hyper_parameters, expected_gridpoints):
             self.assertEqual(hp.gridpoints, expected_gridpoints[hp_name])
             self.assertEqual(hp.values, expected_values[hp_name])
@@ -181,17 +181,17 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         }
         tuner = GridSearchTuner(hp_set, save_file=self.save_file, **settings)
 
-        expected_total_combinations = 10
+        expected_combinations = 10
         expected_gridpoints = {'hp1':[4],
                                'hp2':[-2.5, -2, -1.5, -1, -0.5],
                                'hp3':[1,10]}
-        expected_values = {'hp1':[4]*expected_total_combinations,
+        expected_values = {'hp1':[4]*expected_combinations,
                            'hp2':[-2.5, -2, -1.5, -1, -0.5,
                                   -2.5, -2, -1.5, -1, -0.5],
                            'hp3':[1,1,1,1,1,
                                   10,10,10,10,10]}
 
-        self.assertEqual(tuner.total_combinations, expected_total_combinations)
+        self.assertEqual(tuner.n_value_combinations, expected_combinations)
         for hp, hp_name in zip(tuner.param_set.hyper_parameters, expected_gridpoints):
             self.assertEqual(hp.gridpoints, expected_gridpoints[hp_name])
             self.assertEqual(hp.values, expected_values[hp_name])
@@ -205,15 +205,15 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         }
         tuner = GridSearchTuner(hp_set, save_file=self.save_file, **settings)
 
-        expected_total_combinations = 5
+        expected_combinations = 5
         expected_gridpoints = {'hp1':[4],
                                'hp2':[-2.5, -2, -1.5, -1, -0.5],
                                'hp3':[5]}
-        expected_values = {'hp1':[4]*expected_total_combinations,
+        expected_values = {'hp1':[4]*expected_combinations,
                            'hp2':[-2.5, -2, -1.5, -1, -0.5],
                            'hp3':[5,5,5,5,5]}
 
-        self.assertEqual(tuner.total_combinations, expected_total_combinations)
+        self.assertEqual(tuner.n_value_combinations, expected_combinations)
         for hp, hp_name in zip(tuner.param_set.hyper_parameters, expected_gridpoints):
             self.assertEqual(hp.gridpoints, expected_gridpoints[hp_name])
             self.assertEqual(hp.values, expected_values[hp_name])
@@ -391,7 +391,7 @@ class TestRefineGrid_GridSearchTuner(unittest.TestCase):
         expected_gridpoints = {'hp1':[4],
                                'hp2':[-1, -0.75, -0.5],
                                'hp3':[1, np.sqrt(10), 10]}
-        expected_values = {'hp1':[4]*self.tuner.total_combinations,
+        expected_values = {'hp1':[4]*self.tuner.n_value_combinations,
                            'hp2':[-1, -0.75, -0.5,
                                   -1, -0.75, -0.5,
                                   -1, -0.75, -0.5],
@@ -435,7 +435,7 @@ class TestRefineGrid_GridSearchTuner(unittest.TestCase):
         expected_gridpoints = {'hp1':[4],
                                'hp2':[-2, -1.5, -1],
                                'hp3':[10, 100, 1000]}
-        expected_values = {'hp1':[4]*self.tuner.total_combinations,
+        expected_values = {'hp1':[4]*self.tuner.n_value_combinations,
                            'hp2':[-2, -1.5, -1,
                                   -2, -1.5, -1,
                                   -2, -1.5, -1],

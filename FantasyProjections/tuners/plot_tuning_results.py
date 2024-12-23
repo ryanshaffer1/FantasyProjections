@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 
-def plot_tuning_results(filename, param_set, maximize=False, legend_column=None, variables=None):
+def plot_tuning_results(filename, param_set, legend_column=None, **kwargs):
     """Generates plot showing the Neural Net performance as multiple HyperParameters are varied simultaneously.
 
         Caution: will only work for linear or log-scale variables
@@ -17,17 +17,27 @@ def plot_tuning_results(filename, param_set, maximize=False, legend_column=None,
         Args:
             filename (str): File containing inputs and results for GridSearchTuner hyper-parameter tuning.
             param_set (HyperParameterSet): Group of HyperParameters varied over the course of the tuning process.
-            variables (tuple | list, optional): 2-element array. Names of the HyperParameters to use as x- and y-axes of plot. 
+            legend_column (str, optional): Column header in csv file to use as a categorizer for different data groups in the plot legend. 
+                Different data groups will receive different shapes as markers. Defaults to None.
+
+        Keyword-Arguments:
+            maximize (bool, optional): whether to maximize (True) or minimize (False) the values returned from eval_function. Defaults to False (minimize).
+            plot_variables (tuple | list, optional): 2-element array. Names of the HyperParameters to use as x- and y-axes of plot. 
                 Defaults to the first two HyperParameters in the HyperParameterSet.
+
     """
+
+    # Optional Keyword Arguments
+    maximize = kwargs.get('maximize', False)
+    plot_variables = kwargs.get('plot_variables', None)
 
     # Read values and performance from file
     perf_df = pd.read_csv(filename,index_col=0)
     hyper_parameters = perf_df.columns[:perf_df.columns.get_loc('Model Performance')].tolist()
 
     # Handle optional input of variables to plot - default to first two in list
-    if variables is None or not all(var in hyper_parameters for var in variables):
-        variables = tuple(perf_df.columns[0:2])
+    if plot_variables is None or not all(var in hyper_parameters for var in plot_variables):
+        plot_variables = tuple(perf_df.columns[0:2])
 
     # Add edge coloring to best performing data point
     perf_df['Edge Color'] = 'w'
@@ -55,7 +65,7 @@ def plot_tuning_results(filename, param_set, maximize=False, legend_column=None,
     for ind, data in enumerate(data_groups):
         # Create scatterplot for all data within legend category
         ax.scatter(
-            data[variables[0]],data[variables[1]],
+            data[plot_variables[0]],data[plot_variables[1]],
             s=400*1/np.sqrt(data['Model Performance'].fillna(100).clip(lower=1,upper=100)), # size varies w/ sqrt
             c=data['ColorVal'],
             marker=legend_group_markers[ind % len(legend_group_markers)],
@@ -67,7 +77,7 @@ def plot_tuning_results(filename, param_set, maximize=False, legend_column=None,
         _configure_legend(ax, legend_groups, legend_group_markers, legend_column)
 
     # Format plot axes/labels
-    _configure_axes(ax, param_set, variables)
+    _configure_axes(ax, param_set, plot_variables)
 
     plt.show(block=False)
 

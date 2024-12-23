@@ -5,7 +5,11 @@
         HyperParameterSet : Groups HyperParameter objects together and allows for simultaneous modification of multiple HyperParameters.
 """
 
+import logging
 from . import HyperParameter
+
+# Set up logger
+logger = logging.getLogger('log')
 
 class HyperParameterSet():
     """Groups HyperParameter objects together and allows for simultaneous modification of multiple HyperParameters.
@@ -17,6 +21,7 @@ class HyperParameterSet():
             copy : Returns a copy of the HyperParameterSet object.
             equals : Returns true if the two HyperParameterSet objects contain the same data.
             get : Returns a HyperParameter from a HyperParameterSet based on the HyperParameter's name.
+            print_values : Prints all HyperParameter names and values. 
             set_values : Sets value of all HyperParameter objects in set to value at a specific index within the list of values.
             to_dict : Converts object data to a dict, where each key is the name of a HyperParameter, and each value is the HyperParameter's current value.
     """
@@ -74,6 +79,19 @@ class HyperParameterSet():
         # Returns the hyper-parameter in the set with the provided name.
         hp_names = [hp.name for hp in self.hyper_parameters]
         return self.hyper_parameters[hp_names.index(hp_name)]
+
+    def print_values(self, log=True):
+        """Prints all HyperParameter names and values. 
+
+            Args:
+                log (bool, optional): Whether to use builtin print or use the configured logger. Defaults to True (use logger).
+        """
+        for hp in self.hyper_parameters:
+            print_str = f"\t{hp.name} = {hp.value}"
+            if log:
+                logger.info(print_str)
+            else:
+                print(print_str)
 
 
     def set_values(self, ind):

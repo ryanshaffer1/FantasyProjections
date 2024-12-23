@@ -8,6 +8,7 @@ from tuners.hyper_tuner import HyperParamTuner
 # Modules needed for test setup
 from neural_net.hyper_parameter_set import HyperParameterSet
 from neural_net.hyper_parameter import HyperParameter
+from tuners.grid_search_tuner import GridSearchTuner
 import logging
 import logging.config
 from config.log_config import LOGGING_CONFIG
@@ -50,6 +51,58 @@ class TestConstructor_HyperParamTuner(unittest.TestCase):
             HyperParamTuner(save_file=self.save_file)
 
     # Tear Down
+    def tearDown(self):
+        pass
+
+class TestRefineAreaOfInterest_HyperParamTuner(unittest.TestCase):
+    def setUp(self):
+        self.hp1 = HyperParameter(name='hp1', value=4, optimizable=False)
+        self.hp2 = HyperParameter(name='hp2', value=-1, optimizable=True, val_range=[-2.5,-0.5],val_scale='linear')
+        self.hp3 = HyperParameter(name='hp3', value=100, optimizable=True, val_range=[1,10000],val_scale='log')
+        self.hp_set = HyperParameterSet(hp_set=(self.hp1,self.hp2,self.hp3))
+
+        self.save_file = 'data/test files/empty/hyper_tuner.csv'
+
+        self.settings = {
+            'optimize_hypers': True,
+            'hyper_tuner_layers': 2,
+            'hyper_tuner_steps_per_dim': 3,
+            'plot_tuning_results': False,
+        }
+
+        self.tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **self.settings)
+
+        self.eval_function = lambda param_set: (param_set.get('hp2').value - (-0.5))**2 + (param_set.get('hp3').value - np.sqrt(10))**2
+        self.max_val = 101.5
+        self.min_val = -7.5
+
+    def test_refines_to_correct_linear_and_log_val_ranges_for_grid_tuner(self):
+        optimal_ind = 2
+        self.tuner.refine_area_of_interest(optimal_ind)
+
+        expected_val_range = {'hp1':[4],
+                               'hp2':[-1, -0.5],
+                               'hp3':[1, 10]}
+
+        for hp, hp_name in zip(self.tuner.param_set.hyper_parameters, expected_val_range):
+            self.assertEqual(hp.val_range, expected_val_range[hp_name])
+
+    def test_refines_to_correct_selection_value(self):
+        hp4 = HyperParameter(name='hp4', value='a', optimizable=True, val_range=['a','b'],val_scale='selection')
+        hp_set = HyperParameterSet(hp_set=(self.hp1,self.hp2,self.hp3, hp4))
+        tuner = GridSearchTuner(hp_set, save_file=self.save_file, **self.settings)
+
+        optimal_ind = 2
+        tuner.refine_area_of_interest(optimal_ind)
+
+        expected_val_ranges = {'hp1':[4],
+                               'hp2':[-1, -0.5],
+                               'hp3':[1, 10],
+                               'hp4':['a']}
+
+        for hp, hp_name in zip(tuner.param_set.hyper_parameters, expected_val_ranges):
+            self.assertEqual(hp.val_range, expected_val_ranges[hp_name])
+
     def tearDown(self):
         pass
 

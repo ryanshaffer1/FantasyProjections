@@ -39,7 +39,7 @@ grid_tuner_settings2 = {
     'hyper_tuner_steps_per_dim': 2,
 }
 random_tuner_settings = {
-    'population_size': grid_tuner_settings1['hyper_tuner_layers']*grid_tuner_settings1['hyper_tuner_steps_per_dim']**num_hps
+    'n_value_combinations': grid_tuner_settings1['hyper_tuner_layers']*grid_tuner_settings1['hyper_tuner_steps_per_dim']**num_hps
 }
 
 hp_dict = {name:linear_hp for name in hp_names[:num_hps]}
@@ -89,7 +89,7 @@ for _ in range(NUM_RUNS):
         tuner.tune_hyper_parameters(eval_function=eval_function, eval_kwargs={'root':zero_point},
                                                 plot_variables=all_hp_tuner_settings['plot_variables'])
         if isinstance(tuner, RandomSearchTuner):
-            add_artificial_layers(tuner,layer_size=grid_tuner.total_combinations)
+            add_artificial_layers(tuner,layer_size=grid_tuner.n_value_combinations)
         mins = get_min_by_layer(tuner, num_hps)
         tuner_min_vals[ind].append(mins)
 

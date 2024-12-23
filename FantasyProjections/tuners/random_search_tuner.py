@@ -7,7 +7,6 @@
 
 import logging
 import numpy as np
-from misc.manage_files import create_folders
 from .hyper_tuner import HyperParamTuner
 from .plot_tuning_results import plot_tuning_results
 
@@ -25,7 +24,7 @@ class RandomSearchTuner(HyperParamTuner):
             optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
                 Defaults to False.
             plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
-            population_size (int, optional): Number of random samples to take. Defaults to 1.
+            n_value_combinations (int, optional): Number of random samples to take. Defaults to 1.
         
         Additional Class Attributes:
             save_file (str): path to file where tuning performance log will be saved. Filename is "genetic_tune_results.csv".
@@ -39,7 +38,7 @@ class RandomSearchTuner(HyperParamTuner):
             tune_hyper_parameters : Performs iterative evaluation of a function that depends on HyperParameters to find an optimal combination of HyperParameters.
     """
 
-    def __init__(self, *args, population_size=1, **kwargs):
+    def __init__(self, *args, n_value_combinations=1, **kwargs):
         """Constructor for RandomSearchTuner objects.
 
             Args:
@@ -48,7 +47,7 @@ class RandomSearchTuner(HyperParamTuner):
                 optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
                     Defaults to False.
                 plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
-                population_size (int, optional): Number of random samples to take. Defaults to 1.
+                n_value_combinations (int, optional): Number of random samples to take. Defaults to 1.
         
             Additional Class Attributes:
                 save_file (str): path to file where tuning performance log will be saved. Filename is "genetic_tune_results.csv".
@@ -60,15 +59,15 @@ class RandomSearchTuner(HyperParamTuner):
 
         super().__init__(*args, **kwargs)
 
-        self.population_size = population_size
+        self.n_value_combinations = n_value_combinations
 
         # Generate random values
         if self.optimize_hypers:
-            for _ in range(self.population_size):
+            for _ in range(self.n_value_combinations):
                 self.randomize_hp_values()
         else:
             # Adjust variables if not optimizing hyper-parameters
-            self.population_size = 1
+            self.n_value_combinations = 1
 
     # PUBLIC METHODS
 
@@ -85,18 +84,18 @@ class RandomSearchTuner(HyperParamTuner):
             if isinstance(hp.val_range,list):
                 match hp.val_scale:
                     case 'linear':
-                        hp.values = np.random.uniform(hp.val_range[0], hp.val_range[1], self.population_size).tolist()
+                        hp.values = np.random.uniform(hp.val_range[0], hp.val_range[1], self.n_value_combinations).tolist()
                     case 'log':
-                        uniform_vals = np.random.uniform(np.log10(hp.val_range[0]), np.log10(hp.val_range[1]), self.population_size)
+                        uniform_vals = np.random.uniform(np.log10(hp.val_range[0]), np.log10(hp.val_range[1]), self.n_value_combinations)
                         hp.values = (10**uniform_vals).tolist()
                     case 'none':
-                        hp.values = [hp.value]*self.population_size
+                        hp.values = [hp.value]*self.n_value_combinations
                     case 'selection':
-                        hp.values = np.random.choice(hp.val_range, self.population_size)
+                        hp.values = np.random.choice(hp.val_range, self.n_value_combinations)
                     case _:
-                        hp.values = [hp.value]*self.population_size
+                        hp.values = [hp.value]*self.n_value_combinations
             else:
-                hp.values = [hp.value]*self.population_size
+                hp.values = [hp.value]*self.n_value_combinations
 
 
     def tune_hyper_parameters(self, eval_function, save_function=None, reset_function=None,
@@ -118,6 +117,8 @@ class RandomSearchTuner(HyperParamTuner):
 
             Keyword-Arguments:
                 maximize (bool, optional): whether to maximize (True) or minimize (False) the values returned from eval_function. Defaults to False (minimize).
+                plot_variables (tuple | list, optional): names of 2 hyper-parameters to use as the x and y axes of the plot optionally generated after tuning 
+                    (if self.plot_tuning_results == True). Defaults to None - default behavior described in plot_tuning_results.
 
             Returns:
                 float: Optimal performance across all function evaluations.
@@ -126,56 +127,27 @@ class RandomSearchTuner(HyperParamTuner):
         # Handle keyword arguments for each called function
         [eval_kwargs, save_kwargs, reset_kwargs] = [{} if kwargs is None else kwargs for kwargs in [eval_kwargs, save_kwargs, reset_kwargs]]
 
-        # Keyword arguments for this method
-        maximize = kwargs.get('maximize', False)
-        plot_variables = kwargs.get('plot_variables', None)
+        # Evaluate function for all the Hyper-Parameter combinations in the current layer and track the optimum
+        optimal_ind, _ = self.eval_hp_combinations(eval_function=eval_function, save_function=save_function,
+                                                    eval_kwargs=eval_kwargs, save_kwargs=save_kwargs,
+                                                    **kwargs)
 
-        # Iterate through all combinations of hyperparameters
-        for index in range(self.population_size):
-            # Set and display hyperparameters for current run
-            self.param_set.set_values(index)
-            logger.info(f'HP Combination {index+1} of {self.population_size}: -------------------- ')
-            for hp in self.param_set.hyper_parameters:
-                logger.info(f"\t{hp.name} = {hp.value}")
-
-            # Function Evaluation
-            result = eval_function(param_set=self.param_set, **eval_kwargs)
-            eval_perf = result[0] if hasattr(result,'__iter__') else result
-
-            # Track evaluation performance for the set of hyperparameters used
-            self.perf_list.append(eval_perf)
-
-            # Save the model if it is the best performing so far
-            optimal_ind = np.nanargmax(self.perf_list) if maximize else np.nanargmin(self.perf_list)
-            if index == optimal_ind:
-                if save_function is not None:
-                    save_function(**save_kwargs)
-
+        # Save/Print results
         if self.optimize_hypers:
-            # Save the results of the search
-            if self.save_file:
-                create_folders(self.save_file)
-            self._save_hp_tuning_results(filename=self.save_file)
-
-            # Print out optimal performance
-            logger.info(
-                f'Random Search (n={self.population_size}) '
-                f'Complete. Optimal performance: '
-                f'{self.perf_list[optimal_ind]}. '
-                f'Hyper-parameters used: '
-                )
-            for hp in self.param_set.hyper_parameters:
-                logger.info(f"\t{hp.name} = {hp.values[optimal_ind]}")
+            self.param_set.set_values(optimal_ind)
+            # Save the results of the previous layer
+            self._save_hp_tuning_results(filename=self.save_file,
+                                         log_name=f'Random Search (n={self.n_value_combinations})', optimal_ind=optimal_ind)
 
         logger.info('Model Training Complete!')
 
-        # After search finishes, plot results
-        if len(self.hyper_tuning_table) > 0 and self.plot_tuning_results:
-            plot_tuning_results(self.save_file, self.param_set, maximize=maximize, variables=plot_variables)
-
-        # Set the model back to the highest performing config
+        # After search finishes, set the model back to the highest performing config
         if reset_function is not None:
             reset_function(**reset_kwargs)
+
+        # Optionall plot results
+        if self.plot_tuning_results and len(self.hyper_tuning_table) > 0:
+            plot_tuning_results(self.save_file, self.param_set, **kwargs)
 
         # Return optimal performance
         return self.perf_list[optimal_ind]
