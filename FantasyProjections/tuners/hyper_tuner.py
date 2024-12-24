@@ -136,6 +136,10 @@ class HyperParamTuner():
         # Keyword arguments for this method
         maximize = kwargs.get('maximize', False)
 
+        # Track optimal performance and index
+        optimal_perf = 0 if maximize else np.inf
+        optimal_ind = -1
+
         # Iterate through all combinations of hyperparameters
         for curr_ind in range(self.n_value_combinations):
             # Set and display hyperparameters for current run
@@ -151,13 +155,14 @@ class HyperParamTuner():
             self.perf_list.append(eval_perf)
 
             # Save the model if it is the best performing so far
-            optimal_ind = np.nanargmax(self.perf_list) if maximize else np.nanargmin(self.perf_list)
-            if curr_ind == optimal_ind:
+            if (maximize and self.perf_list[curr_ind] > optimal_perf) or (not maximize and self.perf_list[curr_ind] < optimal_perf):
+                optimal_ind = curr_ind
+                optimal_perf = self.perf_list[curr_ind]
                 if save_function is not None:
                     save_function(**save_kwargs)
 
         # Return optimal performance
-        return optimal_ind, self.perf_list[optimal_ind]
+        return optimal_ind, optimal_perf
 
 
     # PROTECTED METHODS

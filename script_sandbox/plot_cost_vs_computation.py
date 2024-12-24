@@ -4,7 +4,11 @@ import numpy as np
 import pandas as pd
 from tuners import RandomSearchTuner
 
-
+plot_colors = ['tab:blue',
+                'tab:orange',
+                'tab:green',
+                'tab:red']
+legend_group_markers = ['o','s','h','p']
 
 def plot_cost_vs_computation(tuners, tuner_names, num_runs, func_name, num_hps):
 
@@ -14,9 +18,6 @@ def plot_cost_vs_computation(tuners, tuner_names, num_runs, func_name, num_hps):
     # Format plot axes/labels
     variable_scales = _configure_axes(ax, func_name, num_runs, num_hps)
 
-    # Configure legend - different symbols for each category
-    legend_group_markers = ['o','s','h','p']
-
     for ind, tuner in enumerate(tuners):
         costs = tuner.min_vals_by_group
         costs = np.array([costs]) if costs.size ==1 else np.array(costs)
@@ -24,6 +25,7 @@ def plot_cost_vs_computation(tuners, tuner_names, num_runs, func_name, num_hps):
 
         ax.scatter(
             num_evals, costs,
+            color=plot_colors[ind % len(plot_colors)],
             marker=legend_group_markers[ind % len(legend_group_markers)],
             linewidth=2, plotnonfinite=True)
 
@@ -45,7 +47,27 @@ def plot_cost_vs_computation(tuners, tuner_names, num_runs, func_name, num_hps):
                     fontsize='x-small')
 
     # Legend
-    _configure_legend(ax, tuner_names, legend_group_markers)
+    _configure_legend(ax, tuner_names)
+
+    plt.show(block=False)
+
+
+def plot_continuous_cost(tuners, tuner_names, num_runs, func_name, num_hps):
+
+    # Establish figure
+    _, ax = plt.subplots()
+
+    # Format plot axes/labels
+    _configure_axes(ax, func_name, num_runs, num_hps)
+
+    for ind, tuner in enumerate(tuners):
+        costs = np.array(tuner.hyper_tuning_table)[:,num_hps]
+        min_costs = np.minimum.accumulate(costs)
+        num_evals = np.array(range(1,len(min_costs)+1))
+
+        ax.plot(num_evals, min_costs, color=plot_colors[ind % len(plot_colors)])
+
+    _configure_legend(ax, tuner_names)
 
     plt.show(block=False)
 
@@ -71,7 +93,7 @@ def _configure_axes(ax, func_name, num_runs, num_dimensions):
     return variable_scales
 
 
-def _configure_legend(ax, tuner_names, legend_group_markers):
+def _configure_legend(ax, tuner_names):
     # Generate and place legend
     if len(tuner_names) > 1:
         # Create dummy plots using each legend marker (with no color) in order to get a handle on a plot of each symbol with no formatting
