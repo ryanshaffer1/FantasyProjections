@@ -81,69 +81,26 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
         elif self.l_exploit_samples is None:
             raise ValueError('One of the following must be specified: v_expect_imp, l_exploit_samples')
 
+        # Input a cap on the max number of samples before stopping
+        self.max_samples = kwargs.get('max_samples', n_explore_samples*10)
 
         # Generate random values
         if self.optimize_hypers:
-            self.n_value_combinations = n_explore_samples
-            self.randomize_hp_values_list()
+            self.n_value_combinations = min(n_explore_samples, self.max_samples)
+            self._randomize_hp_values()
         else:
             # Adjust variables if not optimizing hyper-parameters
             self.n_value_combinations = 1
 
-        self.max_samples = kwargs.get('max_samples', self.n_value_combinations*10)
-
 
     # PUBLIC METHODS
-
-    def get_random_hp_value(self, hp):
-        value = hp.value
-        if isinstance(hp.val_range,list):
-            match hp.val_scale:
-                case 'linear':
-                    value = np.random.uniform(hp.val_range[0], hp.val_range[1])
-                case 'log':
-                    uniform_vals = np.random.uniform(np.log10(hp.val_range[0]), np.log10(hp.val_range[1]))
-                    value = 10**uniform_vals
-                case 'none':
-                    value = hp.value
-                case 'selection':
-                    value = np.random.choice(hp.val_range, 1)
-                case _:
-                    value = hp.value
-
-        return value
-
-    def randomize_hp_values_list(self):
-        """Generates list of random values for each HyperParameter to use in a random search HyperParamater optimization.
-        
-            Side Effects (Modified Attributes):
-                For all HyperParameter objects in self.param_set:
-                    Modifies object attribute values.
-                    values (list): Array of values to use for each model evaluation HyperParameter optimization process.
-        """
-
-        for hp in self.param_set.hyper_parameters:
-            if isinstance(hp.val_range,list):
-                match hp.val_scale:
-                    case 'linear':
-                        hp.values = np.random.uniform(hp.val_range[0], hp.val_range[1], self.n_value_combinations).tolist()
-                    case 'log':
-                        uniform_vals = np.random.uniform(np.log10(hp.val_range[0]), np.log10(hp.val_range[1]), self.n_value_combinations)
-                        hp.values = (10**uniform_vals).tolist()
-                    case 'none':
-                        hp.values = [hp.value]*self.n_value_combinations
-                    case 'selection':
-                        hp.values = np.random.choice(hp.val_range, self.n_value_combinations)
-                    case _:
-                        hp.values = [hp.value]*self.n_value_combinations
-            else:
-                hp.values = [hp.value]*self.n_value_combinations
 
     def realign(self, optimal_ind):
         for hp in self.param_set.hyper_parameters:
             optimal_val = hp.values[optimal_ind]
-            range_size = hp.val_range[1]-hp.val_range[0]
-            hp.val_range = [optimal_val - range_size/2, optimal_val + range_size/2]
+            # Adjust the value range, allowing it to be moved beyond the current boundary
+            hp.val_range = hp.adjust_range(optimal_val, scale_factor=1, exceed_boundary=True)
+
 
     def shrink(self, optimal_ind):
         self.r_percentile *= self.c_shrink_ratio
@@ -151,9 +108,8 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
 
         for hp in self.param_set.hyper_parameters:
             optimal_val = hp.values[optimal_ind]
-            og_range_size = hp.val_range[1]-hp.val_range[0]
-            new_range_size = og_range_size * self.c_shrink_ratio ** (1/num_dimensions)
-            hp.val_range = [optimal_val - new_range_size/2, optimal_val + new_range_size/2]
+            # Re-scale the value range
+            hp.val_range = hp.adjust_range(optimal_val, scale_factor=self.c_shrink_ratio**(1/num_dimensions))
 
 
     def tune_hyper_parameters(self, eval_function, save_function=None, reset_function=None,
@@ -199,7 +155,7 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
             while self.r_percentile > self.s_shrink_thresh and curr_ind < self.max_samples:
                 # Randomize value for each hp, add to list of values tested
                 for hp in self.param_set.hyper_parameters:
-                    hp.values.append(self.get_random_hp_value(hp))
+                    hp.values += hp.randomize_in_range(1)
                 self.param_set.set_values(curr_ind)
                 # Evaluate function
                 result = eval_function(param_set=self.param_set, **eval_kwargs)

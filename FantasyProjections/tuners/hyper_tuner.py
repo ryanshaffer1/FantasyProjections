@@ -31,7 +31,7 @@ class HyperParamTuner():
             hyper_tuning_table (list): Table recording HyperParameter values and subsequent Neural Network performance after each tuning iteration
 
         Public Methods:
-            None
+            eval_hp_combinations : Evaluates a function for all combinations of HyperParameter values being considered, and tracks the optimal performance (min or max function output).
     """
 
     def __init__(self, param_set, **kwargs):
@@ -61,57 +61,6 @@ class HyperParamTuner():
 
 
     # PUBLIC METHODS
-
-    def refine_area_of_interest(self, ind):
-        """Zooms in on an area of interest around a specified combination of hyper-parameter values.
-
-            Args:
-                ind (int): Index of HyperParameter.values attribute to refine grid around
-
-            Modifies: 
-                .val_range for each HyperParameter object in self.param_set.hyper_parameters
-        """
-
-        # Find new value ranges for each hyperparameter
-        for hp in self.param_set.hyper_parameters:
-            center_val = hp.values[ind]
-            gridpoints_ind = list(hp.gridpoints).index(center_val)
-            match hp.val_scale:
-                case 'linear':
-                    if gridpoints_ind == 0:
-                        minval = center_val
-                        maxval = (
-                            hp.gridpoints[gridpoints_ind] + hp.gridpoints[gridpoints_ind + 1]) / 2
-                    elif gridpoints_ind == len(hp.gridpoints) - 1:
-                        minval = (
-                            hp.gridpoints[gridpoints_ind - 1] + hp.gridpoints[gridpoints_ind]) / 2
-                        maxval = center_val
-                    else:
-                        minval = (
-                            hp.gridpoints[gridpoints_ind - 1] + hp.gridpoints[gridpoints_ind]) / 2
-                        maxval = (
-                            hp.gridpoints[gridpoints_ind] + hp.gridpoints[gridpoints_ind + 1]) / 2
-                    hp.val_range = [minval, maxval]
-                case 'log':
-                    if gridpoints_ind == 0:
-                        minval = center_val
-                        maxval = 10**((np.log10(hp.gridpoints[gridpoints_ind]) + np.log10(
-                            hp.gridpoints[gridpoints_ind + 1])) / 2)
-                    elif gridpoints_ind == len(hp.gridpoints) - 1:
-                        minval = 10**((np.log10(hp.gridpoints[gridpoints_ind - 1]) + np.log10(
-                            hp.gridpoints[gridpoints_ind])) / 2)
-                        maxval = center_val
-                    else:
-                        minval = 10**((np.log10(hp.gridpoints[gridpoints_ind - 1]) + np.log10(
-                            hp.gridpoints[gridpoints_ind])) / 2)
-                        maxval = 10**((np.log10(hp.gridpoints[gridpoints_ind]) + np.log10(
-                            hp.gridpoints[gridpoints_ind + 1])) / 2)
-                    hp.val_range = [float(minval), float(maxval)]
-                case 'selection':
-                    # No setting a range, just select the value that performed
-                    # best
-                    hp.val_range = [center_val]
-
 
     def eval_hp_combinations(self, eval_function, save_function,
                               eval_kwargs, save_kwargs, **kwargs):
@@ -166,6 +115,19 @@ class HyperParamTuner():
 
 
     # PROTECTED METHODS
+
+    def _randomize_hp_values(self):
+        """Generates list of random values for each HyperParameter to use in a random search HyperParamater optimization.
+        
+            Side Effects (Modified Attributes):
+                For all HyperParameter objects in self.param_set:
+                    Modifies object attribute values.
+                    values (list): Array of values to use for each model evaluation HyperParameter optimization process.
+        """
+
+        for hp in self.param_set.hyper_parameters:
+            hp.values = hp.randomize_in_range(self.n_value_combinations)
+
 
     def _save_hp_tuning_results(self, addl_columns=None, filename=None, log_name=None, optimal_ind=None):
         # Generates table with results of HyperParameter tuning (input HyperParameter values and output Neural Net performance),

@@ -6,7 +6,6 @@
 """
 
 import logging
-import numpy as np
 from .hyper_tuner import HyperParamTuner
 from .plot_tuning_results import plot_tuning_results
 
@@ -63,39 +62,13 @@ class RandomSearchTuner(HyperParamTuner):
 
         # Generate random values
         if self.optimize_hypers:
-            self.randomize_hp_values()
+            self._randomize_hp_values()
         else:
             # Adjust variables if not optimizing hyper-parameters
             self.n_value_combinations = 1
 
+
     # PUBLIC METHODS
-
-    def randomize_hp_values(self):
-        """Generates list of random values for each HyperParameter to use in a random search HyperParamater optimization.
-        
-            Side Effects (Modified Attributes):
-                For all HyperParameter objects in self.param_set:
-                    Modifies object attribute values.
-                    values (list): Array of values to use for each model evaluation HyperParameter optimization process.
-        """
-
-        for hp in self.param_set.hyper_parameters:
-            if isinstance(hp.val_range,list):
-                match hp.val_scale:
-                    case 'linear':
-                        hp.values = np.random.uniform(hp.val_range[0], hp.val_range[1], self.n_value_combinations).tolist()
-                    case 'log':
-                        uniform_vals = np.random.uniform(np.log10(hp.val_range[0]), np.log10(hp.val_range[1]), self.n_value_combinations)
-                        hp.values = (10**uniform_vals).tolist()
-                    case 'none':
-                        hp.values = [hp.value]*self.n_value_combinations
-                    case 'selection':
-                        hp.values = np.random.choice(hp.val_range, self.n_value_combinations)
-                    case _:
-                        hp.values = [hp.value]*self.n_value_combinations
-            else:
-                hp.values = [hp.value]*self.n_value_combinations
-
 
     def tune_hyper_parameters(self, eval_function, save_function=None, reset_function=None,
                               eval_kwargs=None, save_kwargs=None, reset_kwargs=None, **kwargs):

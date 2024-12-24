@@ -85,17 +85,25 @@ class GridSearchTuner(HyperParamTuner):
             Args:
                 ind (int): Index of HyperParameter.values attribute to refine grid around
             Modifies: 
-                .gridpoints and .values for each HyperParameter object in self.param_set.hyper_parameters
+                .val_range, .gridpoints, and .values for each HyperParameter object in self.param_set.hyper_parameters
         """
 
         # "Zoom in" on the area of interest and generate new value ranges closer to the provided index
-        self.refine_area_of_interest(ind)
+        for hp in self.param_set.hyper_parameters:
+            center_val = hp.values[ind]
+            if len(hp.gridpoints) > 1:
+                if center_val in hp.val_range:
+                    # Refining on the edge of the allowable range
+                    scale_factor = 1/(len(hp.gridpoints)-1)/2
+                else:
+                    scale_factor = 1/(len(hp.gridpoints)-1)
+                hp.val_range = hp.adjust_range(center_val, scale_factor)
 
         # Generate new grid points for each hyperparameter based on its "zoomed in" value range
         for hp in self.param_set.hyper_parameters:
             self.__gen_gridpoints(hp)
 
-        # After refining gridpoints, generate new array of points
+        # After refining gridpoints, generate new array of values
         self.__gen_hp_value_combos()
 
 
