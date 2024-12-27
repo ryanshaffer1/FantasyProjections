@@ -1,7 +1,8 @@
 """Creates and exports class to be used as one approach to optimizing HyperParameters for a Neural Network.
 
     Classes:
-        RandomSearchTuner : Optimizes HyperParameters of a Neural Network for best performance (minimum evaluation error after training) via a Random Search algorithm.
+        RecursiveRandomSearchTuner : Optimizes HyperParameters of a Neural Network for best performance (minimum evaluation error after training) 
+            via a Recursive Random Search algorithm.
             Child of HyperParameterTuner.
 """
 
@@ -14,32 +15,45 @@ from .plot_tuning_results import plot_tuning_results
 logger = logging.getLogger('log')
 
 class RecursiveRandomSearchTuner(HyperParamTuner):
-    """Optimizes HyperParameters of a Neural Network for best performance (minimum evaluation error after training) via a Random Search algorithm.
+    """Optimizes HyperParameters of a Neural Network for best performance (minimum evaluation error after training) via a Recursive Random Search algorithm.
     
         Sub-class of HyperParameterTuner.
     
+        The algorithm implemented is described in detail here: http://www.shivkumar.org/research/papers/rrs-sigmetrics.pdf
+
         Args:
             param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
             save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
             optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
                 Defaults to False.
             plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
-            n_value_combinations (int, optional): Number of random samples to take. Defaults to 1.
+            max_samples (int, optional): Limit to the number of allowable random samples before terminating the tuning process. 
+                Defaults to 10 times the number of initial random samples.
+
+            Optional Algorithm-Specific Keyword-Args:
+                See the linked file above for technical description of each of the following parameters:
+                    p_conf (float, optional): Defaults to 0.99.
+                    r_percentile (float, optional): Defaults to None (calculated using n_explore_samples).
+                    v_expect_imp (float, optional): Defaults to None (calculated using l_exploit_samples).
+                    q_conf (float, optional): Defaults to 0.99.
+                    c_shrink_ratio (float, optional): Defaults to 0.5.
+                    s_shrink_thresh (float, optional): Defaults to 0.001.
+                    n_explore_samples (int, optional): Defaults to 50.
+                    l_exploit_samples (int, optional): Defaults to 20.
         
         Additional Class Attributes:
-            save_file (str): path to file where tuning performance log will be saved. Filename is "genetic_tune_results.csv".
+            n_value_combinations (int): Number of random samples to take before recursion begins. Updates as more samples are added during recursion.
 
         Adds Public Attributes to Other Classes:
             HyperParameter objects within param_set:
                 values (list): Array of sampled values to use in random search HyperParameter optimization.
 
         Public Methods:
-            randomize_hp_values : Generates list of random values for each HyperParameter to use in a random search HyperParamater optimization.
             tune_hyper_parameters : Performs iterative evaluation of a function that depends on HyperParameters to find an optimal combination of HyperParameters.
     """
 
     def __init__(self, *args, **kwargs):
-        """Constructor for RandomSearchTuner objects.
+        """Constructor for RecursiveRandomSearchTuner objects.
 
             Args:
                 param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
@@ -48,9 +62,19 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
                     Defaults to False.
                 plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
                 n_value_combinations (int, optional): Number of random samples to take. Defaults to 1.
-        
-            Additional Class Attributes:
-                save_file (str): path to file where tuning performance log will be saved. Filename is "genetic_tune_results.csv".
+                max_samples (int, optional): Limit to the number of allowable random samples before terminating the tuning process. 
+                    Defaults to 10 times the number of initial random samples.
+
+            Optional Algorithm-Specific Keyword-Args:
+                See the linked file above for technical description of each of the following parameters:
+                    p_conf (float, optional): Defaults to 0.99.
+                    r_percentile (float, optional): Defaults to None (calculated using n_explore_samples).
+                    v_expect_imp (float, optional): Defaults to None (calculated using l_exploit_samples).
+                    q_conf (float, optional): Defaults to 0.99.
+                    c_shrink_ratio (float, optional): Defaults to 0.5.
+                    s_shrink_thresh (float, optional): Defaults to 0.001.
+                    n_explore_samples (int, optional): Defaults to 50.
+                    l_exploit_samples (int, optional): Defaults to 20.
 
             Adds Public Attributes to Other Classes:
                 HyperParameter objects within param_set:
@@ -66,8 +90,8 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
         v_expect_imp = kwargs.get('v_expect_imp', None)
         self.c_shrink_ratio = kwargs.get('c_shrink_ratio', 0.5)
         self.s_shrink_thresh = kwargs.get('s_shrink_thresh', 0.001)
-        n_explore_samples = kwargs.get('n_explore_samples', None)
-        self.l_exploit_samples = kwargs.get('l_exploit_samples', None)
+        n_explore_samples = kwargs.get('n_explore_samples', 50)
+        self.l_exploit_samples = kwargs.get('l_exploit_samples', 20)
 
         if self.r_percentile is not None:
             n_explore_samples = int(np.log(1 - p_conf) / np.log(1 - self.r_percentile))+1
@@ -94,23 +118,6 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
 
 
     # PUBLIC METHODS
-
-    def realign(self, optimal_ind):
-        for hp in self.param_set.hyper_parameters:
-            optimal_val = hp.values[optimal_ind]
-            # Adjust the value range, allowing it to be moved beyond the current boundary
-            hp.val_range = hp.adjust_range(optimal_val, scale_factor=1, exceed_boundary=True)
-
-
-    def shrink(self, optimal_ind):
-        self.r_percentile *= self.c_shrink_ratio
-        num_dimensions = len(self.param_set.hyper_parameters)
-
-        for hp in self.param_set.hyper_parameters:
-            optimal_val = hp.values[optimal_ind]
-            # Re-scale the value range
-            hp.val_range = hp.adjust_range(optimal_val, scale_factor=self.c_shrink_ratio**(1/num_dimensions))
-
 
     def tune_hyper_parameters(self, eval_function, save_function=None, reset_function=None,
                               eval_kwargs=None, save_kwargs=None, reset_kwargs=None, **kwargs):
@@ -141,43 +148,15 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
         # Handle keyword arguments for each called function
         [eval_kwargs, save_kwargs, reset_kwargs] = [{} if kwargs is None else kwargs for kwargs in [eval_kwargs, save_kwargs, reset_kwargs]]
 
-        maximize = kwargs.get('maximize', False)
-
         # EXPLORATION
         # Evaluate function for all the Hyper-Parameter combinations in the current layer and track the optimum
         optimal_ind, optimal_perf = self.eval_hp_combinations(eval_function=eval_function, save_function=save_function,
                                                               eval_kwargs=eval_kwargs, save_kwargs=save_kwargs,**kwargs)
-        curr_ind = len(self.perf_list)
-        # EXPLOITATION
-        exploiting = True
-        while exploiting and curr_ind < self.max_samples:
-            exploiting_ind = 0
-            while self.r_percentile > self.s_shrink_thresh and curr_ind < self.max_samples:
-                # Randomize value for each hp, add to list of values tested
-                for hp in self.param_set.hyper_parameters:
-                    hp.values += hp.randomize_in_range(1)
-                self.param_set.set_values(curr_ind)
-                # Evaluate function
-                result = eval_function(param_set=self.param_set, **eval_kwargs)
-                eval_perf = result[0] if hasattr(result,'__iter__') else result
-                self.perf_list.append(eval_perf)
-                # Check for optimal performance
-                if (maximize and eval_perf > optimal_perf) or (not maximize and eval_perf < optimal_perf):
-                    # Re-align search space to center on new optimal point
-                    optimal_ind = curr_ind
-                    optimal_perf = eval_perf
-                    self.realign(optimal_ind)
-                    exploiting_ind = 0
-                else:
-                    exploiting_ind += 1
-                if exploiting_ind == self.l_exploit_samples:
-                    # Shrink search space
-                    self.shrink(optimal_ind)
-                    exploiting_ind = 0
-                curr_ind += 1
-            # This doesn't match up with the bottom of the pseudocode, but have to stop the while loop somehow...
-            exploiting = False
 
+        # EXPLOITATION
+        self.__exploit(eval_function, save_function=save_function,
+                     eval_kwargs=eval_kwargs, save_kwargs=save_kwargs,
+                     **kwargs, optimal_ind=optimal_ind, optimal_perf=optimal_perf)
 
         # Save/Print results
         if self.optimize_hypers:
@@ -198,3 +177,72 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
 
         # Return optimal performance
         return self.perf_list[optimal_ind]
+
+
+    # PRIVATE METHODS
+
+    def __exploit(self, eval_function, save_function=None,
+                eval_kwargs=None, save_kwargs=None, **kwargs):
+        # Performs recursive portion of the Recursive Random Search algorithm.
+
+        logger.info('Beginning Exploitation')
+
+        # Extract optimization inputs
+        maximize = kwargs.get('maximize', False)
+        optimal_ind = kwargs['optimal_ind']
+        optimal_perf = kwargs['optimal_perf']
+
+        curr_ind = len(self.perf_list)
+
+        exploiting = True
+        while exploiting and curr_ind < self.max_samples:
+            exploiting_ind = 0
+            while self.r_percentile > self.s_shrink_thresh and curr_ind < self.max_samples:
+                # Randomize value for each hp, add to list of values tested
+                for hp in self.param_set.hyper_parameters:
+                    hp.values += hp.randomize_in_range(1)
+                self.n_value_combinations += 1
+                # Evaluate function for only the current index of hp values. Do not save at this step.
+                _, eval_perf = self.eval_hp_combinations(eval_function=eval_function, save_function=None,
+                                                         eval_kwargs=eval_kwargs, save_kwargs=None,
+                                                         start_ind=curr_ind)
+                # Check for optimal performance
+                if (maximize and eval_perf > optimal_perf) or (not maximize and eval_perf < optimal_perf):
+                    # Save model
+                    if save_function is not None:
+                        save_function(**save_kwargs)
+                    # Re-align search space to center on new optimal point
+                    optimal_ind = curr_ind
+                    optimal_perf = eval_perf
+                    self.__realign(optimal_ind)
+                    exploiting_ind = 0
+                else:
+                    exploiting_ind += 1
+                if exploiting_ind == self.l_exploit_samples:
+                    # Shrink search space
+                    self.__shrink(optimal_ind)
+                    exploiting_ind = 0
+                curr_ind += 1
+            # This doesn't match up with the bottom of the pseudocode, but have to stop the while loop somehow...
+            exploiting = False
+
+
+    def __realign(self, optimal_ind):
+        # Moves hyper-parameter value ranges to center on the optimal value found so far.
+
+        for hp in self.param_set.hyper_parameters:
+            optimal_val = hp.values[optimal_ind]
+            # Adjust the value range, allowing it to be moved beyond the current boundary
+            hp.val_range = hp.adjust_range(optimal_val, scale_factor=1, exceed_boundary=True)
+
+
+    def __shrink(self, optimal_ind):
+        # Reduces hyper-parameter value ranges by a shrinking ratio "c", centered on the optimal value found so far.
+
+        self.r_percentile *= self.c_shrink_ratio
+        num_dimensions = len(self.param_set.hyper_parameters)
+
+        for hp in self.param_set.hyper_parameters:
+            optimal_val = hp.values[optimal_ind]
+            # Re-scale the value range
+            hp.val_range = hp.adjust_range(optimal_val, scale_factor=self.c_shrink_ratio**(1/num_dimensions))

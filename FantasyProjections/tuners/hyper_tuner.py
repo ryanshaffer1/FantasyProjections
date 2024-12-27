@@ -32,6 +32,9 @@ class HyperParamTuner():
 
         Public Methods:
             eval_hp_combinations : Evaluates a function for all combinations of HyperParameter values being considered, and tracks the optimal performance (min or max function output).
+
+        Protected Methods (available to sub-classes):
+            _randomize_hp_values : Generates list of random values for each HyperParameter to use in a random search HyperParamater optimization.
     """
 
     def __init__(self, param_set, **kwargs):
@@ -84,13 +87,14 @@ class HyperParamTuner():
 
         # Keyword arguments for this method
         maximize = kwargs.get('maximize', False)
+        start_ind = kwargs.get('start_ind', 0)
 
         # Track optimal performance and index
         optimal_perf = 0 if maximize else np.inf
         optimal_ind = -1
 
         # Iterate through all combinations of hyperparameters
-        for curr_ind in range(self.n_value_combinations):
+        for curr_ind in range(start_ind, self.n_value_combinations):
             # Set and display hyperparameters for current run
             self.param_set.set_values(curr_ind)
             logger.info(f'HP Grid Point {curr_ind+1} of {self.n_value_combinations}: -------------------- ')

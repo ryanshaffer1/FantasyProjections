@@ -24,16 +24,12 @@ class RandomSearchTuner(HyperParamTuner):
                 Defaults to False.
             plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
             n_value_combinations (int, optional): Number of random samples to take. Defaults to 1.
-        
-        Additional Class Attributes:
-            save_file (str): path to file where tuning performance log will be saved. Filename is "genetic_tune_results.csv".
 
         Adds Public Attributes to Other Classes:
             HyperParameter objects within param_set:
                 values (list): Array of sampled values to use in random search HyperParameter optimization.
 
         Public Methods:
-            randomize_hp_values : Generates list of random values for each HyperParameter to use in a random search HyperParamater optimization.
             tune_hyper_parameters : Performs iterative evaluation of a function that depends on HyperParameters to find an optimal combination of HyperParameters.
     """
 

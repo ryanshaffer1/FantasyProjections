@@ -1,8 +1,5 @@
 import unittest
 import numpy as np
-import pandas as pd
-import pandas.testing as pdtest
-import os
 # Class under test
 from tuners.grid_search_tuner import GridSearchTuner
 # Modules needed for test setup

@@ -37,6 +37,8 @@ class HyperParameter():
 
         Public Methods:
             copy : Returns a copy of the HyperParameterSet object.
+            randomize_in_range : Returns n random values (from a uniform distribution) within the HyperParameter's val_range.
+            adjust_range : Returns new bounds for HyperParameter values that are centered on a given point and scaled up/down from val_range.
     """
 
     # CONSTRUCTOR
@@ -59,6 +61,7 @@ class HyperParameter():
 
         if not self.val_range or not self.optimizable:
             self.val_range = [self.value]
+            self.val_scale = 'none'
 
 
     # PUBLIC METHODS
@@ -74,7 +77,17 @@ class HyperParameter():
                                 values=self.values)
         return new_hp
 
+
     def randomize_in_range(self, n_values):
+        """Returns n random values (from a uniform distribution) within the HyperParameter's val_range.
+
+            Args:
+                n_values (int): Number of random values to generate.
+
+            Returns:
+                list: List of random values.
+        """
+
         values = [self.value]*n_values
 
         if isinstance(self.val_range,list):
@@ -93,7 +106,23 @@ class HyperParameter():
 
         return values
 
+
     def adjust_range(self, center_point, scale_factor=1, exceed_boundary=False):
+        """Returns new bounds for HyperParameter values that are centered on a given point and scaled up/down from val_range.
+
+            If self.val_scale is linear or log, this method changes the range per the appropriate scale.
+            Otherwise, this method returns the input center point as a list.
+
+            Args:
+                center_point (int | float | other): Value to center new range on.
+                scale_factor (int, optional): Multiplier to adjust size of the val_range. Defaults to 1.
+                exceed_boundary (bool, optional): Whether to allow the new range to exceed the boundaries of the old range. 
+                    Defaults to False.
+
+            Returns:
+                list: Range of values, centered on the center point, scaled per scale_factor, and following the HP's val scale.
+        """
+
         new_val_range = None
         match self.val_scale:
             case 'linear':

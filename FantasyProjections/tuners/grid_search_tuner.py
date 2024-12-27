@@ -54,7 +54,6 @@ class GridSearchTuner(HyperParamTuner):
                 hyper_tuner_steps_per_dim (int, optional): Number of unique values to use for each optimizable HyperParameter. Defaults to 3.
 
             Additional Class Attributes:
-                save_file (str): path to file where tuning performance log will be saved. Filename is "hyper_grid.csv".
                 n_value_combinations (int): Number of unique combinations of HyperParameter values.
 
             Adds Public Attributes to Other Classes:
