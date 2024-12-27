@@ -1,5 +1,6 @@
 # Project-specific .gitignore:
 data/
+script_sandbox/sandbox_files/
 archive/
 graphics/
 models/

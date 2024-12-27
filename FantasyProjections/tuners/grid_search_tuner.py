@@ -1,21 +1,18 @@
 """Creates and exports class to be used as one approach to optimizing HyperParameters for a Neural Network.
 
     Classes:
-        GridSerachTuner : Optimizes HyperParameters of a Neural Network for best performance (minimum evaluation error after training) via a Recursive Grid Search algorithm.
+        GridSearchTuner : Optimizes HyperParameters of a Neural Network for best performance (minimum evaluation error after training) via a Recursive Grid Search algorithm.
             Child of HyperParameterTuner.
 """
 
-from dataclasses import dataclass
 import logging
 import numpy as np
-from misc.manage_files import create_folders
 from .hyper_tuner import HyperParamTuner
-from .plot_grid_search_results import plot_grid_search_results
+from .plot_tuning_results import plot_tuning_results
 
 # Set up logger
 logger = logging.getLogger('log')
 
-@dataclass
 class GridSearchTuner(HyperParamTuner):
     """Optimizes HyperParameters of a Neural Network for best performance (minimum evaluation error after training) via a Recursive Grid Search algorithm.
     
@@ -23,7 +20,7 @@ class GridSearchTuner(HyperParamTuner):
     
         Args:
             param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
-            save_folder (str): path to folder where any tuning performance logs should be saved.
+            save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
             optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
                 Defaults to False.
             plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
@@ -32,7 +29,7 @@ class GridSearchTuner(HyperParamTuner):
         
         Additional Class Attributes:
             save_file (str): path to file where tuning performance log will be saved. Filename is "hyper_grid.csv".
-            total_cominations (int): Number of unique combinations of HyperParameter values.
+            n_value_combinations (int): Number of unique combinations of HyperParameter values.
 
         Adds Public Attributes to Other Classes:
             HyperParameter objects within param_set:
@@ -43,12 +40,31 @@ class GridSearchTuner(HyperParamTuner):
             tune_hyper_parameters : Performs iterative evaluation of a function that depends on HyperParameters to find an optimal combination of HyperParameters.
     """
 
-    hyper_tuner_layers: int = 1
-    hyper_tuner_steps_per_dim: int = 3
 
-    def __post_init__(self):
-        super().__post_init__()
-        self.save_file = self.save_folder + 'hyper_grid.csv'
+    def __init__(self, *args, hyper_tuner_layers=1, hyper_tuner_steps_per_dim=3, **kwargs):
+        """Constructor for GridSearchTuner object.
+
+            Args:
+                param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
+                save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
+                optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
+                    Defaults to False.
+                plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
+                hyper_tuner_layers (int, optional): Number of grid search layers to perform (each recursion layer is "zooming in" closer to a local optima.) Defaults to 1 (no zooming in).
+                hyper_tuner_steps_per_dim (int, optional): Number of unique values to use for each optimizable HyperParameter. Defaults to 3.
+
+            Additional Class Attributes:
+                n_value_combinations (int): Number of unique combinations of HyperParameter values.
+
+            Adds Public Attributes to Other Classes:
+                HyperParameter objects within param_set:
+                    gridpoints (list): Array of unique values (with no repetition) to use in a grid search HyperParameter optimization.
+        """
+
+        super().__init__(*args, **kwargs)
+
+        self.hyper_tuner_layers = hyper_tuner_layers
+        self.hyper_tuner_steps_per_dim = hyper_tuner_steps_per_dim
 
         # Generate initial grid points
         if self.optimize_hypers:
@@ -58,7 +74,7 @@ class GridSearchTuner(HyperParamTuner):
         else:
             # Adjust variables if not optimizing hyper-parameters
             self.hyper_tuner_layers = 1
-            self.total_combinations = 1
+            self.n_value_combinations = 1
 
     # PUBLIC METHODS
 
@@ -68,54 +84,25 @@ class GridSearchTuner(HyperParamTuner):
             Args:
                 ind (int): Index of HyperParameter.values attribute to refine grid around
             Modifies: 
-                .gridpoints and .param_set.values for each HyperParameter object in self.param_set.hyper_parameters
+                .val_range, .gridpoints, and .values for each HyperParameter object in self.param_set.hyper_parameters
         """
 
-        # "Zoom in" on the area of interest and generate new gridpoints closer to the provided index
-        # Find new value ranges for each hyperparameter
+        # "Zoom in" on the area of interest and generate new value ranges closer to the provided index
         for hp in self.param_set.hyper_parameters:
             center_val = hp.values[ind]
-            gridpoints_ind = list(hp.gridpoints).index(center_val)
-            match hp.val_scale:
-                case 'linear':
-                    if gridpoints_ind == 0:
-                        minval = center_val
-                        maxval = (
-                            hp.gridpoints[gridpoints_ind] + hp.gridpoints[gridpoints_ind + 1]) / 2
-                    elif gridpoints_ind == len(hp.gridpoints) - 1:
-                        minval = (
-                            hp.gridpoints[gridpoints_ind - 1] + hp.gridpoints[gridpoints_ind]) / 2
-                        maxval = center_val
-                    else:
-                        minval = (
-                            hp.gridpoints[gridpoints_ind - 1] + hp.gridpoints[gridpoints_ind]) / 2
-                        maxval = (
-                            hp.gridpoints[gridpoints_ind] + hp.gridpoints[gridpoints_ind + 1]) / 2
-                    hp.val_range = [minval, maxval]
-                case 'log':
-                    if gridpoints_ind == 0:
-                        minval = center_val
-                        maxval = 10**((np.log10(hp.gridpoints[gridpoints_ind]) + np.log10(
-                            hp.gridpoints[gridpoints_ind + 1])) / 2)
-                    elif gridpoints_ind == len(hp.gridpoints) - 1:
-                        minval = 10**((np.log10(hp.gridpoints[gridpoints_ind - 1]) + np.log10(
-                            hp.gridpoints[gridpoints_ind])) / 2)
-                        maxval = center_val
-                    else:
-                        minval = 10**((np.log10(hp.gridpoints[gridpoints_ind - 1]) + np.log10(
-                            hp.gridpoints[gridpoints_ind])) / 2)
-                        maxval = 10**((np.log10(hp.gridpoints[gridpoints_ind]) + np.log10(
-                            hp.gridpoints[gridpoints_ind + 1])) / 2)
-                    hp.val_range = [float(minval), float(maxval)]
-                case 'selection':
-                    # No setting a range, just select the value that performed
-                    # best
-                    hp.val_range = center_val
-            # Generate new grid points for the hyperparameter based on its
-            # "zoomed in" values of interest
+            if len(hp.gridpoints) > 1:
+                if center_val in hp.val_range:
+                    # Refining on the edge of the allowable range
+                    scale_factor = 1/(len(hp.gridpoints)-1)/2
+                else:
+                    scale_factor = 1/(len(hp.gridpoints)-1)
+                hp.val_range = hp.adjust_range(center_val, scale_factor)
+
+        # Generate new grid points for each hyperparameter based on its "zoomed in" value range
+        for hp in self.param_set.hyper_parameters:
             self.__gen_gridpoints(hp)
 
-        # After refining gridpoints, generate new array of points
+        # After refining gridpoints, generate new array of values
         self.__gen_hp_value_combos()
 
 
@@ -138,6 +125,8 @@ class GridSearchTuner(HyperParamTuner):
 
             Keyword-Arguments:
                 maximize (bool, optional): whether to maximize (True) or minimize (False) the values returned from eval_function. Defaults to False (minimize).
+                plot_variables (tuple | list, optional): names of 2 hyper-parameters to use as the x and y axes of the plot optionally generated after tuning 
+                    (if self.plot_tuning_results == True). Defaults to None - default behavior described in plot_tuning_results.
 
             Returns:
                 float: Optimal performance across all function evaluations.
@@ -146,61 +135,51 @@ class GridSearchTuner(HyperParamTuner):
         # Handle keyword arguments for each called function
         [eval_kwargs, save_kwargs, reset_kwargs] = [{} if kwargs is None else kwargs for kwargs in [eval_kwargs, save_kwargs, reset_kwargs]]
 
-        # Keyword arguments for this method
-        maximize = kwargs.get('maximize', False)
-
+        # Iterate through all Recursive Grid Search layers
         for tune_layer in range(self.hyper_tuner_layers):
             logger.info(f'Optimization Round {tune_layer+1} of {self.hyper_tuner_layers} -------------------------------')
-            # Iterate through all combinations of hyperparameters
-            for grid_ind in range(self.total_combinations):
-                # Set and display hyperparameters for current run
-                self.param_set.set_values(grid_ind)
-                logger.info(f'HP Grid Point {grid_ind+1} of {self.total_combinations}: -------------------- ')
-                for hp in self.param_set.hyper_parameters:
-                    logger.info(f"\t{hp.name} = {hp.value}")
 
-                # Function Evaluation
-                result = eval_function(param_set=self.param_set, **eval_kwargs)
-                eval_perf = result[0] if hasattr(result,'__iter__') else result
+            # Evaluate function for all the Hyper-Parameter combinations in the current layer and track the optimum
+            optimal_ind, _ = self.eval_hp_combinations(eval_function=eval_function, save_function=save_function,
+                                                       eval_kwargs=eval_kwargs, save_kwargs=save_kwargs,
+                                                       **kwargs)
 
-                # Track evaluation performance for the set of hyperparameters used
-                self.perf_list.append(eval_perf)
+            # Save/Print results
+            if self.optimize_hypers:
+                self.param_set.set_values(optimal_ind)
+                # Save the results of the previous layer
+                self._save_hp_tuning_results(addl_columns={'Grid Search Layer': tune_layer}, filename=self.save_file,
+                                             log_name=f'Layer {tune_layer+1}', optimal_ind=optimal_ind)
 
-                # Save the model if it is the best performing so far
-                optimal_ind = np.nanargmax(self.perf_list) if maximize else np.nanargmin(self.perf_list)
-                if grid_ind == optimal_ind:
-                    if save_function is not None:
-                        save_function(**save_kwargs)
-
-            # Print some results, determine whether to perform another layer of grid search, and if so, refine the mesh
+            # Determine whether to perform another layer of grid search, and if so, refine the mesh
             self.__next_hp_layer(tune_layer, optimal_ind)
 
-        # After grid search finishes, plot results
-        if len(self.hyper_tuning_table) > 0 and self.plot_tuning_results:
-            plot_grid_search_results(self.save_file,self.param_set,variables=('learning_rate','lmbda'))
-
-        # Set the model back to the highest performing config
+        # After search finishes, set the model back to the highest performing config
         if reset_function is not None:
             reset_function(**reset_kwargs)
+
+        # Optionally, plot results
+        if self.plot_tuning_results and len(self.hyper_tuning_table) > 0:
+            plot_tuning_results(self.save_file, self.param_set, legend_column='Grid Search Layer', **kwargs)
 
         # Return optimal performance
         return self.perf_list[optimal_ind]
 
-    # PRIVATE METHODS
 
+    # PRIVATE METHODS
 
     def __gen_hp_value_combos(self):
         # For each hyperparameter in the set, generates a list of all values to use in order.
         # The values are organized such that every index in the list represents a unique combination
         # of values across all the hyperparamters (ie a unique point on the
         # n-dimensional grid of hyperparameters)
-        self.total_combinations = 1
+        self.n_value_combinations = 1
         for ind, hp in enumerate(self.param_set.hyper_parameters):
-            hp.values = np.repeat(hp.gridpoints, self.total_combinations).tolist()
+            hp.values = np.repeat(hp.gridpoints, self.n_value_combinations).tolist()
             for prev in self.param_set.hyper_parameters[:ind]:
                 prev.values = np.array(list(prev.values) * len(hp.gridpoints)).tolist()
 
-            self.total_combinations *= len(hp.gridpoints)
+            self.n_value_combinations *= len(hp.gridpoints)
 
 
     def __gen_gridpoints(self, hp):
@@ -238,21 +217,6 @@ class GridSearchTuner(HyperParamTuner):
 
     def __next_hp_layer(self,tune_layer, optimal_ind):
         # Generates the grid for the next layer of a recursive grid search.
-
-        if self.optimize_hypers:
-            # Save the results of the previous layer
-            create_folders(self.save_folder)
-            self._save_hp_tuning_results(addl_columns={'Grid Search Layer': tune_layer}, filename=self.save_file)
-            # Print out optimal performance
-            logger.info(
-                f'Layer {tune_layer+1} '
-                f'Complete. Optimal performance: '
-                f'{self.perf_list[optimal_ind]}. '
-                f'Hyper-parameters used: '
-                )
-            for hp in self.param_set.hyper_parameters:
-                logger.info(f"\t{hp.name} = {hp.values[optimal_ind]}")
-
         if tune_layer < self.hyper_tuner_layers-1:
             self.refine_grid(optimal_ind)
             self.perf_list = []

@@ -14,6 +14,13 @@ hp_tuner_settings = {
     'hyper_tuner_steps_per_dim': 2,
     'plot_tuning_results': True,
 }
+# hp_tuner_settings = {
+#     'optimize_hypers': True,
+#     'max_samples': 200,
+#     'r_percentile': 0.1,
+#     'v_expect_imp': 0.1,
+#     'plot_tuning_results': True,
+# }
 
 # hp_defaults
 # Each entry in the dict is of the form {hp_name: {hp_attributes}}.
@@ -24,6 +31,8 @@ hp_defaults = {
     'mini_batch_size': {
         'value': 1000,
         'optimizable': False,
+        'val_range': [100, 10000],
+        'val_scale': 'log'
     },
     'learning_rate': {
         'value': 50,
@@ -44,7 +53,7 @@ hp_defaults = {
     'linear_stack': {
         'value': 300,
         'optimizable': False,
-        # 'val_range': [100,900],
-        # 'val_scale': 'linear'
+        'val_range': [200,800],
+        'val_scale': 'linear'
     }
 }

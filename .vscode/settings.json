@@ -3,12 +3,13 @@
         "--disable=W0511",
         "--disable=C0301",
         "--disable=E0401",
-        "--disable=W1203",
+        "--disable=W1203"
     ],
     "pylint.ignorePatterns": [
         "**/site-packages/**/*.py",
         ".vscode/*.py",
         "**/tests/**/*.py",
+        "**/script_sandbox/*.py",
         "**/__init__.py"
     ],
     "black-formatter.args": ["--line-length", "100"],
@@ -32,5 +33,5 @@
     "python.analysis.extraPaths": [
         "./FantasyProjections"
     ],
-    "python.experiments.optInto": ["pythonTestAdapter"],
+    "python.experiments.optInto": ["pythonTestAdapter"]
 }
