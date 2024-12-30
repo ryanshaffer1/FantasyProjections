@@ -6,6 +6,7 @@
             Also includes variables such as Elapsed Time, Team Wins, etc.
             Each value is a list of the minimum and maximum expected values for the variable. During normalization, these bounds will be mapped to values of 0 and 1.
         default_scoring_weights (dict): Fantasy Points per unit of each statistic, i.e. the Fantasy Football scoring rules used.
+        labels_df_to_sleeper (dict): Maps stats names used throughout the project to corresponding stats names used in the Sleeper API.
 """
 
 default_stat_list = [
@@ -66,4 +67,19 @@ default_scoring_weights = {
     'Rec Yds'   : 0.1,
     'Rec TD'    : 6,
     'Fmb'       : -2,
+}
+
+labels_df_to_sleeper = {
+    'Pass Att': 'pass_att',
+    'Pass Cmp': 'pass_cmp',
+    'Pass Yds': 'pass_yd',
+    'Pass TD': 'pass_td',
+    'Int': 'pass_int',
+    'Rush Att': 'rush_att',
+    'Rush Yds': 'rush_yd',
+    'Rush TD': 'rush_td',
+    'Rec': 'rec',
+    'Rec Yds': 'rec_yd',
+    'Rec TD': 'rec_td',
+    'Fmb': 'fum_lost'
 }

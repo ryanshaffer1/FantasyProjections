@@ -9,6 +9,7 @@ import json
 import logging
 import torch
 from sleeper_wrapper import Stats, Players
+from config import stats_config
 from misc.stat_utils import stats_to_fantasy_points
 from predictors import FantasyPredictor
 
@@ -214,31 +215,10 @@ class SleeperPredictor(FantasyPredictor):
     def __reformat_sleeper_stats(self, stat_dict, stat_columns):
         # Re-names stats from Sleeper's format to the common names used across this project
         # and lists into the common stat line format.
-        # TODO: this is kinda janky, no?
-
-        labels_df_to_sleeper = {
-            'Pass Att': 'pass_att',
-            'Pass Cmp': 'pass_cmp',
-            'Pass Yds': 'pass_yd',
-            'Pass TD': 'pass_td',
-            'Int': 'pass_int',
-            'Rush Att': 'rush_att',
-            'Rush Yds': 'rush_yd',
-            'Rush TD': 'rush_td',
-            'Rec': 'rec',
-            'Rec Yds': 'rec_yd',
-            'Rec TD': 'rec_td',
-            'Fmb': 'fum_lost'
-        }
-
-        # stat_line = []
-        # for sleeper_stat_label in labels_df_to_sleeper.values():
-        #     stat_value = stat_dict.get(sleeper_stat_label, 0)
-        #     stat_line.append(stat_value)
 
         stat_line = []
         for stat in stat_columns:
-            stat_value = stat_dict.get(labels_df_to_sleeper[stat], 0)
+            stat_value = stat_dict.get(stats_config.labels_df_to_sleeper[stat], 0)
             stat_line.append(stat_value)
 
         return stat_line

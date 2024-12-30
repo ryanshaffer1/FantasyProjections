@@ -140,4 +140,3 @@ def preprocess_nn_data(midgame_input, final_stats_input,
         print(f'Saved pre-processed data to {save_folder}')
 
     return midgame_input, final_stats_input, id_df
-

@@ -52,7 +52,8 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
             online_avail (bool, optional): toggle whether to allow pulling additional data from online files as necessary. Defaults to False.
 
         Returns:
-            list: list of DataFrame objects corresponding to each input file type (e.g. 'pbp','roster').
+            list | tuple: if a single year is input, returns a tuple of DataFrame objects corresponding to each input file type (e.g. 'pbp','roster').
+                if multiple years are input, returns a list of tuples of DataFrame objects where each tuple corresponds to a year.
     """
 
     # Handle single year being input
@@ -90,6 +91,10 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
                 logger.warning('Warning! Not all weeks are present in the dfs, and could not download from online')
 
         all_dfs.append(yearly_dfs)
+
+    # If only one year is input, no need to output a list of tuples, just the one tuple
+    if len(years) == 1:
+        return all_dfs[0]
 
     return all_dfs
 
