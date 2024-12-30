@@ -1,12 +1,11 @@
 
 import numpy as np
 import pandas as pd
-from data_pipeline import team_abbreviations
 from misc.stat_utils import stats_to_fantasy_points
 from .data_helper_functions import calc_game_time_elapsed
 
-class TeamWeeklyData():
-    def __init__(self, seasonal_data, team_name, week, **kwargs):
+class SingleGameData():
+    def __init__(self, seasonal_data, game_id, week, **kwargs):
         """_summary_
 
             Args:
@@ -19,23 +18,22 @@ class TeamWeeklyData():
 
         game_times = kwargs.get('game_times','all')
 
-        self.team_name = team_name
+        self.game_id = game_id
         self.week = week
         self.year = seasonal_data.year
-        # Game/Roster info for this week from the team's seasonal data
-        self.game_info = seasonal_data.all_game_info_df.loc[(self.team_name, self.year, self.week)]
-        self.roster_df = seasonal_data.all_rosters_df.loc[(team_abbreviations.pbp_abbrevs[self.team_name], self.week)].set_index("Name")
-        self.game_id = self.gen_game_id()
+        # Game info
+        self.game_info = seasonal_data.all_game_info_df.loc[self.game_id].iloc[0]
+        self.home_team_abbr = self.game_info['Home Team Abbrev']
+        self.away_team_abbr = self.game_info['Away Team Abbrev']
+        # Roster info for this game from the two teams' seasonal data
+        self.roster_df = seasonal_data.all_rosters_df.loc[
+            seasonal_data.all_rosters_df.index.intersection([(self.away_team_abbr, self.week),
+                                                             (self.home_team_abbr, self.week)])].reset_index().set_index("Name")
 
         # Parse Play-by-Play to generate statistics dataframes
         self.pbp_df = self.gen_game_play_by_play(seasonal_data.pbp_df)
         self.midgame_df, self.final_stats_df = self.parse_play_by_play(game_times)
 
-    def gen_game_id(self):
-        game_id = str(self.year) + '_' + str(self.week).zfill(2) + '_' + \
-            self.game_info['Away Team Abbrev'] + \
-            '_' + self.game_info['Home Team Abbrev']
-        return game_id
 
     def gen_game_play_by_play(self, pbp_df):
 
@@ -83,7 +81,7 @@ class TeamWeeklyData():
         midgame_stats_df = pd.concat(list_of_player_dfs.tolist())
 
         # Reformat box score df for output
-        final_stats_df = final_stats_df.transpose().set_index('Player')
+        final_stats_df = final_stats_df.transpose()
 
         # Add fantasy points (not sure if this is needed)
         final_stats_df = stats_to_fantasy_points(final_stats_df)
@@ -91,16 +89,37 @@ class TeamWeeklyData():
         # Add some seasonal/weekly context to the dataframes
         for df in [midgame_stats_df, final_stats_df]:
             df[['Year', 'Week']] = [year, week]
-            df['Team'] = self.game_info['Team Abbrev']
-            df['Opponent'] = self.game_info['Opp Abbrev']
-            df['Site'] = self.game_info['Site']
-            df[['Team Wins', 'Team Losses', 'Team Ties']] = self.game_info[[
-                'Team Wins', 'Team Losses', 'Team Ties']].to_list()
-            df[['Opp Wins', 'Opp Losses', 'Opp Ties']] = self.game_info[[
-                'Opp Wins', 'Opp Losses', 'Opp Ties']].to_list()
+            df['Team'] = self.roster_df.loc[(df['Player'],'Team')].tolist()
+            df['Opponent'] = df['Team'].apply(lambda x: (set([self.home_team_abbr, self.away_team_abbr]) - {x}).pop())
+            df['Site'] = df['Team'].apply(lambda x: 'Home' if x==self.home_team_abbr else 'Away')
+            df = self.add_team_records_to_df(df)
+
+        final_stats_df = final_stats_df.set_index('Player')
 
         # Assign outputs
         return midgame_stats_df, final_stats_df
+
+    def add_team_records_to_df(self, df):
+        df['Team Wins'] = df['Team'].apply(lambda x: (self.game_info['Team Wins']
+                                                      if x == self.game_info['Team Abbrev']
+                                                      else self.game_info['Opp Wins']))
+        df['Team Losses'] = df['Team'].apply(lambda x: (self.game_info['Team Losses']
+                                                      if x == self.game_info['Team Abbrev']
+                                                      else self.game_info['Opp Losses']))
+        df['Team Ties'] = df['Team'].apply(lambda x: (self.game_info['Team Ties']
+                                                      if x == self.game_info['Team Abbrev']
+                                                      else self.game_info['Opp Ties']))
+        df['Opp Wins'] = df['Team'].apply(lambda x: (self.game_info['Opp Wins']
+                                                      if x == self.game_info['Team Abbrev']
+                                                      else self.game_info['Team Wins']))
+        df['Opp Losses'] = df['Team'].apply(lambda x: (self.game_info['Opp Losses']
+                                                      if x == self.game_info['Team Abbrev']
+                                                      else self.game_info['Team Losses']))
+        df['Opp Ties'] = df['Team'].apply(lambda x: (self.game_info['Opp Ties']
+                                                      if x == self.game_info['Team Abbrev']
+                                                      else self.game_info['Team Ties']))
+
+        return df
 
 
     def parse_player_stats(self, roster_df_row, game_times):
@@ -117,7 +136,7 @@ class TeamWeeklyData():
         """
 
         # Team sites
-        game_site = self.game_info['Site'].lower()
+        game_site = 'home' if roster_df_row['Team'] == self.game_info['Home Team Abbrev'] else 'away'
         opp_game_site = ['home', 'away'][(['home', 'away'].index(game_site) + 1) % 2]
 
         # Set up dataframe covering player's contributions each play
@@ -126,16 +145,16 @@ class TeamWeeklyData():
         player_stats_df['Elapsed Time'] = self.pbp_df.reset_index()['Elapsed Time']
         player_stats_df = player_stats_df.set_index('Elapsed Time')
         # Possession
-        player_stats_df['Possession'] = self.pbp_df['posteam'] == self.game_info['Team Abbrev']
+        player_stats_df['Possession'] = self.pbp_df['posteam'] == roster_df_row['Team']
         # Field Position
         player_stats_df['Field Position'] = self.pbp_df.apply(lambda x: x['yardline_100'] if (
-            x['posteam'] == self.game_info['Team Abbrev']) else 100 - x['yardline_100'], axis=1)
+            x['posteam'] == roster_df_row['Team']) else 100 - x['yardline_100'], axis=1)
         # Score
         player_stats_df['Team Score'] = self.pbp_df[f'total_{game_site}_score']
         player_stats_df['Opp Score'] = self.pbp_df[f'total_{opp_game_site}_score']
 
         # Assign stats to player (e.g. passing yards, rushing TDs, etc.)
-        player_stats_df = self.assign_stats_from_plays(player_stats_df,roster_df_row,team_abbrev=self.game_info['Team Abbrev'])
+        player_stats_df = self.assign_stats_from_plays(player_stats_df,roster_df_row,team_abbrev=roster_df_row['Team'])
 
         # Clean up the player dataframe
         player_stats_df = player_stats_df[['Team Score',

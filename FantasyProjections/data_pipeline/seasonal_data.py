@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from config import data_files_config
 from data_pipeline import team_abbreviations
-from data_pipeline.team_weekly_data import TeamWeeklyData
+from data_pipeline.single_game_data import SingleGameData
 from data_pipeline.data_helper_functions import adjust_team_names
 from misc.manage_files import collect_input_dfs
 
@@ -18,25 +18,21 @@ class SeasonalData():
         self.weeks = weeks
         self.team_names = self.clean_team_names(team_names)
 
-
         # Collect input data
         self.pbp_df, self.raw_rosters_df, *_ = collect_input_dfs(self.year, self.weeks, data_files_config.local_file_paths,
                                                         data_files_config.online_file_paths, online_avail=True)
 
         # Process team records, game sites, and other game info for every game of the year, for every team
         self.all_game_info_df = self.get_game_info()
+
         # Gather team roster for all teams, all weeks of input year
         self.all_rosters_df = self.process_rosters(filter_df)
 
-        # List of TeamSeasonalData objects
-        self.team_weeks = []
-        for team_name in self.team_names:
-            print(f"---------{team_name}---------")
-            self.team_weeks += self.gen_and_process_weekly_games(team_name, game_times)
+        # List of SingleGameData objects
+        self.games = self.gen_and_process_games(game_times)
 
         # Gather all stats (midgame and final) from the individual teams
         self.midgame_df, self.final_stats_df = self.gather_all_game_stats()
-        print(f"\tdata rows: {self.midgame_df.shape[0]}")
 
     # PUBLIC METHODS
 
@@ -59,51 +55,30 @@ class SeasonalData():
 
         midgame_df = pd.DataFrame()
         final_stats_df = pd.DataFrame()
-        for team_week in self.team_weeks:
-            midgame_df = pd.concat((midgame_df, team_week.midgame_df))
-            final_stats_df = pd.concat((final_stats_df, team_week.final_stats_df))
+        for game in self.games:
+            midgame_df = pd.concat((midgame_df, game.midgame_df))
+            final_stats_df = pd.concat((final_stats_df, game.final_stats_df))
+
+        print(f"\tdata rows: {midgame_df.shape[0]}")
 
         return midgame_df, final_stats_df
 
-    def gen_and_process_weekly_games(self, team_name, game_times):
-        """Returns all weeks in a year in which a team played a game, and all weeks containing at least one player with stats being tracked.
+    def gen_and_process_games(self, game_times):
+        games = []
+        team_abbrevs = [team_abbreviations.pbp_abbrevs[name] for name in self.team_names]
+        for game_id in self.all_game_info_df.index.unique():
+            game_info = self.all_game_info_df.loc[game_id].iloc[0]
+            week = int(game_info['Week'])
+            home_team = game_info['Home Team Abbrev']
+            away_team = game_info['Away Team Abbrev']
+            if week in self.weeks and (home_team in team_abbrevs or away_team in team_abbrevs):
+                print(f"{game_id}")
+                # Process data/stats for single game
+                game = SingleGameData(self, game_id, week, game_times=game_times)
+                # Add to list of games
+                games.append(game)
 
-            Args:
-                all_game_info_df (pandas.DataFrame): Contains information on all NFL games being processed, including team names, etc.
-                all_rosters_df (pandas.DataFrame): Contains week-by-week NFL rosters listing out the players being tracked.
-                full_team_name (str): Name of team being processed.
-                year (int): Current year being processed.
-
-            Returns:
-                list: List of all regular season weeks where games have been played by the team (excludes byes, future weeks)
-                list : List of all regular season weeks where a player in the roster DataFrame played.
-                    Helpful when roster DataFrame has been filtered to a subset of NFL players.
-        """
-
-        # All regular season weeks where games have been played by the team
-        # (excludes byes, future weeks)
-        weeks_with_games = list(self.all_game_info_df.loc[(team_name, self.year)].index)
-        weeks_with_players = (
-            self.all_rosters_df.loc[(team_abbreviations.pbp_abbrevs[team_name])]
-            .index.unique()
-            .to_list()
-        )
-
-        # Create list of TeamWeeklyData objects corresponding to each week in which a game is played
-        team_weeks = []
-        for week in self.weeks:
-            if week not in weeks_with_games:
-                print(f"Week {week} - no game found")
-            elif week not in weeks_with_players:
-                print(f"Week {week} - no players found")
-            else:
-                print(f"Week {week}")
-                # Game info, roster for specific team & week
-                team_week = TeamWeeklyData(self, team_name, week, game_times=game_times)
-
-                team_weeks.append(team_week)
-
-        return team_weeks
+        return games
 
 
     def get_game_info(self):
@@ -161,6 +136,7 @@ class SeasonalData():
                 'Week',
                 'Team Abbrev',
                 'Opp Abbrev',
+                'game_id',
                 'Stats URL',
                 'Site',
                 'Home Team Abbrev',
@@ -190,7 +166,7 @@ class SeasonalData():
         all_game_info_df['Team Name'] = all_game_info_df['Team Abbrev'].apply(lambda x:
             team_abbreviations.invert(team_abbreviations.pbp_abbrevs)[x])
         all_game_info_df = all_game_info_df.set_index(
-            ['Team Name', 'Year', 'Week']).sort_index()
+            ['game_id']).sort_index()
 
         return all_game_info_df
 
@@ -210,6 +186,10 @@ class SeasonalData():
         # Filter to only the desired weeks
         all_rosters_df = all_rosters_df[all_rosters_df.apply(
             lambda x: x['week'] in self.weeks, axis=1)]
+
+        # Filter to only the desired teams
+        all_rosters_df = all_rosters_df[all_rosters_df.apply(lambda x: x['team'] in 
+            [team_abbreviations.pbp_abbrevs[name] for name in self.team_names], axis=1)]
 
         # Optionally filter based on subset of desired players
         if filter_df is not None:

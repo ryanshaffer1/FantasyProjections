@@ -21,9 +21,9 @@ from misc.manage_files import collect_roster_filter, create_folders
 SAVE_DATA       = False # Saves data in .csv's (output files specified below)
 PROCESS_TO_NN   = True # After saving human-readable data, creates data formatted for Neural Network usage
 FILTER_ROSTER   = True # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
-UPDATE_FILTER   = True # Forces re-evaluation of filtered list of players
+UPDATE_FILTER   = False # Forces re-evaluation of filtered list of players
 # Data Inputs
-TEAM_NAMES_INPUT    = "all"  # All team names
+TEAM_NAMES_INPUT    = 'all'  # All team names
 YEARS               = range(2023, 2024) # All years to process data for
 WEEKS               = range(1, 19)      # All weeks to process data for (applies this set to all years in YEARS)
 GAME_TIMES          = range(0, 76)      # range(0,76). Alternates: 'all', list of numbers
