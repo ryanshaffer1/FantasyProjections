@@ -21,3 +21,7 @@ local_file_paths = {'pbp':INPUT_FOLDER + 'play_by_play/play_by_play_{0}.csv',
 
 # Additional info sources
 URL_INTRO = 'https://www.pro-football-reference.com/boxscores/'
+
+# Miscellaneous: Box-Score Parsing Validation files
+TRUE_STATS_FILE = 'data/misc/true_box_scores.csv'
+PARSING_VALIDATION_FILE = DATA_FOLDER + 'misc/pbp_parsing_validation.csv'

@@ -14,18 +14,21 @@ from data_pipeline.seasonal_data import SeasonalDataCollector
 from data_pipeline.data_helper_functions import cleanup_data
 from data_pipeline.roster_filter import generate_roster_filter, apply_roster_filter
 from data_pipeline.preprocess_nn_data import preprocess_nn_data
+from data_pipeline.validate_parsed_data import validate_parsed_data
 from misc.manage_files import collect_roster_filter, create_folders
 
 
 # Flags
 SAVE_DATA       = False # Saves data in .csv's (output files specified below)
-PROCESS_TO_NN   = True # After saving human-readable data, creates data formatted for Neural Network usage
+PROCESS_TO_NN   = False # After saving human-readable data, creates data formatted for Neural Network usage
 FILTER_ROSTER   = True # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
 UPDATE_FILTER   = False # Forces re-evaluation of filtered list of players
+VALIDATE_PARSING = True # Gathers true box scores from the internet to confirm logic in play-by-play parsing is correct
+SCRAPE_MISSING = True # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
 # Data Inputs
-TEAM_NAMES_INPUT    = 'all'  # All team names
-YEARS               = range(2022, 2024) # All years to process data for
-WEEKS               = range(1, 4)      # All weeks to process data for (applies this set to all years in YEARS)
+TEAM_NAMES    = 'all'  # All team names
+YEARS               = range(2023, 2024) # All years to process data for
+WEEKS               = range(1, 2)      # All weeks to process data for (applies this set to all years in YEARS)
 GAME_TIMES          = range(0, 76)      # range(0,76). Alternates: 'all', list of numbers
 
 
@@ -42,6 +45,7 @@ else:
 # Huge output data arrays
 midgame_df = pd.DataFrame()
 final_stats_df = pd.DataFrame()
+urls_df = pd.DataFrame()
 
 # Time the script
 start_time = datetime.now()
@@ -53,11 +57,12 @@ filter_df, filter_load_success = collect_roster_filter(FILTER_ROSTER, UPDATE_FIL
 for year in YEARS:
     print(f"------------------{year}------------------")
     # Create SeasonalData object
-    seasonal_data = SeasonalDataCollector(year=year, team_names=TEAM_NAMES_INPUT, weeks=WEEKS,
+    seasonal_data = SeasonalDataCollector(year=year, team_names=TEAM_NAMES, weeks=WEEKS,
                                  game_times=GAME_TIMES, filter_df=filter_df)
     # Concatenate results from current year to remaining years
     midgame_df = pd.concat((midgame_df, seasonal_data.midgame_df))
     final_stats_df = pd.concat((final_stats_df, seasonal_data.final_stats_df))
+    urls_df = pd.concat((urls_df, seasonal_data.all_game_info_df['PFR URL']))
 
 # If roster filter could not be found/applied before processing,
 # generate a roster filter file now and apply it to the data
@@ -74,6 +79,10 @@ if SAVE_DATA:
     create_folders(data_files_config.OUTPUT_FOLDER)
     final_stats_df.to_csv(data_files_config.OUTPUT_FILE_FINAL_STATS)
     midgame_df.to_csv(data_files_config.OUTPUT_FILE_MIDGAME)
+
+# Optionally validate that parsed statlines match statlines found on the internet
+if VALIDATE_PARSING:
+    validate_parsed_data(final_stats_df, urls_df, scrape=SCRAPE_MISSING, save_data=SAVE_DATA)
 
 # Generate/save data in a format readable into the Neural Net
 if PROCESS_TO_NN:

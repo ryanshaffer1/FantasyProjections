@@ -197,7 +197,7 @@ def cleanup_data(midgame_df, final_stats_df, list_of_stats='default'):
         final_stats_df.reset_index().set_index(["Player", "Year", "Week"]).sort_index()
     )
 
-    final_stats_df = final_stats_df[["Team", "Opponent", "Position", "Age"] + list_of_stats]
+    final_stats_df = final_stats_df[["Team", "Opponent", "Position", "Age", "Site"] + list_of_stats]
 
     return midgame_df, final_stats_df
 

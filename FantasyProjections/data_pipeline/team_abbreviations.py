@@ -126,7 +126,7 @@ def invert(dictionary):
     """
     return {v: k for k, v in dictionary.items()}
 
-def convert_abbrev(abbrev, dict1, dict2):
+def convert_abbrev(abbrevs, dict1, dict2):
     """Converts a team abbreviation from one format (dictionary) to another format (dictionary).
     
         Example:
@@ -134,14 +134,18 @@ def convert_abbrev(abbrev, dict1, dict2):
             "crd"
 
         Args:
-            abbrev (str): Team abbreviation as found in dict1
-            dict1 (_type_): Original format
-            dict2 (_type_): New format
+            abbrevs (str | list of strs): Team abbreviation(s) as found in dict1
+            dict1 (dict): Original format
+            dict2 (dict): New format
 
         Returns:
-            str: Abbreviation for the same team, formatted according to dict2
+            str | list of strs: Abbreviation(s) for the same team(s), formatted according to dict2
     """
+    if isinstance(abbrevs, list):
+        team_names = [invert(dict1)[abbrev] for abbrev in abbrevs]
+        new_abbrevs = [dict2[team_name] for team_name in team_names]
+        return new_abbrevs
 
-    team_name = invert(dict1)[abbrev]
+    team_name = invert(dict1)[abbrevs]
     new_abbrev = dict2[team_name]
     return new_abbrev
