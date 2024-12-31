@@ -7,7 +7,8 @@
         weeks_played_by_team : Returns all weeks in a year in which a team played a game, and all weeks containing at least one player with stats being tracked.
         cleanup_data : Performs final cleanup of gathered NFL stats data, including trimming unnecessary columns and setting/sorting indices.
 """
-
+import dateutil.parser as dateparse
+import numpy as np
 import pandas as pd
 from data_pipeline import team_abbreviations
 
@@ -199,3 +200,158 @@ def cleanup_data(midgame_df, final_stats_df, list_of_stats='default'):
     final_stats_df = final_stats_df[["Team", "Opponent", "Position", "Age"] + list_of_stats]
 
     return midgame_df, final_stats_df
+
+
+def compute_team_record(scores_df):
+    """Computes the record (wins, losses, and ties) of a team GOING INTO each game (i.e. not including the result of the current game).
+
+        Args:
+            scores_df (pandas.DataFrame): DataFrame with a row for each game, including the score of each game.
+                Must contain all games from Week 1 through the current (or final) week, with no skipped games, for each team being handled (may be one team at a time or the entire league at once).
+
+        Returns:
+            pandas.DataFrame: Input DataFrame, with three columns added: "Team Wins", "Team Losses", "Team Ties". These correspond to the team's record GOING INTO the game.
+    """
+
+    # Add columns tracking whether each game is a win, loss, or tie for the team
+    scores_df = track_wins_losses_ties(scores_df)
+
+    # Track team record heading into each week
+    scores_df = scores_df.sort_values(by='Week')
+
+    # Get team record following each week
+    scores_df['Postgame Wins'] = scores_df.groupby('Team Abbrev')['Win'].transform(pd.Series.cumsum)
+    scores_df['Postgame Losses'] = scores_df.groupby('Team Abbrev')['Loss'].transform(pd.Series.cumsum)
+    scores_df['Postgame Ties'] = scores_df.groupby('Team Abbrev')['Tie'].transform(pd.Series.cumsum)
+
+    # Manipulate to instead show the team's record going into each week
+    games_played_by_team = scores_df.groupby('Team Abbrev')['Week'].nunique()
+    scores_df = scores_df.set_index(['Team Abbrev','Week']).sort_index()
+    for new_col, old_col in zip(['Team Wins', 'Team Losses', 'Team Ties'],['Postgame Wins', 'Postgame Losses', 'Postgame Ties']):
+        scores_df[new_col] = shift_val_one_game_back(scores_df[old_col].to_list(),games_played_by_team)
+    scores_df = scores_df.reset_index()
+
+    return scores_df
+
+
+def track_wins_losses_ties(scores_df):
+    """Tracks whether each game is a win, loss, or tie for the team.
+
+        Args:
+            scores_df (pandas.DataFrame): DataFrame with a row for each game, including the score of each game.
+        
+        Returns:
+            pandas.DataFrame: Input DataFrame, with three columns added: "Win", "Loss", "Tie". These correspond to the team's record GOING INTO the game.
+    """
+
+    scores_df['Tie'] = scores_df['total_home_score'] == scores_df['total_away_score']
+    scores_df['Win Loc'] = scores_df.apply(lambda x: 'Home' if x['total_home_score']>=x['total_away_score'] else 'Away', axis=1)
+    scores_df['Win'] = (scores_df['Win Loc'] == scores_df['Site']) & (np.logical_not(scores_df['Tie']))
+    scores_df['Loss'] = (scores_df['Win Loc'] != scores_df['Site']) & (np.logical_not(scores_df['Tie']))
+    with pd.option_context("future.no_silent_downcasting", True):
+        # 1s and 0s instead of True/False, so we can add them up next
+        scores_df = scores_df.replace(to_replace=[True, False], value=[1, 0])
+
+    return scores_df
+
+
+def shift_val_one_game_back(postgame_vals_by_team_week, games_played_by_team):
+    """Converts a team's wins, losses, or ties over the course of a season from post-game to pre-game values.
+
+        Can process multiple teams simultaneously, or one game at a time (current use case).
+
+        Args:
+            postgame_vals_by_team_week (list): List of postgame wins OR losses OR ties for all weeks/teams currently being processed
+            games_played_by_team (pandas.Series): Number of games played by each team currently being processed
+
+        Returns:
+            list: List of pregame wins OR losses OR ties for all weeks/teams currently being processed
+    """
+
+    last_game_played_by_team = [x-1 for x in games_played_by_team.cumsum().to_list()]
+    last_game_played_by_team.reverse()
+    # Remove last games played by each team
+    for ind in last_game_played_by_team:
+        del postgame_vals_by_team_week[ind]
+    # Add a zero at the beginning of each team's season
+    zero_indices = [0] + games_played_by_team.cumsum().iloc[0:-1].to_list()
+    for ind in zero_indices:
+        postgame_vals_by_team_week[ind:ind] = [0]
+
+    return postgame_vals_by_team_week
+
+
+def parse_year_from_date(x):
+    """Parses year from input date string.
+
+        If parsing fails, returns 2000 as the year.
+
+        Args:
+            x (str): Date, in flexible date string format
+
+        Returns:
+            int: Year from date
+    """
+
+    try:
+        output = dateparse.parse(x).year
+    except TypeError:
+        output = 2000 # whatever man
+    return output
+
+
+def clean_team_names(team_names, year):
+    # Processing only needed if team_names=='all'
+    if team_names == 'all':
+
+        # Adjust team names and abbreviations for year (team name changes over the years)
+        adjust_team_names((team_abbreviations.pbp_abbrevs,
+                        team_abbreviations.boxscore_website_abbrevs,
+                        team_abbreviations.roster_website_abbrevs),
+                        year)
+        # Take all team names from dict
+        team_names = list(team_abbreviations.roster_website_abbrevs.keys())
+
+    return team_names
+
+
+def gen_game_play_by_play(pbp_df, game_id):
+
+    # Make a copy of the input play-by-play df
+    pbp_df = pbp_df.copy()
+
+    # Filter to only the game of interest (using game_id)
+    pbp_df = pbp_df[pbp_df['game_id'] == game_id]
+
+    # Elapsed time
+    pbp_df.loc[:,'Elapsed Time'] = pbp_df.apply(calc_game_time_elapsed, axis=1)
+
+    # Sort by ascending elapsed time
+    pbp_df = pbp_df.set_index('Elapsed Time').sort_index(ascending=True)
+
+    return pbp_df
+
+
+def filter_game_time(player_stats_df, game_times):
+    """Reduces the size of the midgame stats data by sampling the data at discrete game times, rather than keeping the stats after every single play.
+    
+        Rounds the game time at the start of each play to the nearest value in game_times, then keeps the first instance of each value, as well as the final row (to capture final stats).
+        Note that there may be an additional (redundant) row for the final stat line.
+
+        Args:
+            player_stats_df (pandas.DataFrame): Player's accumulated stat line after every single play in the game.
+            game_times (list | str): List of game times to include in the output. If string is input (such as "all"), no filtering occurs.
+
+        Returns:
+            pandas.DataFrame: Player's accumulated stat line at each designated game time. May have an additional (redundant) row for the final stat line.
+    """
+
+    if not isinstance(game_times, str):
+        player_stats_df['Rounded Time'] = player_stats_df.index.map(
+            lambda x: game_times[abs(game_times - float(x)).argmin()])
+        player_stats_df = pd.concat((player_stats_df.iloc[1:].drop_duplicates(
+            subset='Rounded Time', keep='first'),player_stats_df.iloc[-1].to_frame().T))
+        player_stats_df = player_stats_df.reset_index(drop=True).rename(
+            columns={'Rounded Time': 'Elapsed Time'}).set_index('Elapsed Time')
+
+    return player_stats_df

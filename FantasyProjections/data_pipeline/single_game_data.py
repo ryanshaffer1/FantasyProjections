@@ -2,9 +2,9 @@
 import numpy as np
 import pandas as pd
 from misc.stat_utils import stats_to_fantasy_points
-from .data_helper_functions import calc_game_time_elapsed
+from .data_helper_functions import gen_game_play_by_play, filter_game_time
 
-class SingleGameData():
+class SingleGamePbpParser():
     def __init__(self, seasonal_data, game_id, week, **kwargs):
         """_summary_
 
@@ -18,38 +18,20 @@ class SingleGameData():
 
         game_times = kwargs.get('game_times','all')
 
-        self.game_id = game_id
         self.week = week
         self.year = seasonal_data.year
         # Game info
-        self.game_info = seasonal_data.all_game_info_df.loc[self.game_id].iloc[0]
-        self.home_team_abbr = self.game_info['Home Team Abbrev']
-        self.away_team_abbr = self.game_info['Away Team Abbrev']
+        self.game_info = seasonal_data.all_game_info_df.loc[game_id]
         # Roster info for this game from the two teams' seasonal data
         self.roster_df = seasonal_data.all_rosters_df.loc[
-            seasonal_data.all_rosters_df.index.intersection([(self.away_team_abbr, self.week),
-                                                             (self.home_team_abbr, self.week)])].reset_index().set_index("Name")
+            seasonal_data.all_rosters_df.index.intersection(
+                [(team, self.week) for team in self.game_info['Team Abbrev'].unique()])
+            ].reset_index().set_index("Name")
 
         # Parse Play-by-Play to generate statistics dataframes
-        self.pbp_df = self.gen_game_play_by_play(seasonal_data.pbp_df)
+        self.pbp_df = gen_game_play_by_play(seasonal_data.pbp_df, game_id)
         self.midgame_df, self.final_stats_df = self.parse_play_by_play(game_times)
 
-
-    def gen_game_play_by_play(self, pbp_df):
-
-        # Make a copy of the input play-by-play df
-        pbp_df = pbp_df.copy()
-
-        # Filter to only the game of interest (using game_id)
-        pbp_df = pbp_df[pbp_df['game_id'] == self.game_id]
-
-        # Elapsed time
-        pbp_df.loc[:,'Elapsed Time'] = pbp_df.apply(calc_game_time_elapsed, axis=1)
-
-        # Sort by ascending elapsed time
-        pbp_df = pbp_df.set_index('Elapsed Time').sort_index(ascending=True)
-
-        return pbp_df
 
     def parse_play_by_play(self, game_times='all'):
         """Calculates midgame and final statistics for all players in a game, using play-by-play data describing passes, rushes, etc.
@@ -90,36 +72,17 @@ class SingleGameData():
         for df in [midgame_stats_df, final_stats_df]:
             df[['Year', 'Week']] = [year, week]
             df['Team'] = self.roster_df.loc[(df['Player'],'Team')].tolist()
-            df['Opponent'] = df['Team'].apply(lambda x: (set([self.home_team_abbr, self.away_team_abbr]) - {x}).pop())
-            df['Site'] = df['Team'].apply(lambda x: 'Home' if x==self.home_team_abbr else 'Away')
-            df = self.add_team_records_to_df(df)
+            df['Opponent'] = self.game_info.set_index('Team Abbrev').loc[df['Team'],'Opp Abbrev'].to_list()
+            df['Site'] = self.game_info.set_index('Team Abbrev').loc[df['Team'],'Site'].to_list()
+            df[['Team Wins','Team Losses','Team Ties']] = self.game_info.set_index('Team Abbrev').loc[
+                df['Team']][['Team Wins', 'Team Losses', 'Team Ties']].to_numpy()
+            df[['Opp Wins','Opp Losses','Opp Ties']] = self.game_info.set_index('Team Abbrev').loc[
+                df['Opponent']][['Team Wins', 'Team Losses', 'Team Ties']].to_numpy()
 
         final_stats_df = final_stats_df.set_index('Player')
 
         # Assign outputs
         return midgame_stats_df, final_stats_df
-
-    def add_team_records_to_df(self, df):
-        df['Team Wins'] = df['Team'].apply(lambda x: (self.game_info['Team Wins']
-                                                      if x == self.game_info['Team Abbrev']
-                                                      else self.game_info['Opp Wins']))
-        df['Team Losses'] = df['Team'].apply(lambda x: (self.game_info['Team Losses']
-                                                      if x == self.game_info['Team Abbrev']
-                                                      else self.game_info['Opp Losses']))
-        df['Team Ties'] = df['Team'].apply(lambda x: (self.game_info['Team Ties']
-                                                      if x == self.game_info['Team Abbrev']
-                                                      else self.game_info['Opp Ties']))
-        df['Opp Wins'] = df['Team'].apply(lambda x: (self.game_info['Opp Wins']
-                                                      if x == self.game_info['Team Abbrev']
-                                                      else self.game_info['Team Wins']))
-        df['Opp Losses'] = df['Team'].apply(lambda x: (self.game_info['Opp Losses']
-                                                      if x == self.game_info['Team Abbrev']
-                                                      else self.game_info['Team Losses']))
-        df['Opp Ties'] = df['Team'].apply(lambda x: (self.game_info['Opp Ties']
-                                                      if x == self.game_info['Team Abbrev']
-                                                      else self.game_info['Team Ties']))
-
-        return df
 
 
     def parse_player_stats(self, roster_df_row, game_times):
@@ -136,7 +99,7 @@ class SingleGameData():
         """
 
         # Team sites
-        game_site = 'home' if roster_df_row['Team'] == self.game_info['Home Team Abbrev'] else 'away'
+        game_site = self.game_info.set_index('Team Abbrev').loc[roster_df_row['Team'],'Site'].lower()
         opp_game_site = ['home', 'away'][(['home', 'away'].index(game_site) + 1) % 2]
 
         # Set up dataframe covering player's contributions each play
@@ -154,7 +117,7 @@ class SingleGameData():
         player_stats_df['Opp Score'] = self.pbp_df[f'total_{opp_game_site}_score']
 
         # Assign stats to player (e.g. passing yards, rushing TDs, etc.)
-        player_stats_df = self.assign_stats_from_plays(player_stats_df,roster_df_row,team_abbrev=roster_df_row['Team'])
+        player_stats_df = self.assign_stats_from_plays(player_stats_df, roster_df_row, team_abbrev=roster_df_row['Team'])
 
         # Clean up the player dataframe
         player_stats_df = player_stats_df[['Team Score',
@@ -185,67 +148,9 @@ class SingleGameData():
         player_stats_df['Age'] = roster_df_row['Age']
 
         # Trim to just the game times of interest
-        player_stats_df = self.filter_game_time(player_stats_df, game_times)
+        player_stats_df = filter_game_time(player_stats_df, game_times)
 
         return player_stats_df
-
-
-    def filter_game_time(self, player_stats_df, game_times):
-        """Reduces the size of the midgame stats data by sampling the data at discrete game times, rather than keeping the stats after every single play.
-        
-            Rounds the game time at the start of each play to the nearest value in game_times, then keeps the first instance of each value, as well as the final row (to capture final stats).
-            Note that there may be an additional (redundant) row for the final stat line.
-
-            Args:
-                player_stats_df (pandas.DataFrame): Player's accumulated stat line after every single play in the game.
-                game_times (list | str): List of game times to include in the output. If string is input (such as "all"), no filtering occurs.
-
-            Returns:
-                pandas.DataFrame: Player's accumulated stat line at each designated game time. May have an additional (redundant) row for the final stat line.
-        """
-
-        if not isinstance(game_times, str):
-            player_stats_df['Rounded Time'] = player_stats_df.index.map(
-                lambda x: game_times[abs(game_times - float(x)).argmin()])
-            player_stats_df = pd.concat((player_stats_df.iloc[1:].drop_duplicates(
-                subset='Rounded Time', keep='first'),player_stats_df.iloc[-1].to_frame().T))
-            player_stats_df = player_stats_df.reset_index(drop=True).rename(
-                columns={'Rounded Time': 'Elapsed Time'}).set_index('Elapsed Time')
-
-        return player_stats_df
-
-
-    def check_stat_for_player(self, game_df, player_df, comparisons, bools=None, operator='and'):
-        """Not currently used, probably going to be re-written.
-
-            Args:
-                game_df (_type_): _description_
-                player_df (_type_): _description_
-                comparisons (_type_): _description_
-                bools (_type_, optional): _description_. Defaults to None.
-                operator (str, optional): _description_. Defaults to 'and'.
-
-            Returns:
-                _type_: _description_
-        """
-
-        if not bools:
-            bools = [True]*len(comparisons)
-
-        term_comps = []
-        for ((x,y),boolean) in zip(comparisons,bools):
-            if isinstance(y,str):
-                term_comps.append((game_df[x] == player_df[y])==boolean)
-            else:
-                term_comps.append((game_df[x] == y)==boolean)
-        if operator == 'and':
-            full_comp = all(term_comps)
-        elif operator == 'or':
-            full_comp = any(term_comps)
-        else:
-            full_comp = False
-
-        return full_comp
 
 
     def assign_stats_from_plays(self, player_stat_df, player_df, team_abbrev):

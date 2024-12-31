@@ -10,7 +10,7 @@
 from datetime import datetime
 import pandas as pd
 from config import data_files_config
-from data_pipeline.seasonal_data import SeasonalData
+from data_pipeline.seasonal_data import SeasonalDataCollector
 from data_pipeline.data_helper_functions import cleanup_data
 from data_pipeline.roster_filter import generate_roster_filter, apply_roster_filter
 from data_pipeline.preprocess_nn_data import preprocess_nn_data
@@ -24,8 +24,8 @@ FILTER_ROSTER   = True # Toggle whether to use filtered list of "relevant" playe
 UPDATE_FILTER   = False # Forces re-evaluation of filtered list of players
 # Data Inputs
 TEAM_NAMES_INPUT    = 'all'  # All team names
-YEARS               = range(2023, 2024) # All years to process data for
-WEEKS               = range(1, 19)      # All weeks to process data for (applies this set to all years in YEARS)
+YEARS               = range(2022, 2024) # All years to process data for
+WEEKS               = range(1, 4)      # All weeks to process data for (applies this set to all years in YEARS)
 GAME_TIMES          = range(0, 76)      # range(0,76). Alternates: 'all', list of numbers
 
 
@@ -53,7 +53,7 @@ filter_df, filter_load_success = collect_roster_filter(FILTER_ROSTER, UPDATE_FIL
 for year in YEARS:
     print(f"------------------{year}------------------")
     # Create SeasonalData object
-    seasonal_data = SeasonalData(year=year, team_names=TEAM_NAMES_INPUT, weeks=WEEKS,
+    seasonal_data = SeasonalDataCollector(year=year, team_names=TEAM_NAMES_INPUT, weeks=WEEKS,
                                  game_times=GAME_TIMES, filter_df=filter_df)
     # Concatenate results from current year to remaining years
     midgame_df = pd.concat((midgame_df, seasonal_data.midgame_df))
