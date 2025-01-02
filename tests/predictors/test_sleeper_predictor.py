@@ -5,8 +5,8 @@ import shutil
 # Module under test
 from predictors import SleeperPredictor
 # Modules needed for test setup
-from tests.utils_for_tests import mock_data_predictors
-from tests.utils_for_tests.skip_tests_config import SKIP_SLEEPER_TESTS
+from tests._utils_for_tests import mock_data_predictors
+from tests._utils_for_tests.skip_tests_config import SKIP_SLEEPER_TESTS
 from misc.dataset import StatsDataset
 from misc.stat_utils import stats_to_fantasy_points
 import logging

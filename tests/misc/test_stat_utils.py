@@ -6,7 +6,7 @@ import torch
 # Module under test
 from misc import stat_utils as proj
 # Modules needed for test setup
-import tests.utils_for_tests.mock_data as mock_data
+import tests._utils_for_tests.mock_data as mock_data
 from config import stats_config
 import logging
 import logging.config

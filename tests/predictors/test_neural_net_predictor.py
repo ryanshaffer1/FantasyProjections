@@ -9,7 +9,7 @@ from predictors import NeuralNetPredictor
 # Modules needed for test setup
 from neural_net import NeuralNetwork, HyperParameter, HyperParameterSet
 from neural_net.nn_utils import compare_net_sizes
-from tests.utils_for_tests import mock_data_predictors
+from tests._utils_for_tests import mock_data_predictors
 from config.hp_config import hp_defaults
 from config.nn_config import default_nn_shape, nn_train_settings
 from misc.dataset import StatsDataset
@@ -40,8 +40,8 @@ def check_all_model_layers_changed(model1, model2):
 class TestConstructor_NeuralNetPredictor(unittest.TestCase):
     # Set Up
     def setUp(self):
-        self.save_folder = 'data/test files/'
-        self.load_folder = 'data/test files/'
+        self.save_folder = 'tests/_test_files/'
+        self.load_folder = 'tests/_test_files/'
 
         self.shape_2 = {
             'players_input': 3,
@@ -101,7 +101,7 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
 class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
     # Set Up
     def setUp(self):
-        self.load_folder = 'data/test files/'
+        self.load_folder = 'tests/_test_files/'
 
         self.weird_shape = {
             'players_input': 1,
@@ -143,7 +143,7 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
     def test_empty_folder_gives_error(self):
         with self.assertRaises(FileNotFoundError):
             NeuralNetPredictor(name='test',
-                               load_folder='data/test files/empty')
+                               load_folder='tests/_test_files/empty')
 
     def test_load_model_outside_of_initializer_overwrites_model(self):
         predictor = NeuralNetPredictor(name='test')
@@ -178,7 +178,7 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
 class TestSaveModel_NeuralNetPredictor(unittest.TestCase):
     # Set Up
     def setUp(self):
-        self.save_folder = 'data/test files/empty/'
+        self.save_folder = 'tests/_test_files/empty/'
         
     def test_save_model_can_be_reloaded(self):
         predictor = NeuralNetPredictor(name='test',
@@ -207,8 +207,8 @@ class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
     def setUp(self):
         torch.manual_seed(0)
         
-        self.save_folder = 'data/test files/'
-        self.load_folder = 'data/test files/'
+        self.save_folder = 'tests/_test_files/'
+        self.load_folder = 'tests/_test_files/'
         self.mock_shape = {
             'players_input': 3,
             'teams_input': 2,
@@ -532,7 +532,7 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
     def setUp(self):
         torch.manual_seed(0)
         
-        self.save_folder = 'data/test files/empty/'
+        self.save_folder = 'tests/_test_files/empty/'
 
         self.mock_shape = {
             'players_input': 3,

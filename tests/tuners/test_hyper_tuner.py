@@ -23,7 +23,7 @@ class TestConstructor_HyperParamTuner(unittest.TestCase):
         self.hp2 = HyperParameter(name='hp2', value=-1, optimizable=True, val_range=[-2,-0.5],val_scale='linear')
         self.hp_set = HyperParameterSet(hp_set=(self.hp1,self.hp2))
 
-        self.save_file = 'data/test files/empty/hyper_tuner.csv'
+        self.save_file = 'tests/_test_files/empty/hyper_tuner.csv'
 
     def test_basic_attributes_no_optional_inputs(self):
         tuner = HyperParamTuner(self.hp_set, save_file=self.save_file)
@@ -56,7 +56,7 @@ class TestConstructor_HyperParamTuner(unittest.TestCase):
 class TestSaveHPTuningResults_HyperParamTuner(unittest.TestCase):
     # Set Up
     def setUp(self):
-        self.save_folder = 'data/test files/empty/'
+        self.save_folder = 'tests/_test_files/empty/'
         self.save_file = self.save_folder + 'tuner_test.csv'
         self.df_columns = ['hp1','hp2','Model Performance']
 

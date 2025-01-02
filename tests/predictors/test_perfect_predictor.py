@@ -4,7 +4,7 @@ import pandas.testing as pdtest
 from predictors import PerfectPredictor
 # Modules needed for test setup
 from results import PredictionResult
-from tests.utils_for_tests import mock_data
+from tests._utils_for_tests import mock_data
 from misc.dataset import StatsDataset
 import logging
 import logging.config
