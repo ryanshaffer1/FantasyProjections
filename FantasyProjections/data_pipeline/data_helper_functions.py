@@ -6,12 +6,24 @@
         swap_team_names : Changes the NFL team name used as a key in the dictionary if the name is not appropriate for the year.
         weeks_played_by_team : Returns all weeks in a year in which a team played a game, and all weeks containing at least one player with stats being tracked.
         cleanup_data : Performs final cleanup of gathered NFL stats data, including trimming unnecessary columns and setting/sorting indices.
+        compute_team_record : Computes the record (wins, losses, and ties) of a team GOING INTO each game (i.e. not including the result of the current game).
+        track_wins_losses_ties : Tracks whether each game is a win, loss, or tie for the team.
+        shift_val_one_game_back : Converts a team's wins, losses, or ties over the course of a season from post-game to pre-game values.
+        parse_year_from_data : Parses year from input date string.
+        clean_team_names : Modifies list of team names to process data for. Primarily used to generate a list of team names to replace the "all" placeholder.
+        gen_game_play_by_play : Filters and cleans play-by-play data for a specific game; keeps all plays from that game and sorts by increasing elapsed game time.
+        filter_game_time : Reduces the size of the midgame stats data by sampling the data at discrete game times, rather than keeping the stats after every single play.
+        construct_game_id : Generates Game ID as used by nfl-verse from a set of game information.
 """
+import logging
 import dateutil.parser as dateparse
 import numpy as np
 import pandas as pd
+from config import stats_config
 from data_pipeline import team_abbreviations
 
+# Set up logger
+logger = logging.getLogger('log')
 
 def calc_game_time_elapsed(data):
     """Calculates game-time elapsed (in minutes) from 0 to 60 minutes, given a DataFrame/Series with columns for qtr and time.
@@ -31,7 +43,7 @@ def calc_game_time_elapsed(data):
         qtr = data.loc[:,"qtr"]
         time = data.loc[:,"time"]
     else:
-        print('Must input data as pd.Series or pd.DataFrame')
+        logger.warning('Must input data to calc_game_time_elapsed as DataFrame or Series')
         qtr = None
         time = None
 
@@ -173,20 +185,7 @@ def cleanup_data(midgame_df, final_stats_df, list_of_stats='default'):
 
     # Default stat list
     if list_of_stats == 'default':
-        list_of_stats = [
-            "Pass Att",
-            "Pass Cmp",
-            "Pass Yds",
-            "Pass TD",
-            "Int",
-            "Rush Att",
-            "Rush Yds",
-            "Rush TD",
-            "Rec",
-            "Rec Yds",
-            "Rec TD",
-            "Fmb",
-        ]
+        list_of_stats = stats_config.default_stat_list
 
     # Organize dfs
     midgame_df = midgame_df.reset_index().set_index(
@@ -300,7 +299,19 @@ def parse_year_from_date(x):
     return output
 
 
-def clean_team_names(team_names, year):
+def clean_team_names(team_names, year=None):
+    """Modifies list of team names to process data for. Primarily used to generate a list of team names to replace the "all" placeholder.
+
+        If a list of team names is input, no change is made.
+
+        Args:
+            team_names (str | list): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]).
+            year (int, optional): Season to use to generate the full list of team names. Defaults to None. Must be input if team_names is "all".
+
+        Returns:
+            list: List of full team names.
+    """
+
     # Processing only needed if team_names=='all'
     if team_names == 'all':
 
@@ -316,6 +327,16 @@ def clean_team_names(team_names, year):
 
 
 def gen_game_play_by_play(pbp_df, game_id):
+    """Filters and cleans play-by-play data for a specific game; keeps all plays from that game and sorts by increasing elapsed game time.
+
+        Args:
+            pbp_df (pandas.DataFrame): Play-by-play data for all plays in an NFL season, taken from nfl-verse. 
+            game_id (str): Game ID for a specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
+
+        Returns:
+            pandas.DataFrame: pbp_df input, filtered to only the plays with matching game_id. Elapsed Time is added as a column and set as the index.
+    """
+
 
     # Make a copy of the input play-by-play df
     pbp_df = pbp_df.copy()
@@ -355,3 +376,24 @@ def filter_game_time(player_stats_df, game_times):
             columns={'Rounded Time': 'Elapsed Time'}).set_index('Elapsed Time')
 
     return player_stats_df
+
+
+def construct_game_id(final_stats_row):
+    """Generates Game ID as used by nfl-verse from a set of game information.
+
+        Args:
+            final_stats_row (pandas.Series): Stats data for a game, including home/away teams, year, and week.
+
+        Returns:
+            str: Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
+    """
+
+    # Gather/format data from Series
+    year = final_stats_row['Year']
+    week = str(final_stats_row['Week']).rjust(2,'0')
+    home_team = final_stats_row['Team'] if final_stats_row['Site'] == 'Home' else final_stats_row['Opponent']
+    away_team = final_stats_row['Team'] if final_stats_row['Site'] == 'Away' else final_stats_row['Opponent']
+
+    # Construct and return game_id string
+    game_id = f'{year}_{week}_{away_team}_{home_team}'
+    return game_id

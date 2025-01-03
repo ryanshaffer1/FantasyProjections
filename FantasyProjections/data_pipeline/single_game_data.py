@@ -1,25 +1,67 @@
+"""Creates and exports class to be used in NFL player statistics data collection.
 
+    Classes:
+        SingleGamePbpParser : Collects all player stats for a single NFL game. Automatically processes data upon initialization.
+"""
 import numpy as np
 import pandas as pd
+from config import stats_config
 from misc.stat_utils import stats_to_fantasy_points
-from .data_helper_functions import gen_game_play_by_play, filter_game_time
+from data_pipeline.data_helper_functions import gen_game_play_by_play, filter_game_time
 
 class SingleGamePbpParser():
-    def __init__(self, seasonal_data, game_id, week, **kwargs):
-        """_summary_
+    """Collects all player stats for a single NFL game. Automatically processes data upon initialization.
+    
+        Args:
+            seasonal_data (SeasonalDataCollector): "Parent" object containing data relating to the NFL season.
+                Not stored as an object attribute.
+            game_id (str): Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
+        Keyword Arguments: 
+            game_times (list | str, optional): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
+                Not stored as an object attribute.
+
+        Additional Attributes Created during Initialization:
+            year (int): Year of game being processed
+            week (int): Week in NFL season of game being processed
+            game_info (pandas.DataFrame): Information setting context for the game, including home/away teams, team records, etc.
+            roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
+            pbp_df (pandas.DataFrame): Play-by-play data for all plays in the game, taken from nfl-verse.
+            midgame_df (pandas.DataFrame): All midgame statistics for each player of interest over the course of the game. 
+                Sampled throughout the game according to optional game_times input.
+            final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
+        
+        Public Methods: 
+            parse_play_by_play : Calculates midgame and final statistics for all players in a game, using play-by-play data describing passes, rushes, etc.
+    """
+
+    def __init__(self, seasonal_data, game_id, **kwargs):
+        """Constructor for SingleGamePbpParser object.
 
             Args:
-                seasonal_data (_type_): _description_
-                team_name (_type_): _description_
-                week (_type_): _description_
-                
-                pbp_df (pandas.DataFrame): Play-by-play information for every play in the game currently being processed.
+                seasonal_data (SeasonalDataCollector): "Parent" object containing data relating to the NFL season.
+                    Not stored as an object attribute.
+                game_id (str): Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
+            Keyword Arguments: 
+                game_times (list | str, optional): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
+                    Not stored as an object attribute.
+
+            Additional Attributes Created during Initialization:
+                year (int): Year of game being processed
+                week (int): Week in NFL season of game being processed
+                game_info (pandas.DataFrame): Information setting context for the game, including home/away teams, team records, etc.
+                roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
+                pbp_df (pandas.DataFrame): Play-by-play data for all plays in the game, taken from nfl-verse.
+                midgame_df (pandas.DataFrame): All midgame statistics for each player of interest over the course of the game. 
+                    Sampled throughout the game according to optional game_times input.
+                final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
         """
 
+        # Optional keyword arguments
         game_times = kwargs.get('game_times','all')
 
-        self.week = week
+        # Basic info
         self.year = seasonal_data.year
+        self.week = int(game_id.split('_')[1])
         # Game info
         self.game_info = seasonal_data.all_game_info_df.loc[game_id]
         # Roster info for this game from the two teams' seasonal data
@@ -51,12 +93,9 @@ class SingleGamePbpParser():
         # Re-format optional inputs
         if game_times != 'all':
             game_times = np.array(game_times)
-        # Basic info
-        year = self.year
-        week = self.week
 
         # Compute stats for each player on the team in this game
-        list_of_player_dfs = self.roster_df.apply(self.parse_player_stats,
+        list_of_player_dfs = self.roster_df.apply(self.__parse_player_stats,
                             args=(game_times,),
                             axis=1)
         final_stats_df = pd.concat([row.iloc[-1] for row in list_of_player_dfs],axis=1)
@@ -70,7 +109,7 @@ class SingleGamePbpParser():
 
         # Add some seasonal/weekly context to the dataframes
         for df in [midgame_stats_df, final_stats_df]:
-            df[['Year', 'Week']] = [year, week]
+            df[['Year', 'Week']] = [self.year, self.week]
             df['Team'] = self.roster_df.loc[(df['Player'],'Team')].tolist()
             df['Opponent'] = self.game_info.set_index('Team Abbrev').loc[df['Team'],'Opp Abbrev'].to_list()
             df['Site'] = self.game_info.set_index('Team Abbrev').loc[df['Team'],'Site'].to_list()
@@ -85,12 +124,11 @@ class SingleGamePbpParser():
         return midgame_stats_df, final_stats_df
 
 
-    def parse_player_stats(self, roster_df_row, game_times):
+    def __parse_player_stats(self, roster_df_row, game_times):
         """Determines the mid-game stats for one player throughout the game.
 
             Args:
                 roster_df_row (pandas.Series): Roster information for one player (number, ID, position, etc.).
-                game_info (pandas.Series): Information related to the game, including home team, away team, etc.
                 game_times (list | str): Times in the game to output midgame stats for. May be a list of elapsed times in minutes, 
                     in which case the soonest play-by-play time after that elapsed time will be used as the stats at that time. If a string is passed, no filtering occurs.
 
@@ -117,25 +155,13 @@ class SingleGamePbpParser():
         player_stats_df['Opp Score'] = self.pbp_df[f'total_{opp_game_site}_score']
 
         # Assign stats to player (e.g. passing yards, rushing TDs, etc.)
-        player_stats_df = self.assign_stats_from_plays(player_stats_df, roster_df_row, team_abbrev=roster_df_row['Team'])
+        player_stats_df = self.__assign_stats_from_plays(player_stats_df, roster_df_row, team_abbrev=roster_df_row['Team'])
 
         # Clean up the player dataframe
         player_stats_df = player_stats_df[['Team Score',
                                     'Opp Score',
                                     'Possession',
-                                    'Field Position',
-                                    'Pass Att',
-                                    'Pass Cmp',
-                                    'Pass Yds',
-                                    'Pass TD',
-                                    'Int',
-                                    'Rush Att',
-                                    'Rush Yds',
-                                    'Rush TD',
-                                    'Rec',
-                                    'Rec Yds',
-                                    'Rec TD',
-                                    'Fmb']]
+                                    'Field Position'] + stats_config.default_stat_list]
 
         # Perform cumulative sum on all columns besides the list below
         for col in set(player_stats_df.columns) ^ set(
@@ -153,7 +179,7 @@ class SingleGamePbpParser():
         return player_stats_df
 
 
-    def assign_stats_from_plays(self, player_stat_df, player_df, team_abbrev):
+    def __assign_stats_from_plays(self, player_stat_df, player_df, team_abbrev):
         """Parses play-by-play information to translate the result of plays into stats for the player currently being processed.
 
             Note that these stats are not cumulative, they only count stats for each play (later code outside this function accumulates the stats over the game).

@@ -6,11 +6,12 @@
         create_filter_plot : Plots bar chart of average Fantasy Points for each player in filtered list (sorted in descending order), colored by position.
 """
 
+import logging
 import matplotlib.pyplot as plt
 from misc.stat_utils import stats_to_fantasy_points
 
-# Processes boxscore stats and rosters to create a short list of players to focus data collection on
-# Generates a csv of the players to hone in on
+# Set up logger
+logger = logging.getLogger('log')
 
 def generate_roster_filter(rosters_df, final_stats_df, save_file=None, num_players=300, plot_filter=False):
     """Generates a short list of players to focus data collection on, based on highest average Fantasy Points per game.
@@ -86,15 +87,13 @@ def generate_roster_filter(rosters_df, final_stats_df, save_file=None, num_playe
     # Save
     if save_file:
         player_list_df.to_csv(save_file)
-        print(f'Saved Roster Filter to {save_file}')
+        logger.info(f'Saved Roster Filter to {save_file}')
 
     # Print data and breakdown by team/position
-    print('================= Roster Filter ==================')
-    print(player_list_df)
-    print('================== Breakdown by Team =================')
-    print(player_list_df['Team'].value_counts())
-    print('================== Breakdown by Position =================')
-    print(player_list_df['Position'].value_counts())
+    logger.info('Roster Filter Breakdown by Team:')
+    logger.info(f'{player_list_df['Team'].value_counts()}')
+    logger.info('Roster Filter Breakdown by Position:')
+    logger.info(f'{player_list_df['Position'].value_counts()}')
 
     if plot_filter:
         create_filter_plot(player_list_df, num_players)

@@ -11,8 +11,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from config import stats_config
 
-# Timing input (global variable) used to prevent network overload/shutoff
-REQ_WAIT_TIME = 2  # seconds between web scraper HTTP requests
+REQ_WAIT_TIME = 2  # seconds between web scraper HTTP requests to avoid rate-limiting lockout by pro-football-reference
 
 
 def scrape_box_score(stats_html, team_abbrevs, last_req_time):
@@ -21,6 +20,7 @@ def scrape_box_score(stats_html, team_abbrevs, last_req_time):
         Args:
             stats_html (str): HTML to page containing game stats on pro-football-reference.com.
             team_abbrevs (str | list of strs): Abbreviation(s) of the team(s) being processed (as used on pro-football-reference.com)
+            last_req_time (): Timestamp of the last HTML request made. Included so that REQ_WAIT_TIME is not exceeded (tripping rate limiting thresholds).
 
         Returns:
             pandas.DataFrame: Final stats for each player on the team who played in the game.
@@ -37,7 +37,6 @@ def scrape_box_score(stats_html, team_abbrevs, last_req_time):
     # Make HTTP request (after waiting for the cooldown period)
     sleep_time = max(0, REQ_WAIT_TIME - (datetime.now() -
                      last_req_time).total_seconds())
-    print(f'\t sleeping {sleep_time} seconds')
     sleep(sleep_time)  # Wait until enough time has passed
     r = requests.get(stats_html, timeout=10)  # Make the GET request
     last_req_time = datetime.now()  # Keep track of last time a GET request was made

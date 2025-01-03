@@ -70,6 +70,7 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
         # Load local files
         try:
             yearly_dfs = tuple(pd.read_csv(local_file_paths[name].format(year), low_memory=False) for name in local_file_paths)
+            logger.info('\n'.join([f'Read {name} from {local_file_paths[name].format(year)}' for name in local_file_paths]))
             # Check if local files contain all weeks (checks all df's together)
             weeks_present = [all((any(df['week']==week) for df in yearly_dfs)) for week in weeks]
         except FileNotFoundError:
@@ -77,6 +78,7 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
 
         # Download files from online and save locally (updates all df's together)
         if not all(weeks_present):
+            logger.info(f'Missing weeks in local data files for {year}.')
             yearly_dfs = ()
             if online_avail:
                 for name in local_file_paths:

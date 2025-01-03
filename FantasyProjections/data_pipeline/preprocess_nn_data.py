@@ -4,9 +4,14 @@
         preprocess_nn_data : Converts NFL stats data from raw statistics to a Neural Network-readable format.
 """
 
+import logging
 import pandas as pd
+from config import stats_config
 from misc.stat_utils import normalize_stat
 from misc.manage_files import create_folders
+
+# Set up logger
+logger = logging.getLogger('log')
 
 def preprocess_nn_data(midgame_input, final_stats_input,
                        save_folder=None, save_filenames=None):
@@ -66,19 +71,7 @@ def preprocess_nn_data(midgame_input, final_stats_input,
         "Team Score",
         "Opp Score",
         "Possession",
-        "Field Position",
-        "Pass Att",
-        "Pass Cmp",
-        "Pass Yds",
-        "Pass TD",
-        "Int",
-        "Rush Att",
-        "Rush Yds",
-        "Rush TD",
-        "Rec",
-        "Rec Yds",
-        "Rec TD",
-        "Fmb",
+        "Field Position"] + stats_config.default_stat_list + [
         "Age",
         "Site",
         "Team Wins",
@@ -88,20 +81,8 @@ def preprocess_nn_data(midgame_input, final_stats_input,
         "Opp Losses",
         "Opp Ties",
     ]
-    final_stats_numeric_columns = [
-        "Pass Att",
-        "Pass Cmp",
-        "Pass Yds",
-        "Pass TD",
-        "Int",
-        "Rush Att",
-        "Rush Yds",
-        "Rush TD",
-        "Rec",
-        "Rec Yds",
-        "Rec TD",
-        "Fmb",
-    ]
+    final_stats_numeric_columns = stats_config.default_stat_list
+
     # Sort by year/week/team/player
     midgame_input = midgame_input.sort_values(
         by=["Year", "Week", "Team", "Player"], ascending=[True, True, True, True]
@@ -128,15 +109,15 @@ def preprocess_nn_data(midgame_input, final_stats_input,
     fields = ["Position", "Player", "Team", "Opponent"]
     encoded_fields_df = pd.get_dummies(id_df[fields],columns=fields,dtype=int)
     midgame_input = pd.concat((midgame_input,encoded_fields_df),axis=1)
-    print('Data pre-processed for projections')
+    logger.info('Data pre-processed for projections')
 
     # Save data
     if save_folder is not None:
         create_folders(save_folder)
-        print('Saving pre-processed NN data...')
+        logger.info('Saving pre-processed NN data')
         midgame_input.to_csv(f'{save_folder}{save_filenames['midgame']}', index=False)
         final_stats_input.to_csv(f'{save_folder}{save_filenames['final']}', index=False)
         id_df.to_csv(f'{save_folder}{save_filenames['id']}', index=False)
-        print(f'Saved pre-processed data to {save_folder}')
+        logger.info(f'Saved pre-processed data to {save_folder}')
 
     return midgame_input, final_stats_input, id_df
