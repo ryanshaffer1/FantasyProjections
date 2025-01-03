@@ -20,6 +20,7 @@ import dateutil.parser as dateparse
 import numpy as np
 import pandas as pd
 from config import stats_config
+from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline import team_abbreviations
 
 # Set up logger
@@ -189,14 +190,14 @@ def cleanup_data(midgame_df, final_stats_df, list_of_stats='default'):
 
     # Organize dfs
     midgame_df = midgame_df.reset_index().set_index(
-        ["Player", "Year", "Week", "Elapsed Time"]
+        [PRIMARY_PLAYER_ID, 'Year', 'Week', 'Elapsed Time']
     )
 
     final_stats_df = (
-        final_stats_df.reset_index().set_index(["Player", "Year", "Week"]).sort_index()
+        final_stats_df.reset_index().set_index([PRIMARY_PLAYER_ID, 'Year', 'Week']).sort_index()
     )
-
-    final_stats_df = final_stats_df[["Team", "Opponent", "Position", "Age", "Site"] + list_of_stats]
+    alt_ids = ['pfr_id', 'sleeper_id']
+    final_stats_df = final_stats_df[['Player Name', 'Team', 'Opponent', 'Position', 'Age', 'Site'] + alt_ids + list_of_stats]
 
     return midgame_df, final_stats_df
 

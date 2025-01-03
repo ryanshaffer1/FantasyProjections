@@ -8,6 +8,8 @@ import logging
 import dateutil.parser as dateparse
 import pandas as pd
 from config import data_files_config
+from config import player_id_config
+from config.player_id_config import fill_blank_player_ids
 from data_pipeline import team_abbreviations
 from data_pipeline.single_game_data import SingleGamePbpParser
 from data_pipeline.data_helper_functions import compute_team_record, parse_year_from_date, clean_team_names
@@ -224,7 +226,7 @@ class SeasonalDataCollector():
             scores_df['game_date'] = scores_df.apply(lambda x:
                 dateparse.parse(x['game_date']).strftime('%Y%m%d'), axis=1)
             scores_df['PFR URL'] = scores_df.apply(lambda x:
-                data_files_config.URL_INTRO + x['game_date'] + '0' +
+                data_files_config.PFR_BOXSCORE_URL_INTRO + x['game_date'] + '0' +
                 team_abbreviations.convert_abbrev(x['Home Team Abbrev'],
                 team_abbreviations.pbp_abbrevs,team_abbreviations.roster_website_abbrevs
                 ) + '.htm', axis=1)
@@ -295,18 +297,17 @@ class SeasonalDataCollector():
         all_rosters_df = all_rosters_df[all_rosters_df.apply(
             lambda x: x['status'] in valid_statuses, axis=1)]
 
-
         # Compute age based on birth date
         all_rosters_df['Age'] = all_rosters_df['season'] - all_rosters_df['birth_date'].apply(parse_year_from_date)
 
         # Trim to just the fields that are useful
-        all_rosters_df=all_rosters_df[[
+        all_rosters_df=all_rosters_df[
+            player_id_config.PLAYER_IDS + [
             'team',
             'week',
             'position',
             'jersey_number',
             'full_name',
-            'gsis_id',
             'Age']]
         # Reformat
         all_rosters_df=all_rosters_df.rename(columns=
@@ -315,8 +316,15 @@ class SeasonalDataCollector():
             'week': 'Week',
             'position': 'Position',
             'jersey_number': 'Number',
-            'full_name': 'Name',
-            'gsis_id': 'Player ID'
+            'full_name': 'Player Name'
             }).set_index(['Team','Week']).sort_index()
+
+        # Update player IDs
+        all_rosters_df = fill_blank_player_ids(players_df=all_rosters_df,
+                                               master_id_file=data_files_config.MASTER_PLAYER_ID_FILE,
+                                               pfr_id_filename=data_files_config.PFR_ID_FILENAME,
+                                               add_missing_pfr=False,
+                                               update_master=False)
+
 
         return all_rosters_df

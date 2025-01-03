@@ -5,6 +5,7 @@
 DATA_FOLDER = 'data/'
 INPUT_FOLDER = DATA_FOLDER + 'inputs/'
 OUTPUT_FOLDER = DATA_FOLDER + 'stats/'
+MISC_FOLDER = DATA_FOLDER + 'misc/'
 PRE_PROCESS_FOLDER = DATA_FOLDER + 'to_nn/'
 
 # Files
@@ -19,9 +20,14 @@ online_file_paths = {'pbp': ONLINE_DATA_SOURCE + 'pbp/play_by_play_{0}.csv',
 local_file_paths = {'pbp':INPUT_FOLDER + 'play_by_play/play_by_play_{0}.csv',
                     'roster': INPUT_FOLDER + 'rosters/roster_weekly_{0}.csv'}
 
-# Additional info sources
-URL_INTRO = 'https://www.pro-football-reference.com/boxscores/'
 
-# Miscellaneous: Box-Score Parsing Validation files
-TRUE_STATS_FILE = DATA_FOLDER + 'misc/true_box_scores.csv'
-PARSING_VALIDATION_FILE = DATA_FOLDER + 'misc/pbp_parsing_validation.csv'
+# Miscellaneous:
+# Pro-Football-Reference.com URL intros
+PFR_BOXSCORE_URL_INTRO = 'https://www.pro-football-reference.com/boxscores/'
+PFR_PLAYER_URL_INTRO = 'https://www.pro-football-reference.com/players/'
+# Box-Score Parsing Validation files
+TRUE_STATS_FILE = MISC_FOLDER + 'true_box_scores.csv'
+PARSING_VALIDATION_FILE = MISC_FOLDER + 'pbp_parsing_validation.csv'
+# Player ID dictionaries/cross-mapping files
+MASTER_PLAYER_ID_FILE = MISC_FOLDER+'player_ids.csv'
+PFR_ID_FILENAME = MISC_FOLDER+'names_to_pfr_ids.json'

@@ -33,9 +33,9 @@ UPDATE_FILTER    = False # Forces re-evaluation of filtered list of players
 VALIDATE_PARSING = True # Gathers true box scores from the internet to confirm logic in play-by-play parsing is correct
 SCRAPE_MISSING   = True # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
 # Data Inputs
-TEAM_NAMES    = 'all'  # All team names
-YEARS               = range(2024, 2025) # All years to process data for
-WEEKS               = range(1, 2)      # All weeks to process data for (applies this set to all years in YEARS)
+TEAM_NAMES    = 'all' # All team names
+YEARS               = range(2020, 2025) # All years to process data for
+WEEKS               = range(1, 19)      # All weeks to process data for (applies this set to all years in YEARS)
 GAME_TIMES          = range(0, 76)      # range(0,76). Alternates: 'all', list of numbers
 
 

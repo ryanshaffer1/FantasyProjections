@@ -8,6 +8,7 @@ import logging
 import matplotlib.pyplot as plt
 import pandas as pd
 from config import data_files_config, stats_config
+from config.player_id_config import fill_blank_player_ids
 from data_pipeline.scrape_pro_football_reference import scrape_box_score
 from data_pipeline import team_abbreviations
 from data_pipeline.data_helper_functions import construct_game_id
@@ -36,33 +37,42 @@ def validate_parsed_data(final_stats_df, urls_df, scrape=False, save_data=False)
 
     # Read saved truth data
     try:
-        true_df = pd.read_csv(data_files_config.TRUE_STATS_FILE).set_index(['Player','Year','Week'])
+        true_df = pd.read_csv(data_files_config.TRUE_STATS_FILE).set_index(['pfr_id','Year','Week'])
     except FileNotFoundError:
-        true_df = pd.DataFrame(columns=final_stats_df.reset_index().columns).set_index(['Player','Year','Week'])
+        logger.warning('True Stats data file not found! Building from scratch.')
+        true_df = pd.DataFrame()
 
     # Compare saved truth data to input data to determine whether any saved truth data is missing
-    missing_games = __identify_missing_games(final_stats_df, true_df)
+    missing_games, _ = __identify_missing_games(final_stats_df, true_df, fill_missing_data=False)
+
+    # Add PFR ID to any players in the parsed database that are missing it
+    final_stats_df = fill_blank_player_ids(players_df=final_stats_df,
+                                            master_id_file=data_files_config.MASTER_PLAYER_ID_FILE,
+                                            pfr_id_filename=data_files_config.PFR_ID_FILENAME,
+                                            add_missing_pfr=scrape,
+                                            update_master=save_data)
 
     if scrape and len(missing_games) > 0:
         logger.info('Scraping web data:')
+
         # Scrape the corresponding stat URLs
-        for i, (_, row) in enumerate(missing_games.iterrows()):
+        for i, (game_id, row) in enumerate(missing_games.iterrows()):
             team_abbrevs = team_abbreviations.convert_abbrev(row[['Team','Opponent']].to_list(),
                                                             team_abbreviations.pbp_abbrevs,
                                                             team_abbreviations.boxscore_website_abbrevs)
-            game_url = urls_df.loc[row['Game ID'],'PFR URL']
-            logger.info(f'({i+1} of {len(missing_games)}) {row['Game ID']} from {game_url}')
+            game_url = urls_df.loc[game_id,'PFR URL']
+            logger.info(f'({i+1} of {len(missing_games)}) {game_id} from {game_url}')
             boxscore, last_req_time = scrape_box_score(game_url, team_abbrevs, last_req_time)
 
             boxscore[['Year', 'Week']] = row.loc[['Year', 'Week']].to_list()
-            boxscore = boxscore.reset_index().set_index(['Player','Year','Week'])
+            boxscore = boxscore.set_index(['pfr_id','Year','Week'])
             true_df = pd.concat((true_df, boxscore))
 
         # Log number of remaining missing players/games
-        __identify_missing_games(final_stats_df, true_df)
+        _, true_df = __identify_missing_games(final_stats_df, true_df, fill_missing_data=True)
 
         # Remove any unwanted duplicates from the resulting dataframe
-        true_df = true_df.reset_index().drop_duplicates(keep='first').set_index(['Player','Year','Week'])
+        true_df = true_df.reset_index().drop_duplicates(keep='first').set_index(['pfr_id','Year','Week'])
         # Save updated dataframe for use next time
         if save_data:
             create_folders(data_files_config.TRUE_STATS_FILE)
@@ -75,12 +85,7 @@ def validate_parsed_data(final_stats_df, urls_df, scrape=False, save_data=False)
     diff_df = __compare_dfs(true_df, final_stats_df, stats)
 
     # Log comparison performance
-    stats_diffs = diff_df[[s+'_diff' for s in stats]]
-    avg_diffs = stats_diffs.mean()
-    num_nonzero = stats_diffs.astype(bool).sum()
-    logger.info(f'Number of differences between parsed and true data: {num_nonzero.sum()} ({100*num_nonzero.sum()/stats_diffs.size:.2f}%)')
-    logger.debug(f'Number of differences by stat: \n{num_nonzero}')
-    logger.debug(f'Average difference by stat: \n{avg_diffs}')
+    __print_validation_comparison(diff_df, stats)
 
     # Optionally save dataframe to a csv
     if save_data:
@@ -91,27 +96,34 @@ def validate_parsed_data(final_stats_df, urls_df, scrape=False, save_data=False)
     __plot_validation_comparison(diff_df, stats)
 
 
-def __identify_missing_games(final_stats_df, true_df):
+def __identify_missing_games(final_stats_df, true_df, fill_missing_data=False):
+    final_stats_df = final_stats_df.copy() # Copy df before manipulating it
+    final_stats_df = final_stats_df.reset_index().set_index(['pfr_id','Year','Week'])
+
     # Compare saved truth data to input data to determine whether any saved truth data is missing
     missing_players = final_stats_df.index.difference(true_df.index)
     # Gather unique game IDs that are missing
-    missing_games = final_stats_df.copy().loc[missing_players].reset_index() # Copy df before manipulating it, then filter to only the missing players
+    missing_games = final_stats_df.loc[missing_players].reset_index() # Filter to only the missing players
     missing_games['Game ID'] = missing_games.apply(construct_game_id, axis=1)
-    missing_games = missing_games.drop_duplicates(subset=['Game ID'],keep='first')
+    missing_games = missing_games.drop_duplicates(subset=['Game ID'],keep='first').set_index('Game ID')
     logger.info(f'Truth Data missing {len(missing_players)} players from {len(missing_games)} games.')
 
-    return missing_games
+    if fill_missing_data:
+        logger.info('Assigning 0 to all missing player stats.')
+        true_df = pd.concat((true_df, final_stats_df.loc[missing_players, ['Player Name', 'Team']])).fillna(0)
+
+    return missing_games, true_df
 
 
 def __compare_dfs(true_df, final_stats_df, stats):
     # Merge dataframes and compute differences in statistics
     merged_df = pd.merge(
         true_df.reset_index(), final_stats_df.reset_index(), how='inner', on=[
-            'Player', 'Year', 'Week'])
+            'pfr_id', 'Year', 'Week'])
     for stat in stats:
         merged_df[f'{stat}_diff'] = merged_df[f'{stat}_y'] - \
             merged_df[f'{stat}_x']  # Estimated minus truth
-    diff_df = merged_df[['Player', 'Year', 'Week'] + [s + '_diff' for s in stats]]
+    diff_df = merged_df[['pfr_id', 'Player Name_x', 'Year', 'Week'] + [s + '_diff' for s in stats]]
 
     return diff_df
 
@@ -133,3 +145,13 @@ def __plot_validation_comparison(diff_df, stats):
     ax.set_title('Play-By-Play Parsing Validation vs. True Statlines')
 
     plt.show(block=False)
+
+
+def __print_validation_comparison(diff_df, stats):
+    # Log comparison performance
+    stats_diffs = diff_df[[s+'_diff' for s in stats]]
+    avg_diffs = stats_diffs.mean()
+    num_nonzero = stats_diffs.astype(bool).sum()
+    logger.info(f'Number of differences between parsed and true data: {num_nonzero.sum()} ({100*num_nonzero.sum()/stats_diffs.size:.2f}%)')
+    logger.debug(f'Number of differences by stat: \n{num_nonzero}')
+    logger.debug(f'Average difference by stat: \n{avg_diffs}')
