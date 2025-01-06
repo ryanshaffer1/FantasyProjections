@@ -31,16 +31,12 @@ FOLDER_PREFIX = ''
 save_folder = f'models/{FOLDER_PREFIX}{datetime.strftime(datetime.now(),'%Y%m%d_%H%M%S')}/'
 LOAD_FOLDER = 'models/11222024003003/'
 
-# ---------------------
-# Data Setup
-# ---------------------
 # Neural Net Data files
-PBP_DATAFILE = 'data2/to_nn/midgame_data_to_nn.csv'
-BOXSCORE_DATAFILE = 'data2/to_nn/final_stats_to_nn.csv'
-ID_DATAFILE = 'data2/to_nn/data_ids.csv'
+PBP_DATAFILE = 'data/to_nn/midgame_data_to_nn.csv'
+BOXSCORE_DATAFILE = 'data/to_nn/final_stats_to_nn.csv'
+ID_DATAFILE = 'data/to_nn/data_ids.csv'
 
 # Sleeper Data files
-SLEEPER_PLAYER_DICT_FILE = 'data/misc/sleeper_player_dict.json'
 SLEEPER_PROJ_DICT_FILE = 'data/misc/sleeper_projections_dict.json'
 
 # Set up logger
@@ -59,6 +55,9 @@ for name,file in zip(['pbp','boxscore','IDs'],[PBP_DATAFILE, BOXSCORE_DATAFILE, 
     logger.debug(f'{name}: {file}')
 
 # Training, validation, and test datasets
+# split_datasets(training={2021:'all',2022:'all',2023:range(1,12)},
+#                validation={2023:range(12,15)},
+#                test={2023:range(15,18)})
 all_data = StatsDataset('All', id_df=id_df, pbp_df=pbp_df, boxscore_df=boxscore_df)
 training_data = all_data.slice_by_criteria(inplace=False, years=range(2021,2022))
 training_data.concat(all_data.slice_by_criteria(inplace=False, years=[2023], weeks=range(1,12)))
@@ -92,7 +91,6 @@ else:
 
 # Alternate predictors
 sleeper_predictor = SleeperPredictor(name='Sleeper',
-                                     player_dict_file=SLEEPER_PLAYER_DICT_FILE,
                                      proj_dict_file=SLEEPER_PROJ_DICT_FILE,
                                      update_players=False) # Create Sleeper prediction model
 naive_predictor = LastNPredictor(name='Last N Games Predictor', n=3) # Create Naive prediction model
@@ -112,7 +110,7 @@ all_results.plot_all(PredictionResult.plot_scatters, data_vis_config.scatter_plo
 
 # Move logfile to the correct folder
 logging.shutdown()
-move_logfile('logfile.log',save_folder)
+move_logfile('logfile.log', save_folder)
 
 # Display plots
 plt.show()

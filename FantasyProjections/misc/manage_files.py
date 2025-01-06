@@ -52,7 +52,8 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
             online_avail (bool, optional): toggle whether to allow pulling additional data from online files as necessary. Defaults to False.
 
         Returns:
-            list: list of DataFrame objects corresponding to each input file type (e.g. 'pbp','roster').
+            list | tuple: if a single year is input, returns a tuple of DataFrame objects corresponding to each input file type (e.g. 'pbp','roster').
+                if multiple years are input, returns a list of tuples of DataFrame objects where each tuple corresponds to a year.
     """
 
     # Handle single year being input
@@ -69,6 +70,7 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
         # Load local files
         try:
             yearly_dfs = tuple(pd.read_csv(local_file_paths[name].format(year), low_memory=False) for name in local_file_paths)
+            logger.info('\n'.join([f'Read {name} from {local_file_paths[name].format(year)}' for name in local_file_paths]))
             # Check if local files contain all weeks (checks all df's together)
             weeks_present = [all((any(df['week']==week) for df in yearly_dfs)) for week in weeks]
         except FileNotFoundError:
@@ -76,6 +78,7 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
 
         # Download files from online and save locally (updates all df's together)
         if not all(weeks_present):
+            logger.info(f'Missing weeks in local data files for {year}.')
             yearly_dfs = ()
             if online_avail:
                 for name in local_file_paths:
@@ -90,6 +93,10 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
                 logger.warning('Warning! Not all weeks are present in the dfs, and could not download from online')
 
         all_dfs.append(yearly_dfs)
+
+    # If only one year is input, no need to output a list of tuples, just the one tuple
+    if len(years) == 1:
+        return all_dfs[0]
 
     return all_dfs
 

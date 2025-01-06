@@ -4,7 +4,7 @@ import pandas.testing as pdtest
 from predictors import FantasyPredictor
 # Modules needed for test setup
 from results import PredictionResult
-import tests.utils_for_tests.mock_data as mock_data
+import tests._utils_for_tests.mock_data as mock_data
 from misc.dataset import StatsDataset
 from misc.stat_utils import stats_to_fantasy_points
 import logging

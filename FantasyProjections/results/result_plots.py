@@ -30,7 +30,7 @@ def gen_scatterplots(result, **kwargs):
             
         Keyword-Args:
             columns (list, optional): list of the stats (e.g. 'Pass Yds') to plot in the figure. Each element is plotted on a separate subplot. Defaults to None.
-            slice (dict, optional): subset of the evaluated dataset to include in the figure. Keys may be 'Position', 'Team', or 'Player'. Defaults to empty.
+            slice (dict, optional): subset of the evaluated dataset to include in the figure. Keys may be 'Position', 'Team', 'Player Name', or 'Player ID'. Defaults to empty.
             legend_slice (dict, optional): subsets of the evaluated dataset to split into separate entities in the plot legend. Same keys as slice. Defaults to empty.
             subtitle (str, optional): text to include as a subtitle on the figure. Defaults to None.
             histograms (bool, optional): whether to include histograms on the axes of each subplot. Defaults to False.
@@ -100,7 +100,7 @@ def scatter_hist(truth_dfs, predict_dfs, ax, column, legend_slice, histograms=Tr
             predict_dfs (pandas.DataFrame): predicted stats (including Fantasy Points) for a full dataset
             ax (matplotlib.axes.Axes): subplot axes to use for scatterplot/histogram
             column (str): DataFrame column (stat, such as Pass Yds) containing data to plot
-            legend_slice (dict): subsets of the evaluated dataset to split into separate entities in the plot legend. Keys may be 'Player','Position','Team'
+            legend_slice (dict): subsets of the evaluated dataset to split into separate entities in the plot legend. Keys may be 'Player Name','Player ID','Position','Team'
             histograms (bool, optional): whether to include histograms on the axes of each subplot. Defaults to True.
 
         Returns:
@@ -215,7 +215,7 @@ def data_slice_to_plot(result, plot_slice, legend_slice, return_lists=True):
 
         Args:
             result (PredictionResult): object containing predicted and true statistics across a full dataset.
-            plot_slice (dict): subset of the evaluated dataset to include in the figure. Keys may be 'Position', 'Team', 'Player', 'Week', 'Year'...
+            plot_slice (dict): subset of the evaluated dataset to include in the figure. Keys may be 'Position', 'Team', 'Player Name', 'Player ID', 'Week', 'Year'...
             legend_slice (dict): subsets of the evaluated dataset to split into separate entities in the plot legend. Same keys as slice.
             return_lists (bool, optional): whether DataFrames in result should be returned in a list of lists 
                 (needed for backwards-compatibility with some data handling nonsense). Defaults to True.
@@ -227,13 +227,13 @@ def data_slice_to_plot(result, plot_slice, legend_slice, return_lists=True):
 
     # Copy results dataframes so that the result object's attributes are unmodified
     id_df = result.id_df.copy()
-    dfs_to_slice = [getattr(result,df_name) for df_name in ['truths','predicts','pbp_df'] if hasattr(result,df_name)]
+    dfs_to_slice = [getattr(result, df_name) for df_name in ['truths', 'predicts', 'pbp_df'] if hasattr(result, df_name)]
 
     # Slice data based on optional input
     if plot_slice:
         for key in plot_slice:
             indices_to_keep = id_df.apply(
-                check_df_for_slice, args=(key,plot_slice), axis=1)
+                check_df_for_slice, args=(key, plot_slice), axis=1)
             id_df = id_df[indices_to_keep]
             for i,df in enumerate(dfs_to_slice):
                 dfs_to_slice[i] = df[indices_to_keep]
@@ -243,8 +243,8 @@ def data_slice_to_plot(result, plot_slice, legend_slice, return_lists=True):
         df_lists = [[] for _ in dfs_to_slice]
         for key in legend_slice:
             for val in legend_slice[key]:
-                indices_to_keep = id_df.apply(check_df_for_slice, args=(key,val,'list'), axis=1)
-                for df_list,df in zip(df_lists,dfs_to_slice):
+                indices_to_keep = id_df.apply(check_df_for_slice, args=(key, val, 'list'), axis=1)
+                for df_list,df in zip(df_lists, dfs_to_slice):
                     df_list.append(df[indices_to_keep])
     else:
         df_lists = []
@@ -302,7 +302,7 @@ def plot_game_timeline(result, game_id, fig=None):
         Args:
             result (PredictionResult): object containing predicted and true statistics across a full dataset.
             game_id (dict): game/player to visualize. Must contain the following keys:
-                - "Player" : value -> str
+                - "Player ID" : value -> str
                 - "Year" : value -> int
                 - "Week" : value -> int
             fig (matplotlib.figure.Figure, optional): handle to the figure to add the plot to. Defaults to None.
@@ -311,6 +311,9 @@ def plot_game_timeline(result, game_id, fig=None):
     # Copy dataframes (to preserve original object attributes)
     # And trim content to only the data spec'd in game_id
     [truth_df,predict_df,pbp_df] = data_slice_to_plot(result, game_id, None, return_lists=False)
+
+    # Get player name from id_df
+    player_name = result.id_df.iloc[truth_df.index.values[0]]['Player Name']
 
     # Generate new figure if not plotting on a pre-existing fig
     if not fig:
@@ -324,13 +327,7 @@ def plot_game_timeline(result, game_id, fig=None):
     ax.legend(['Live Fantasy Score',
                f'{result.predictor_name} Final Fantasy Score',
                'True Final Fantasy Score'])
-    ax.set_title(
-        f'Fantasy Score, {
-            game_id['Player']}, {
-            game_id['Year']} Week {
-            game_id['Week']}',
-            weight='bold'
-    )
+    ax.set_title(f'Fantasy Score, {player_name}, {game_id['Year']} Week {game_id['Week']}', weight='bold')
     ax.set_xlabel('Elapsed Game Time (min)')
     ax.set_ylabel('Fantasy Points')
 

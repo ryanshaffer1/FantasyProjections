@@ -5,7 +5,7 @@ import pandas.testing as pdtest
 # Module under test
 from predictors import LastNPredictor
 # Modules needed for test setup
-from tests.utils_for_tests import mock_data_predictors
+from tests._utils_for_tests import mock_data_predictors
 from misc.dataset import StatsDataset
 from misc.stat_utils import stats_to_fantasy_points
 import logging

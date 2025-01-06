@@ -7,7 +7,7 @@ import torch
 # Module under test
 from misc.dataset import StatsDataset
 # Modules needed for test setup
-import tests.utils_for_tests.mock_data as mock_data
+import tests._utils_for_tests.mock_data as mock_data
 import logging
 import logging.config
 from config.log_config import LOGGING_CONFIG
@@ -32,7 +32,7 @@ class TestConstructor_StatsDataset(unittest.TestCase):
         inputs.append(torch.tensor(self.bs_df.values))
         inputs.append(self.pbp_df.columns.to_list())
         inputs.append(self.bs_df.columns.to_list())
-        inputs.append(['weeks', 'years', 'teams', 'players', 'elapsed_time'])
+        inputs.append(['weeks', 'years', 'teams', 'player_ids', 'elapsed_time'])
 
         # Multiple assertions, oh well
         self.assertEqual(dataset.name,self.name)
@@ -52,7 +52,7 @@ class TestConstructor_StatsDataset(unittest.TestCase):
         inputs.append(torch.tensor(self.bs_df.values))
         inputs.append(self.pbp_df.columns.to_list())
         inputs.append(self.bs_df.columns.to_list())
-        inputs.append(['weeks', 'years', 'teams', 'players', 'elapsed_time'])
+        inputs.append(['weeks', 'years', 'teams', 'player_ids', 'elapsed_time'])
 
         # Multiple assertions, oh well
         self.assertEqual(dataset.name,self.name)
@@ -124,11 +124,11 @@ class TestConstructor_StatsDataset(unittest.TestCase):
         self.assertTrue(dataset_sliced_by_index.equals(dataset_subset_of_data))
 
     def test_slicing_data_by_criteria_simple(self):
-        player = 'Austin Ekeler'
-        df_indices = self.id_df['Player'] == player
+        player_id = '00-0033699' # Austin Ekeler
+        df_indices = self.id_df['Player ID'] == player_id
         dataset_sliced_by_criteria = StatsDataset(name=self.name, id_df=self.id_df,
                                                   pbp_df=self.pbp_df, boxscore_df=self.bs_df,
-                                                  players=[player])
+                                                  player_ids=[player_id])
         dataset_subset_of_data = StatsDataset(name=self.name, id_df=self.id_df[df_indices],
                                               pbp_df=self.pbp_df[df_indices],
                                               boxscore_df=self.bs_df[df_indices])
@@ -219,11 +219,11 @@ class TestConcat_StatsDataset(unittest.TestCase):
     # Set Up
     def setUp(self):
         # Partial dataset 1
-        id_df1 = pd.DataFrame(data=[['Austin Ekeler',        2024, 1, 'WAS', 'TB', 'RB', 0],
-                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 1],
-                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 2],
-                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 3],],
-                             columns=['Player', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
+        id_df1 = pd.DataFrame(data=[['00-0033699', 'Austin Ekeler', 2024, 1, 'WAS', 'TB', 'RB', 0],
+                                    ['00-0033699', 'Austin Ekeler', 2024, 1, 'WAS', 'TB', 'RB', 1],
+                                    ['00-0033699', 'Austin Ekeler', 2024, 1, 'WAS', 'TB', 'RB', 2],
+                                    ['00-0033699', 'Austin Ekeler', 2024, 1, 'WAS', 'TB', 'RB', 3],],
+                             columns=['Player ID', 'Player Name', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
         pbp_df1 = pd.DataFrame(data=[[0, 0.65],[0.016666667, 0.34],[0.033333333, 0.55],[0.05, 0.6]],
                               columns=['Elapsed Time','Field Position'])
         bs_df1 = pd.DataFrame(data=[[0, 0, 0.047619048],[0, 0, 0.047619048],[0, 0, 0.047619048],[0, 0, 0.047619048]],
@@ -232,10 +232,10 @@ class TestConcat_StatsDataset(unittest.TestCase):
         
         # Partial dataset 2
         id_df2 = pd.DataFrame(data=[
-                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 22],
-                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 23],
-                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 24],],
-                             columns=['Player', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
+                                    ['00-0035208', 'Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 22],
+                                    ['00-0035208', 'Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 23],
+                                    ['00-0035208', 'Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 24],],
+                             columns=['Player ID', 'Player Name', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
         pbp_df2 = pd.DataFrame(data=[
                                     [0.366666667, 0.71],[0.383333333, 0.55],[0.4, 0.18]],
                               columns=['Elapsed Time','Field Position'])
@@ -244,14 +244,14 @@ class TestConcat_StatsDataset(unittest.TestCase):
         self.dataset2 = StatsDataset(name='dataset', id_df=id_df2, pbp_df=pbp_df2, boxscore_df=bs_df2)
         
         # Combined dataset
-        id_df = pd.DataFrame(data=[['Austin Ekeler',        2024, 1, 'WAS', 'TB', 'RB', 0],
-                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 1],
-                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 2],
-                                    ['Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 3],
-                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 22],
-                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 23],
-                                    ['Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 24]],
-                             columns=['Player', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
+        id_df = pd.DataFrame(data=[['00-0033699', 'Austin Ekeler',        2024, 1, 'WAS', 'TB', 'RB', 0],
+                                    ['00-0033699', 'Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 1],
+                                    ['00-0033699', 'Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 2],
+                                    ['00-0033699', 'Austin Ekeler',       2024, 1, 'WAS', 'TB', 'RB', 3],
+                                    ['00-0035208', 'Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 22],
+                                    ['00-0035208', 'Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 23],
+                                    ['00-0035208', 'Olamide Zaccheaus',   2024, 4, 'WAS', 'ARI', 'WR', 24]],
+                             columns=['Player ID', 'Player Name', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time'])
         pbp_df = pd.DataFrame(data=[[0, 0.65],[0.016666667, 0.34],[0.033333333, 0.55],[0.05, 0.6],
                                     [0.366666667, 0.71],[0.383333333, 0.55],[0.4, 0.18]],
                               columns=['Elapsed Time','Field Position'])
@@ -369,14 +369,14 @@ class TestSliceByCriteria_StatsDataset(unittest.TestCase):
 
         self.assertTrue(dataset_sliced.equals(dataset_expected))
         
-    def test_slice_by_player(self):
-        players = ['Olamide Zaccheaus']
+    def test_slice_by_player_id(self):
+        player_ids = ['00-0035208'] # Olamide Zaccheaus
         indices_with_slice = [4,5,6] # Set manually
         dataset_expected = StatsDataset(name=self.name,
                                         pbp_df=self.pbp_df.iloc[indices_with_slice],
                                         boxscore_df=self.bs_df.iloc[indices_with_slice],
                                         id_df=self.id_df.iloc[indices_with_slice])
-        dataset_sliced = self.dataset.slice_by_criteria(inplace=False, players=players)
+        dataset_sliced = self.dataset.slice_by_criteria(inplace=False, player_ids=player_ids)
 
         self.assertTrue(dataset_sliced.equals(dataset_expected))
         
@@ -456,7 +456,7 @@ class TestRemoveGameDuplicates_StatsDataset(unittest.TestCase):
                                           boxscore_df=bs_df)
 
         # Desired result: dataset with a single row per player/game
-        unique_game_indices = np.logical_not(id_df.duplicated(subset=('Player','Year','Week'),keep='first'))
+        unique_game_indices = np.logical_not(id_df.duplicated(subset=('Player ID','Year','Week'),keep='first'))
         id_df_no_dupe_games = id_df[unique_game_indices].reset_index(drop=True)
         pbp_df_no_dupe_games = pbp_df[unique_game_indices].reset_index(drop=True)
         bs_df_no_dupe_games = bs_df[unique_game_indices].reset_index(drop=True)

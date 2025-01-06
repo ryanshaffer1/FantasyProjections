@@ -3,7 +3,7 @@ import pandas.testing as pdtest
 # Module under test
 from results import PredictionResult, PredictionResultGroup
 # Modules needed for test setup
-import tests.utils_for_tests.mock_data as mock_data
+import tests._utils_for_tests.mock_data as mock_data
 from misc.dataset import StatsDataset
 from misc.stat_utils import stats_to_fantasy_points
 from predictors.perfect_predictor import PerfectPredictor

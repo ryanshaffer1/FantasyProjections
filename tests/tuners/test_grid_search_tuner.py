@@ -41,7 +41,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
                                        1000,1000,1000,1000,1000,
                                        10000,10000,10000,10000,10000]}
 
-        self.save_file = 'data/test files/empty/hyper_tuner.csv'
+        self.save_file = 'tests/_test_files/empty/hyper_tuner.csv'
 
         self.settings = {
             'optimize_hypers': True,
@@ -227,7 +227,7 @@ class TestTuneHyperParameters_GridSearchTuner(unittest.TestCase):
         self.hp3 = HyperParameter(name='hp3', value=100, optimizable=True, val_range=[1,10000],val_scale='log')
         self.hp_set = HyperParameterSet(hp_set=(self.hp1,self.hp2,self.hp3))
 
-        self.save_file = 'data/test files/empty/tuner_test.csv'
+        self.save_file = 'tests/_test_files/empty/tuner_test.csv'
 
         self.settings = {
             'optimize_hypers': True,
@@ -366,7 +366,7 @@ class TestRefineGrid_GridSearchTuner(unittest.TestCase):
         self.hp3 = HyperParameter(name='hp3', value=100, optimizable=True, val_range=[1,10000],val_scale='log')
         self.hp_set = HyperParameterSet(hp_set=(self.hp1,self.hp2,self.hp3))
 
-        self.save_file = 'data/test files/empty/hyper_tuner.csv'
+        self.save_file = 'tests/_test_files/empty/hyper_tuner.csv'
 
         self.settings = {
             'optimize_hypers': True,
