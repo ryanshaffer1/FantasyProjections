@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from config import data_files_config, stats_config
 from config.player_id_config import fill_blank_player_ids
-from data_pipeline.scrape_pro_football_reference import scrape_box_score
+from data_pipeline.stats_pipeline.scrape_pro_football_reference import scrape_box_score
 from data_pipeline import team_abbreviations as team_abbrs
 from data_pipeline.data_helper_functions import construct_game_id
 from misc.manage_files import create_folders
@@ -110,7 +110,9 @@ def __identify_missing_games(final_stats_df, true_df, fill_missing_data=False):
 
     if fill_missing_data:
         logger.info('Assigning 0 to all missing player stats.')
-        true_df = pd.concat((true_df, final_stats_df.loc[missing_players, ['Player Name', 'Team']])).fillna(0)
+        true_df = pd.concat((true_df, final_stats_df.loc[missing_players, ['Player Name', 'Team']]))
+        with pd.option_context("future.no_silent_downcasting", True):
+            true_df = true_df.fillna(0)
 
     return missing_games, true_df
 

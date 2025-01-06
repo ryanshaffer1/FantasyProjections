@@ -8,11 +8,15 @@
 
 from datetime import datetime
 from time import sleep
+import logging
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 from config import stats_config
 from config.data_files_config import PFR_PLAYER_URL_INTRO
+
+# Set up logger
+logger = logging.getLogger('log')
 
 REQ_WAIT_TIME = 2  # seconds between web scraper HTTP requests to avoid rate-limiting lockout by pro-football-reference
 
@@ -42,7 +46,13 @@ def scrape_box_score(stats_html, team_abbrevs, last_req_time):
     sleep_time = max(0, REQ_WAIT_TIME - (datetime.now() -
                      last_req_time).total_seconds())
     sleep(sleep_time)  # Wait until enough time has passed
-    r = requests.get(stats_html, timeout=10)  # Make the GET request
+    try:
+        r = requests.get(stats_html, timeout=10)  # Make the GET request
+    except requests.exceptions.ReadTimeout:
+        logger.warning(f'Read Timeout on {stats_html}. No data obtained.')
+        last_req_time = datetime.now()  # Keep track of last time a GET request was made
+        return box_score_df, last_req_time
+
     last_req_time = datetime.now()  # Keep track of last time a GET request was made
 
     soup = BeautifulSoup(r.content, 'html.parser')

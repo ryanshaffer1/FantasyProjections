@@ -15,7 +15,7 @@ import logging.config
 import json
 import pandas as pd
 from config.log_config import LOGGING_CONFIG
-from data_pipeline.scrape_pro_football_reference import search_for_missing_pfr_id
+from data_pipeline.stats_pipeline.scrape_pro_football_reference import search_for_missing_pfr_id
 
 
 # Define constants for ID systems being used and tracked throughout the program

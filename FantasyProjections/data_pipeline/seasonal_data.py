@@ -6,13 +6,12 @@
 
 import logging
 import dateutil.parser as dateparse
-import numpy as np
 import pandas as pd
 from config import data_files_config
 from config import player_id_config
 from config.player_id_config import fill_blank_player_ids
 from data_pipeline import team_abbreviations as team_abbrs
-from data_pipeline.single_game_data import SingleGamePbpParser
+from data_pipeline.stats_pipeline.single_game_pbp_parser import SingleGamePbpParser
 from data_pipeline.data_helper_functions import compute_team_record, clean_team_names
 from misc.manage_files import collect_input_dfs
 
@@ -299,7 +298,7 @@ class SeasonalDataCollector():
             lambda x: x['status'] in valid_statuses, axis=1)]
 
         # Compute age based on birth date. Assign birth year of 2000 for anyone with missing birth date...
-        all_rosters_df['Age'] = all_rosters_df['season'] - all_rosters_df['birth_date'].apply(lambda x: dateparse.parse(x).year if (not np.isnan(x)) else 2000)
+        all_rosters_df['Age'] = all_rosters_df['season'] - all_rosters_df['birth_date'].apply(lambda x: dateparse.parse(x).year if (x==x) else 2000)
 
         # Trim to just the fields that are useful
         all_rosters_df=all_rosters_df[
