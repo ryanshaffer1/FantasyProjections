@@ -73,7 +73,7 @@ class LastNPredictor(FantasyPredictor):
 
         # Grab stats for each game in the evaluation data
         prev_game_stats_df = eval_data.id_data.apply(
-            lambda x: all_ids.loc[(x['Player'], x['Year'], x['Week']), 'tensor'], axis=1)
+            lambda x: all_ids.loc[(x['Player ID'], x['Year'], x['Week']), 'tensor'], axis=1)
         prev_game_stats = torch.tensor(prev_game_stats_df.to_list())
         # List of stats being used to compute fantasy score
         stat_columns = eval_data.y_data_columns
@@ -99,11 +99,11 @@ class LastNPredictor(FantasyPredictor):
         # fantasy points
         first_year_in_dataset = min(all_data.id_data['Year'])
         # Set up dataframe to use to search for previous games
-        all_ids = all_data.id_data.copy()[['Player', 'Year', 'Week']]
+        all_ids = all_data.id_data.copy()[['Player ID', 'Year', 'Week']]
         all_ids = all_ids.reset_index().set_index(
-            ['Player', 'Year', 'Week']).sort_index()
+            ['Player ID', 'Year', 'Week']).sort_index()
         indices = all_ids.index
-        all_ids['Player Copy'] = all_ids.index.get_level_values(0).to_list()
+        all_ids['Player ID Copy'] = all_ids.index.get_level_values(0).to_list()
         all_ids['Prev Year'] = all_ids.index.get_level_values(1).to_list()
         all_ids['Prev Week'] = all_ids.index.get_level_values(2).to_list()
         all_ids['Prev Game Found'] = False
@@ -122,7 +122,7 @@ class LastNPredictor(FantasyPredictor):
 
             # Check if previous game is in the dataframe
             all_ids.loc[search_ids, 'Prev Game Found'] = all_ids.loc[search_ids].apply(
-                lambda x: (x['Player Copy'], x['Prev Year'], x['Prev Week']) in indices, axis=1)
+                lambda x: (x['Player ID Copy'], x['Prev Year'], x['Prev Week']) in indices, axis=1)
 
             # Check whether to continue searching for a previous game for this player
             all_ids.loc[search_ids,'Continue Prev Search'] = np.logical_not(
@@ -133,7 +133,7 @@ class LastNPredictor(FantasyPredictor):
         all_ids['Prev Game Index'] = np.nan
         valid_rows = all_ids['Prev Game Found']
         all_ids.loc[valid_rows, 'Prev Game Index'] = all_ids.loc[valid_rows].apply(
-            lambda x: all_ids.loc[(x['Player Copy'], x['Prev Year'], x['Prev Week']), 'index'], axis=1)
+            lambda x: all_ids.loc[(x['Player ID Copy'], x['Prev Year'], x['Prev Week']), 'index'], axis=1)
 
         return all_ids
 

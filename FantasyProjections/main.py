@@ -37,7 +37,6 @@ BOXSCORE_DATAFILE = 'data/to_nn/final_stats_to_nn.csv'
 ID_DATAFILE = 'data/to_nn/data_ids.csv'
 
 # Sleeper Data files
-SLEEPER_PLAYER_DICT_FILE = 'data/misc/sleeper_player_dict.json'
 SLEEPER_PROJ_DICT_FILE = 'data/misc/sleeper_projections_dict.json'
 
 # Set up logger
@@ -92,7 +91,6 @@ else:
 
 # Alternate predictors
 sleeper_predictor = SleeperPredictor(name='Sleeper',
-                                     player_dict_file=SLEEPER_PLAYER_DICT_FILE,
                                      proj_dict_file=SLEEPER_PROJ_DICT_FILE,
                                      update_players=False) # Create Sleeper prediction model
 naive_predictor = LastNPredictor(name='Last N Games Predictor', n=3) # Create Naive prediction model

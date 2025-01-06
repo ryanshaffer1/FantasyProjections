@@ -7,7 +7,7 @@
 import logging
 import pandas as pd
 from config import stats_config
-from config.player_id_config import PRIMARY_PLAYER_ID
+from config.player_id_config import PRIMARY_PLAYER_ID, ALT_PLAYER_IDS
 from misc.stat_utils import normalize_stat
 from misc.manage_files import create_folders
 
@@ -66,7 +66,7 @@ def preprocess_nn_data(midgame_input, final_stats_input,
     midgame_input['Possession'] = pd.to_numeric(midgame_input['Possession'])  # Convert Possession to 1/0
 
     # Only keep numeric data (non-numeric columns will be stripped out later in pre-processing)
-    ids = ['Player ID', 'pfr_id', 'sleeper_id']
+    ids = ['Player ID'] + ALT_PLAYER_IDS
     id_columns = ids+['Player Name', 'Year', 'Week', 'Team', 'Opponent', 'Position', 'Elapsed Time']
     midgame_numeric_columns = [
         'Elapsed Time',

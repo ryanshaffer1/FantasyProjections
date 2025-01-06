@@ -416,7 +416,7 @@ class TestGenRandomGames(unittest.TestCase):
     def setUp(self):
         self.id_df = mock_data.id_df
         self.unique_games = self.id_df.copy()
-        self.unique_games = self.unique_games.drop_duplicates(subset=['Player','Year','Week'],keep='first')
+        self.unique_games = self.unique_games.drop_duplicates(subset=['Player ID','Year','Week'],keep='first')
     
     def test_number_of_generated_games(self):
         n_games = 3
@@ -425,20 +425,20 @@ class TestGenRandomGames(unittest.TestCase):
 
     def test_game_ids_keys(self):
         result = proj.gen_random_games(id_df=self.id_df,n_random=1)
-        self.assertSetEqual(set(result[0].keys()),set(['Player','Year','Week']))
+        self.assertSetEqual(set(result[0].keys()),set(['Player ID','Year','Week']))
 
     def test_game_ids_output_types(self):
         result = proj.gen_random_games(id_df=self.id_df,n_random=1)
-        value_types = [type(result[0]['Player']), type(result[0]['Year']), type(result[0]['Week'])]
+        value_types = [type(result[0]['Player ID']), type(result[0]['Year']), type(result[0]['Week'])]
         self.assertListEqual(value_types,[str, np.int64, np.int64])
 
     def test_predetermined_game_ids_remain_in_result(self):
-        game_ids = [{'Player':'Austin Ekeler', 'Week': 1, 'Year': 2024}]
+        game_ids = [{'Player ID':'00-0033699', 'Week': 1, 'Year': 2024}]
         result = proj.gen_random_games(id_df=self.id_df, n_random=2, game_ids=game_ids)
         self.assertEqual([result[0]],game_ids)
 
     def test_gen_no_random_games(self):
-        game_ids = [{'Player':'Austin Ekeler', 'Week': 1, 'Year': 2024}]
+        game_ids = [{'Player ID':'00-0033699', 'Week': 1, 'Year': 2024}]
         result = proj.gen_random_games(id_df=self.id_df, n_random=0, game_ids=game_ids)
         self.assertEqual(len(result),len(game_ids))
     

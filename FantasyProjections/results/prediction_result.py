@@ -104,7 +104,7 @@ class PredictionResult():
                 all_plot_settings (list): list of dicts, where each element of the list specifies a new figure. 
                     Each element of the list is a dict which may contain the following fields:
                     - columns (list, optional): list of the stats (e.g. 'Pass Yds') to plot in the figure. Each element is plotted on a separate subplot.
-                    - slice (dict, optional): subset of the evaluated dataset to include in the figure. Keys may be 'Position', 'Team', or 'Player'.
+                    - slice (dict, optional): subset of the evaluated dataset to include in the figure. Keys may be 'Position', 'Team', 'Player Name', or 'Player ID'.
                     - legend_slice (dict, optional): subsets of the evaluated dataset to split into separate entities in the plot legend. Same keys as slice.
                     - subtitle (str, optional): text to include as a subtitle on the figure.
                     - histograms (bool, optional): whether to include histograms on the axes of each subplot. Defaults to False.
@@ -125,7 +125,7 @@ class PredictionResult():
         
             Keyword-Args:
                 game_ids (list, optional): list of pre-determined games/players to visualize. Each element of list is a dict with keys:
-                    - "Player" : value -> str
+                    - "Player ID" : value -> str
                     - "Year" : value -> int
                     - "Week" : value -> int
                 n_random (int, optional): number of games/players to randomly generate and display (besides pre-determined games in game_ids). Defaults to 0.

@@ -72,7 +72,7 @@ class StatsDataset(Dataset):
                 weeks (list, optional): Week numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 years (list, optional): Year numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 teams (list, optional): Team names from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
-                players (list, optional): Player names from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
+                player_ids (list, optional): Player IDs from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 elapsed_time (list, optional): Game times from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
         """
         # Handle optional inputs and assign default values not passed
@@ -114,8 +114,8 @@ class StatsDataset(Dataset):
         self.id_data = id_df
 
         # Trim to only the desired data, according to multiple possible methods:
-        # 1. Weeks, Years, Teams, Players, and/or Elapsed Time specified
-        self.valid_criteria = ['weeks', 'years', 'teams', 'players', 'elapsed_time']
+        # 1. Weeks, Years, Teams, Player IDs, and/or Elapsed Time specified
+        self.valid_criteria = ['weeks', 'years', 'teams', 'player_ids', 'elapsed_time']
         if len(set(self.valid_criteria) & set(kwargs)) > 0:
             self.slice_by_criteria(**kwargs)
 
@@ -194,7 +194,7 @@ class StatsDataset(Dataset):
                 weeks (list, optional): Week numbers from the DataFrames to include in the StatsDataset. If not passed, ignored.
                 years (list, optional): Year numbers from the DataFrames to include in the StatsDataset. If not passed, ignored.
                 teams (list, optional): Team names from the DataFrames to include in the StatsDataset. If not passed, ignored.
-                players (list, optional): Player names from the DataFrames to include in the StatsDataset. If not passed, ignored.
+                player_ids (list, optional): Player IDs from the DataFrames to include in the StatsDataset. If not passed, ignored.
                 elapsed_time (list, optional): Game times from the DataFrames to include in the StatsDataset. If not passed, ignored.
 
             Returns:
@@ -205,7 +205,7 @@ class StatsDataset(Dataset):
             'weeks': 'Week',
             'years': 'Year',
             'teams': 'Team',
-            'players': 'Player',
+            'player_ids': 'Player ID',
             'elapsed_time': 'Elapsed Time'}
         df_query = ' & '.join(
             [f'`{criteria_var_to_col[crit]}` in @kwargs["{crit}"]'
@@ -233,7 +233,7 @@ class StatsDataset(Dataset):
     def remove_game_duplicates(self, inplace=False):
         """Filters evaluation data to only contain one entry per unique game/player.
         
-            Removes all but the first row in id_data for each Player/Year/Week combination. (First row is typically when Elapsed Time = 0).
+            Removes all but the first row in id_data for each Player ID/Year/Week combination. (First row is typically when Elapsed Time = 0).
             Adjusts all applicable attributes in StatsDataset: x_data, y_data, id_data
 
             Args:
@@ -246,7 +246,7 @@ class StatsDataset(Dataset):
 
         # Obtain indices of duplicated rows to remove
         duplicated_rows = self.id_data.reset_index().duplicated(subset=[
-            'Player', 'Year', 'Week'])
+            'Player ID', 'Year', 'Week'])
 
         # Remove duplicated rows from each attribute of new dataset
         new_x_data = self.x_data[np.logical_not(duplicated_rows)]

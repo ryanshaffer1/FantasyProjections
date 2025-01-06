@@ -153,25 +153,25 @@ def gen_random_games(id_df, n_random, game_ids=None):
     """Generates random game/player combinations from input dataset, with no repeating.
 
         Args:
-            id_df (pandas.DataFrame): DataFrame containing "Player", "Week", and "Year" as columns
+            id_df (pandas.DataFrame): DataFrame containing "Player ID", "Week", and "Year" as columns
             n_random (int): Number of random game/player combinations to generate
             game_ids (list, optional): List of pre-selected (not random) games/players. Defaults to None. 
                 Each element in list must be a dict containing the following keys:
-                    - "Player" : value -> str
+                    - "Player ID" : value -> str
                     - "Year" : value -> int
                     - "Week" : value -> int
 
         Returns:
             list: List of games/players, including any pre-selected as well as randomly-selected games/players. 
                 Each element in list is a dict containing the following keys:
-                    - "Player" : value -> str
+                    - "Player ID" : value -> str
                     - "Year" : value -> int
                     - "Week" : value -> int
     """
 
     # Keep only unique games from id_df
     unique_id_df = id_df.copy()
-    unique_id_df = unique_id_df.drop_duplicates(subset=['Player','Year','Week'],keep='first')
+    unique_id_df = unique_id_df.drop_duplicates(subset=['Player ID','Year','Week'],keep='first')
 
     # Copy or initialize list of game IDs
     if game_ids:
@@ -182,7 +182,7 @@ def gen_random_games(id_df, n_random, game_ids=None):
     # Check that number of unique games in id_df is greater than number of games requested
     if unique_id_df.shape[0] < len(game_ids) + n_random:
         logger.warning('More game IDs requested than unique games available. Returning all games.')
-        game_ids = list(unique_id_df.apply(lambda x:{col: x[col] for col in ['Player','Week','Year']},axis=1))
+        game_ids = list(unique_id_df.apply(lambda x:{col: x[col] for col in ['Player ID','Week','Year']},axis=1))
         return game_ids
 
     # (Optionally) Add random players/games to plot
@@ -191,7 +191,7 @@ def gen_random_games(id_df, n_random, game_ids=None):
         while not valid_new_entry:
             ind = np.random.randint(unique_id_df.shape[0])
             game_dict = {col: unique_id_df.iloc[ind][col]
-                        for col in ['Player', 'Week', 'Year']}
+                        for col in ['Player ID', 'Week', 'Year']}
             if game_dict not in game_ids:
                 game_ids.append(game_dict)
                 valid_new_entry = True
