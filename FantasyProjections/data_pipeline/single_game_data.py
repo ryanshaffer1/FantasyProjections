@@ -8,7 +8,7 @@ import pandas as pd
 from config import stats_config
 from config.player_id_config import PRIMARY_PLAYER_ID, PLAYER_IDS
 from misc.stat_utils import stats_to_fantasy_points
-from data_pipeline.data_helper_functions import gen_game_play_by_play, filter_game_time
+from data_pipeline.data_helper_functions import single_game_play_by_play, subsample_game_time
 
 class SingleGamePbpParser():
     """Collects all player stats for a single NFL game. Automatically processes data upon initialization.
@@ -72,7 +72,7 @@ class SingleGamePbpParser():
             ].reset_index().set_index(PRIMARY_PLAYER_ID)
 
         # Parse Play-by-Play to generate statistics dataframes
-        self.pbp_df = gen_game_play_by_play(seasonal_data.pbp_df, game_id)
+        self.pbp_df = single_game_play_by_play(seasonal_data.pbp_df, game_id)
         self.midgame_df, self.final_stats_df = self.parse_play_by_play(game_times)
 
 
@@ -125,6 +125,8 @@ class SingleGamePbpParser():
         return midgame_stats_df, final_stats_df
 
 
+    # PRIVATE METHODS
+
     def __parse_player_stats(self, player_info, game_times):
         """Determines the mid-game stats for one player throughout the game.
 
@@ -175,7 +177,7 @@ class SingleGamePbpParser():
             player_stats_df[id_type] = player_info[id_type]
 
         # Trim to just the game times of interest
-        player_stats_df = filter_game_time(player_stats_df, game_times)
+        player_stats_df = subsample_game_time(player_stats_df, game_times)
 
         return player_stats_df
 

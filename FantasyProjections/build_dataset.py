@@ -19,7 +19,7 @@ from config.log_config import LOGGING_CONFIG
 from misc.manage_files import collect_roster_filter, create_folders, move_logfile
 
 from data_pipeline.seasonal_data import SeasonalDataCollector
-from data_pipeline.data_helper_functions import cleanup_data
+from data_pipeline.data_helper_functions import clean_stats_data
 from data_pipeline.roster_filter import generate_roster_filter, apply_roster_filter
 from data_pipeline.preprocess_nn_data import preprocess_nn_data
 from data_pipeline.validate_parsed_data import validate_parsed_data
@@ -95,7 +95,7 @@ if FILTER_ROSTER and (not (filter_load_success) or UPDATE_FILTER):
     midgame_df, final_stats_df = apply_roster_filter(midgame_df, final_stats_df, filter_df)
 
 # Organize dataframes
-midgame_df, final_stats_df = cleanup_data(midgame_df, final_stats_df)
+midgame_df, final_stats_df = clean_stats_data(midgame_df, final_stats_df)
 
 # Save raw data
 if SAVE_DATA:

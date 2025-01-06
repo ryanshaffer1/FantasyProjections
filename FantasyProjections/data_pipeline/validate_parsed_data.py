@@ -10,7 +10,7 @@ import pandas as pd
 from config import data_files_config, stats_config
 from config.player_id_config import fill_blank_player_ids
 from data_pipeline.scrape_pro_football_reference import scrape_box_score
-from data_pipeline import team_abbreviations
+from data_pipeline import team_abbreviations as team_abbrs
 from data_pipeline.data_helper_functions import construct_game_id
 from misc.manage_files import create_folders
 
@@ -57,9 +57,9 @@ def validate_parsed_data(final_stats_df, urls_df, scrape=False, save_data=False)
 
         # Scrape the corresponding stat URLs
         for i, (game_id, row) in enumerate(missing_games.iterrows()):
-            team_abbrevs = team_abbreviations.convert_abbrev(row[['Team','Opponent']].to_list(),
-                                                            team_abbreviations.pbp_abbrevs,
-                                                            team_abbreviations.boxscore_website_abbrevs)
+            team_abbrevs = team_abbrs.convert_abbrev(row[['Team','Opponent']].to_list(),
+                                                            team_abbrs.pbp_abbrevs,
+                                                            team_abbrs.boxscore_website_abbrevs)
             game_url = urls_df.loc[game_id,'PFR URL']
             logger.info(f'({i+1} of {len(missing_games)}) {game_id} from {game_url}')
             boxscore, last_req_time = scrape_box_score(game_url, team_abbrevs, last_req_time)

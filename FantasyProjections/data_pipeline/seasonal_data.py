@@ -6,13 +6,14 @@
 
 import logging
 import dateutil.parser as dateparse
+import numpy as np
 import pandas as pd
 from config import data_files_config
 from config import player_id_config
 from config.player_id_config import fill_blank_player_ids
-from data_pipeline import team_abbreviations
+from data_pipeline import team_abbreviations as team_abbrs
 from data_pipeline.single_game_data import SingleGamePbpParser
-from data_pipeline.data_helper_functions import compute_team_record, parse_year_from_date, clean_team_names
+from data_pipeline.data_helper_functions import compute_team_record, clean_team_names
 from misc.manage_files import collect_input_dfs
 
 # Set up logger
@@ -131,7 +132,7 @@ class SeasonalDataCollector():
         """
 
         games = []
-        team_abbrevs = [team_abbreviations.pbp_abbrevs[name] for name in self.team_names]
+        team_abbrevs = [team_abbrs.pbp_abbrevs[name] for name in self.team_names]
         n_games = self.all_game_info_df.index.nunique()
         logger.info(f'Processing {n_games} games:')
         for i, game_id in enumerate(self.all_game_info_df.index.unique()):
@@ -159,7 +160,7 @@ class SeasonalDataCollector():
                 list: List of SingleGamePbpParser objects containing data for each game in the SeasonalDataCollector
         """
 
-        team_abbrevs_to_process = [team_abbreviations.pbp_abbrevs[name] for name in self.team_names]
+        team_abbrevs_to_process = [team_abbrs.pbp_abbrevs[name] for name in self.team_names]
 
         # Generate list of game IDs to process (based on weeks and teams to include)
         game_ids = []
@@ -205,7 +206,7 @@ class SeasonalDataCollector():
         # Output data frame
         all_game_info_df = pd.DataFrame()
 
-        for team_abbr in team_abbreviations.pbp_abbrevs.values():
+        for team_abbr in team_abbrs.pbp_abbrevs.values():
             # Filter to only games including the team of interest
             scores_df = pbp_df.copy()
             scores_df = scores_df[(scores_df['home_team'] == team_abbr)
@@ -227,8 +228,8 @@ class SeasonalDataCollector():
                 dateparse.parse(x['game_date']).strftime('%Y%m%d'), axis=1)
             scores_df['PFR URL'] = scores_df.apply(lambda x:
                 data_files_config.PFR_BOXSCORE_URL_INTRO + x['game_date'] + '0' +
-                team_abbreviations.convert_abbrev(x['Home Team Abbrev'],
-                team_abbreviations.pbp_abbrevs,team_abbreviations.roster_website_abbrevs
+                team_abbrs.convert_abbrev(x['Home Team Abbrev'],
+                team_abbrs.pbp_abbrevs,team_abbrs.roster_website_abbrevs
                 ) + '.htm', axis=1)
 
             # Track ties, wins, and losses
@@ -255,7 +256,7 @@ class SeasonalDataCollector():
         # Clean up df for output
         all_game_info_df = all_game_info_df.reset_index().set_index(['game_id']).sort_index()
         all_game_info_df['Team Name'] = all_game_info_df['Team Abbrev'].apply(lambda x:
-            team_abbreviations.invert(team_abbreviations.pbp_abbrevs)[x])
+            team_abbrs.invert(team_abbrs.pbp_abbrevs)[x])
 
         return all_game_info_df
 
@@ -279,7 +280,7 @@ class SeasonalDataCollector():
 
         # Filter to only the desired teams
         all_rosters_df = all_rosters_df[all_rosters_df.apply(lambda x: x['team'] in
-            [team_abbreviations.pbp_abbrevs[name] for name in self.team_names], axis=1)]
+            [team_abbrs.pbp_abbrevs[name] for name in self.team_names], axis=1)]
 
         # Optionally filter based on subset of desired players
         if filter_df is not None:
@@ -297,8 +298,8 @@ class SeasonalDataCollector():
         all_rosters_df = all_rosters_df[all_rosters_df.apply(
             lambda x: x['status'] in valid_statuses, axis=1)]
 
-        # Compute age based on birth date
-        all_rosters_df['Age'] = all_rosters_df['season'] - all_rosters_df['birth_date'].apply(parse_year_from_date)
+        # Compute age based on birth date. Assign birth year of 2000 for anyone with missing birth date...
+        all_rosters_df['Age'] = all_rosters_df['season'] - all_rosters_df['birth_date'].apply(lambda x: dateparse.parse(x).year if (not np.isnan(x)) else 2000)
 
         # Trim to just the fields that are useful
         all_rosters_df=all_rosters_df[
