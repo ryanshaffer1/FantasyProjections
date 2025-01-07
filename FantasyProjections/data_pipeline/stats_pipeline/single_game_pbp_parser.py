@@ -8,7 +8,7 @@ import pandas as pd
 from config import stats_config
 from config.player_id_config import PRIMARY_PLAYER_ID, PLAYER_IDS
 from misc.stat_utils import stats_to_fantasy_points
-from data_pipeline.data_helper_functions import single_game_play_by_play, subsample_game_time
+from data_pipeline.utils.data_helper_functions import single_game_play_by_play, subsample_game_time
 
 class SingleGamePbpParser():
     """Collects all player stats for a single NFL game. Automatically processes data upon initialization.

@@ -8,6 +8,7 @@
         single_game_play_by_play : Filters and cleans play-by-play data for a specific game; keeps all plays from that game and sorts by increasing elapsed game time.
         subsample_game_time : Reduces the size of the midgame stats data by sampling the data at discrete game times, rather than keeping the stats after every single play.
 """
+
 import logging
 import numpy as np
 import pandas as pd
@@ -111,26 +112,30 @@ def compute_team_record(scores_df):
     return scores_df
 
 
-def construct_game_id(data_series):
+def construct_game_id(data):
     """Generates Game ID as used by nfl-verse from a set of game information.
 
         Args:
-            data_series (pandas.Series): Data for a game, including the following fields:
+            data_series (pandas.Series | dict): Data for a game, including the following fields/keys:
+                - Year 
+                - Week
                 - Team (abbreviation)
                 - Opponent (opposing team abbreviation)
                 - Site ("Home" or "Away")
-                - Year 
-                - Week
 
         Returns:
             str: Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{hometeam}", ex: "2021_01_ARI_TEN"
     """
 
     # Gather/format data from Series
-    year = data_series['Year']
-    week = str(data_series['Week']).rjust(2,'0')
-    home_team = data_series['Team'] if data_series['Site'] == 'Home' else data_series['Opponent']
-    away_team = data_series['Team'] if data_series['Site'] == 'Away' else data_series['Opponent']
+    year = data['Year']
+    week = str(data['Week']).rjust(2,'0')
+    try:
+        home_team = data['Home Team']
+        away_team = data['Away Team']
+    except KeyError:
+        home_team = data['Team'] if data['Site'] == 'Home' else data['Opponent']
+        away_team = data['Team'] if data['Site'] == 'Away' else data['Opponent']
 
     # Construct and return game_id string
     game_id = f'{year}_{week}_{away_team}_{home_team}'
@@ -186,7 +191,6 @@ def subsample_game_time(player_stats_df, game_times):
             columns={'Rounded Time': 'Elapsed Time'}).set_index('Elapsed Time')
 
     return player_stats_df
-
 
 
 # PRIVATE FUNCTIONS
