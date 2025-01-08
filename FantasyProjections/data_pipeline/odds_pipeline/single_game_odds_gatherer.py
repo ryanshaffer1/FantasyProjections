@@ -10,13 +10,13 @@ import requests
 import numpy as np
 import pandas as pd
 from config import stats_config
+from config.player_id_config import PRIMARY_PLAYER_ID
+from data_pipeline.single_game_data_worker import SingleGameDataWorker
 from data_pipeline.odds_pipeline.odds_api_helper_functions import SPORT_KEY, DATE_FMT, BOOKMAKER, log_api_usage
-from data_pipeline.utils.data_helper_functions import single_game_play_by_play
 from data_pipeline.utils.name_matching import find_matching_name_ind
 from data_pipeline.utils.time_helper_functions import find_prev_time_index
-from config.player_id_config import PRIMARY_PLAYER_ID
 
-class SingleGameOdds():
+class SingleGameOddsGatherer(SingleGameDataWorker):
     """Collects all player stats for a single NFL game. Automatically processes data upon initialization.
     
         Args:
@@ -41,7 +41,7 @@ class SingleGameOdds():
             parse_play_by_play : Calculates midgame and final statistics for all players in a game, using play-by-play data describing passes, rushes, etc.
     """
 
-    def __init__(self, seasonal_data, event_id, game_id, odds_file=None):
+    def __init__(self, seasonal_data, event_id, game_id, **kwargs):
         """Constructor for SingleGamePbpParser object.
 
             Args:
@@ -60,56 +60,62 @@ class SingleGameOdds():
                 final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
         """
 
+        # Initialize SingleGameDataWorker
+        super().__init__(seasonal_data=seasonal_data, game_id=game_id)
+
+        # Optional keyword arguments
+        player_props = kwargs.get('player_props', None)
+        odds_file = kwargs.get('odds_file', None)
+
         # Basic info
-        self.year = seasonal_data.year
-        self.week = int(game_id.split('_')[1])
         self.api_key = seasonal_data.api_key
         self.event_id = event_id
-        self.game_id = game_id
-        # Play-by-Play info
-        self.pbp_df = single_game_play_by_play(seasonal_data.pbp_df, game_id)
+
         # Helpful: maps game time to UTC time
-        self.game_times = self.pbp_df.loc[np.logical_not(self.pbp_df['time_of_day'].isna()), 'time_of_day']
-        # Roster info for this game from the two teams' seasonal data
-        self.roster_df = seasonal_data.all_rosters_df.loc[
-            seasonal_data.all_rosters_df.index.intersection(
-                [(team, self.week) for team in self.pbp_df[['home_team','away_team']].iloc[0].to_list()])
-            ].reset_index().set_index(PRIMARY_PLAYER_ID)
-        # Existing set of odds for this game
+        self.all_game_times = self.pbp_df.loc[np.logical_not(self.pbp_df['time_of_day'].isna()), 'time_of_day']
+
+        # Load existing set of odds for this game
         try:
             self.odds_df = pd.read_csv(odds_file)
             self.odds_df = self.odds_df[self.odds_df['Game ID'] == self.game_id]
         except (FileNotFoundError, ValueError):
             self.odds_df = pd.DataFrame()
 
-        self.set_markets()
+        # Determine the list of odds to collect
+        self.set_markets(player_props)
 
+        # Collect additional odds from API
         if len(self.markets) > 0:
-            self.get_historical_odds(game_times=[0,30])
+            self.gather_historical_odds(game_times=[0,30])
 
+        # Format self.odds_df for output
         self.reformat_odds_df()
 
 
-    def set_markets(self, remove_existing=True):
+    def set_markets(self, player_props=None, remove_existing=True):
+
+        # Handle optional input
+        if player_props is None:
+            player_props = stats_config.default_stat_list
+
         # Set default list of stats to include (formatted correctly for The Odds)
         stat_names_dict = stats_config.labels_df_to_odds
-        stats_to_include = stats_config.default_stat_list
-        stats_to_include = ['Rec Yds']
-        self.markets = [stat_names_dict[stat] for stat in list(set(stats_to_include) & set(stat_names_dict))]
+        self.markets = [stat_names_dict[stat] for stat in list(set(player_props) & set(stat_names_dict))]
 
         # Remove any markets already in odds_df (assumes no updates are needed to that data)
         if remove_existing and 'Player Prop Stat' in self.odds_df.columns:
             existing_markets = self.odds_df['Player Prop Stat'].unique()
             self.markets = [market for market in self.markets if market not in existing_markets]
 
-    def get_historical_odds(self, game_times=None):
+
+    def gather_historical_odds(self, game_times=None):
         # Default game time is just 0 (pre-game odds)
         if game_times is None:
             game_times = [0]
 
         for game_time in game_times:
-            pbp_ind = find_prev_time_index(game_time, self.game_times)
-            time = datetime.strftime(dateparse.parse(self.game_times.iloc[pbp_ind]), DATE_FMT)
+            pbp_ind = find_prev_time_index(game_time, self.all_game_times)
+            time = datetime.strftime(dateparse.parse(self.all_game_times.iloc[pbp_ind]), DATE_FMT)
 
             response = requests.get(f'https://api.the-odds-api.com/v4/historical/sports/{SPORT_KEY}/events/{self.event_id}/odds', params={
                 'api_key': self.api_key,
@@ -129,6 +135,7 @@ class SingleGameOdds():
                 df['UTC Time'] = market['last_update']
                 # Add to running list of all odds
                 self.odds_df = pd.concat((self.odds_df, df))
+
 
     def reformat_odds_df(self):
 
@@ -150,7 +157,7 @@ class SingleGameOdds():
         self.odds_df['Player ID'] = roster_inds.apply(lambda x: self.roster_df.reset_index().iloc[int(x)][PRIMARY_PLAYER_ID] if not np.isnan(x) else np.nan)
 
         elapsed_time_inds = self.odds_df['UTC Time'].apply(
-            find_prev_time_index, args=(self.game_times,))
-        self.odds_df['Elapsed Time'] = self.game_times.index[elapsed_time_inds].to_list()
+            find_prev_time_index, args=(self.all_game_times,))
+        self.odds_df['Elapsed Time'] = self.all_game_times.index[elapsed_time_inds].to_list()
 
         self.odds_df = self.odds_df.set_index('Player ID')

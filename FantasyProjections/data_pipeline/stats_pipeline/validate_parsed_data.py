@@ -10,8 +10,8 @@ import pandas as pd
 from config import data_files_config, stats_config
 from config.player_id_config import fill_blank_player_ids
 from data_pipeline.stats_pipeline.scrape_pro_football_reference import scrape_box_score
-from data_pipeline import team_abbreviations as team_abbrs
-from data_pipeline.data_helper_functions import construct_game_id
+from data_pipeline.utils import team_abbreviations as team_abbrs
+from data_pipeline.utils.data_helper_functions import construct_game_id
 from misc.manage_files import create_folders
 
 # Set up logger

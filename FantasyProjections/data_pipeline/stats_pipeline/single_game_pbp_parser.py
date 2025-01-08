@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 from config import stats_config
 from config.player_id_config import PRIMARY_PLAYER_ID, PLAYER_IDS
+from data_pipeline.single_game_data_worker import SingleGameDataWorker
+from data_pipeline.utils.data_helper_functions import subsample_game_time
 from misc.stat_utils import stats_to_fantasy_points
-from data_pipeline.utils.data_helper_functions import single_game_play_by_play, subsample_game_time
 
-class SingleGamePbpParser():
+class SingleGamePbpParser(SingleGameDataWorker):
     """Collects all player stats for a single NFL game. Automatically processes data upon initialization.
     
         Args:
@@ -57,22 +58,16 @@ class SingleGamePbpParser():
                 final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
         """
 
+        # Initialize SingleGameDataWorker
+        super().__init__(seasonal_data=seasonal_data, game_id=game_id)
+
         # Optional keyword arguments
         game_times = kwargs.get('game_times','all')
 
-        # Basic info
-        self.year = seasonal_data.year
-        self.week = int(game_id.split('_')[1])
         # Game info
         self.game_info = seasonal_data.all_game_info_df.loc[game_id]
-        # Roster info for this game from the two teams' seasonal data
-        self.roster_df = seasonal_data.all_rosters_df.loc[
-            seasonal_data.all_rosters_df.index.intersection(
-                [(team, self.week) for team in self.game_info['Team Abbrev'].unique()])
-            ].reset_index().set_index(PRIMARY_PLAYER_ID)
 
         # Parse Play-by-Play to generate statistics dataframes
-        self.pbp_df = single_game_play_by_play(seasonal_data.pbp_df, game_id)
         self.midgame_df, self.final_stats_df = self.parse_play_by_play(game_times)
 
 

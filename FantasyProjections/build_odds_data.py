@@ -17,7 +17,7 @@ from config.log_config import LOGGING_CONFIG
 
 from misc.manage_files import collect_roster_filter, create_folders, move_logfile
 
-from data_pipeline.odds_pipeline.seasonal_odds import SeasonalOddsCollector
+from data_pipeline.odds_pipeline.seasonal_odds_collector import SeasonalOddsCollector
 
 # Flags
 SAVE_DATA        = True # Saves data in .csv's (output files specified below)
@@ -76,7 +76,8 @@ for year in YEARS:
     # Create SeasonalData object, which automatically processes all data for that year
     seasonal_data = SeasonalOddsCollector(year=year, team_names=TEAM_NAMES, weeks=WEEKS,
                                           filter_df=filter_df,
-                                          odds_file=data_files_config.ODDS_FILE)
+                                          odds_file=data_files_config.ODDS_FILE,
+                                          player_props=['Rec Yds'])
     # Concatenate results from current year to remaining years
     odds_df = pd.concat((odds_df, seasonal_data.odds_df))
 

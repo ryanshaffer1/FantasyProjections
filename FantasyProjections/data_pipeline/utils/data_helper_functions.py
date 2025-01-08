@@ -14,10 +14,44 @@ import numpy as np
 import pandas as pd
 from config import stats_config
 from config.player_id_config import PRIMARY_PLAYER_ID, ALT_PLAYER_IDS
-from data_pipeline import team_abbreviations as team_abbrs
+from data_pipeline.utils import team_abbreviations as team_abbrs
 
 # Set up logger
 logger = logging.getLogger('log')
+
+
+def calc_game_time_elapsed(data):
+    """Calculates game-time elapsed (in minutes) from 0 to 60 minutes, given a DataFrame/Series with columns for qtr and time.
+
+        Args:
+            data (pandas.DataFrame | pandas.Series): Contains one or multiple instances in time, including data labeled "qtr" and data labeled "time"
+                where qtr denotes the current quarter and time denotes the time on the game clock (e.g. "15:00" down to "0:00").
+
+        Returns:
+            pandas.Series | float: Time elapsed since the start of the game, in minutes. If data is a DataFrame, return a Series; if data is a Series, return a float.
+    """
+
+    if isinstance(data,pd.Series):
+        qtr = data["qtr"]
+        time = data["time"]
+    elif isinstance(data,pd.DataFrame):
+        qtr = data.loc[:,"qtr"]
+        time = data.loc[:,"time"]
+    else:
+        logger.warning('Must input data to calc_game_time_elapsed as DataFrame or Series')
+        qtr = None
+        time = None
+
+    if isinstance(time, float):
+        minutes = "15"
+        seconds = "0"
+    else:
+        minutes = time.split(":")[0]
+        seconds = time.split(":")[1]
+    time_rem_in_qtr = int(minutes) + int(seconds) / 60
+    time_elapsed = round((qtr - 1) * 15 + 15 - time_rem_in_qtr, 2)
+
+    return time_elapsed
 
 
 def clean_stats_data(midgame_df, final_stats_df, list_of_stats='default'):
@@ -142,32 +176,6 @@ def construct_game_id(data):
     return game_id
 
 
-def single_game_play_by_play(pbp_df, game_id):
-    """Filters and cleans play-by-play data for a specific game; keeps all plays from that game and sorts by increasing elapsed game time.
-
-        Args:
-            pbp_df (pandas.DataFrame): Play-by-play data for all plays in an NFL season, taken from nfl-verse. 
-            game_id (str): Game ID for a specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
-
-        Returns:
-            pandas.DataFrame: pbp_df input, filtered to only the plays with matching game_id. Elapsed Time is added as a column and set as the index.
-    """
-
-    # Make a copy of the input play-by-play df
-    pbp_df = pbp_df.copy()
-
-    # Filter to only the game of interest (using game_id)
-    pbp_df = pbp_df[pbp_df['game_id'] == game_id]
-
-    # Elapsed time
-    pbp_df.loc[:,'Elapsed Time'] = pbp_df.apply(__calc_game_time_elapsed, axis=1)
-
-    # Sort by ascending elapsed time
-    pbp_df = pbp_df.set_index('Elapsed Time').sort_index(ascending=True)
-
-    return pbp_df
-
-
 def subsample_game_time(player_stats_df, game_times):
     """Reduces the size of the midgame stats data by sampling the data at discrete game times, rather than keeping the stats after every single play.
     
@@ -194,40 +202,6 @@ def subsample_game_time(player_stats_df, game_times):
 
 
 # PRIVATE FUNCTIONS
-
-def __calc_game_time_elapsed(data):
-    """Calculates game-time elapsed (in minutes) from 0 to 60 minutes, given a DataFrame/Series with columns for qtr and time.
-
-        Args:
-            data (pandas.DataFrame | pandas.Series): Contains one or multiple instances in time, including data labeled "qtr" and data labeled "time"
-                where qtr denotes the current quarter and time denotes the time on the game clock (e.g. "15:00" down to "0:00").
-
-        Returns:
-            pandas.Series | float: Time elapsed since the start of the game, in minutes. If data is a DataFrame, return a Series; if data is a Series, return a float.
-    """
-
-    if isinstance(data,pd.Series):
-        qtr = data["qtr"]
-        time = data["time"]
-    elif isinstance(data,pd.DataFrame):
-        qtr = data.loc[:,"qtr"]
-        time = data.loc[:,"time"]
-    else:
-        logger.warning('Must input data to calc_game_time_elapsed as DataFrame or Series')
-        qtr = None
-        time = None
-
-    if isinstance(time, float):
-        minutes = "15"
-        seconds = "0"
-    else:
-        minutes = time.split(":")[0]
-        seconds = time.split(":")[1]
-    time_rem_in_qtr = int(minutes) + int(seconds) / 60
-    time_elapsed = round((qtr - 1) * 15 + 15 - time_rem_in_qtr, 2)
-
-    return time_elapsed
-
 
 def __shift_val_one_game_back(postgame_vals_by_team_week, games_played_by_team):
     """Converts a team's wins, losses, or ties over the course of a season from post-game to pre-game values.

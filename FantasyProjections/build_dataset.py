@@ -18,8 +18,8 @@ from config.log_config import LOGGING_CONFIG
 
 from misc.manage_files import collect_roster_filter, create_folders, move_logfile
 
-from data_pipeline.seasonal_data import SeasonalDataCollector
-from data_pipeline.data_helper_functions import clean_stats_data
+from data_pipeline.stats_pipeline.seasonal_stats_collector import SeasonalStatsCollector
+from data_pipeline.utils.data_helper_functions import clean_stats_data
 from data_pipeline.stats_pipeline.roster_filter import generate_roster_filter, apply_roster_filter
 from data_pipeline.stats_pipeline.preprocess_nn_data import preprocess_nn_data
 from data_pipeline.stats_pipeline.validate_parsed_data import validate_parsed_data
@@ -76,7 +76,7 @@ logger.info(f'Filter Load Success: {filter_load_success}; Filter file: {ROSTER_F
 for year in YEARS:
     logger.info(f'--------------- {year} ---------------')
     # Create SeasonalData object, which automatically processes all data for that year
-    seasonal_data = SeasonalDataCollector(year=year, team_names=TEAM_NAMES, weeks=WEEKS,
+    seasonal_data = SeasonalStatsCollector(year=year, team_names=TEAM_NAMES, weeks=WEEKS,
                                           game_times=GAME_TIMES, filter_df=filter_df)
     # Concatenate results from current year to remaining years
     midgame_df = pd.concat((midgame_df, seasonal_data.midgame_df))

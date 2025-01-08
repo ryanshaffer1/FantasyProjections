@@ -8,22 +8,17 @@ import logging
 import json
 from datetime import datetime
 import requests
-import dateutil.parser as dateparse
-import pandas as pd
-from config import data_files_config
-from config import player_id_config
-from config.player_id_config import fill_blank_player_ids
-from data_pipeline import team_abbreviations as team_abbrs
-from data_pipeline.odds_pipeline.single_game_odds import SingleGameOdds
+from data_pipeline.seasonal_data_collector import SeasonalDataCollector
+from data_pipeline.utils import team_abbreviations as team_abbrs
+from data_pipeline.odds_pipeline.single_game_odds_gatherer import SingleGameOddsGatherer
 from data_pipeline.odds_pipeline.odds_api_helper_functions import SPORT_KEY, DATE_FMT, get_odds_api_key, log_api_usage
-from data_pipeline.utils.data_helper_functions import clean_team_names, construct_game_id
+from data_pipeline.utils.data_helper_functions import construct_game_id
 from data_pipeline.utils.time_helper_functions import week_to_date_range, date_to_nfl_week
-from misc.manage_files import collect_input_dfs
 
 # Set up logger
 logger = logging.getLogger('log')
 
-class SeasonalOddsCollector():
+class SeasonalOddsCollector(SeasonalDataCollector):
     """Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
     
         Args:
@@ -78,49 +73,27 @@ class SeasonalOddsCollector():
                 final_stats_df (pandas.DataFrame): All final statistics for each player of interest, in every game of the NFL season.
 
         """
+        # Initialize SeasonalDataCollector
+        super().__init__(year=year, team_names=team_names, weeks=weeks, **kwargs)
 
-        filter_df= kwargs.get('filter_df', None)
+        # Optional keyword arguments
+        player_props = kwargs.get('player_props', None)
         odds_file = kwargs.get('odds_file', None)
 
-        self.year = year
-        self.weeks = weeks
-        self.team_names = clean_team_names(team_names, self.year)
 
+        # API Key
         self.api_key = get_odds_api_key()
 
-        # Collect input data
-        self.pbp_df, self.raw_rosters_df, *_ = collect_input_dfs(self.year, self.weeks, data_files_config.local_file_paths,
-                                                        data_files_config.online_file_paths, online_avail=True)
-
-        # Gather team roster for all teams, all weeks of input year
-        self.all_rosters_df = self.process_rosters(filter_df)
-
         # List of SingleGameData objects
-        self.games = self.generate_games(odds_file=odds_file)
+        self.games = self.generate_games(odds_file=odds_file, player_props=player_props)
 
         # Gather all stats (midgame and final) from the individual teams
-        self.odds_df = self.gather_all_game_stats()
+        self.odds_df, *_ = self.gather_all_game_data(['odds_df'])
+
 
     # PUBLIC METHODS
 
-    def gather_all_game_stats(self):
-        """Concatenates all statistics (midgame_df and final_stats_df) from individual games in self.games into larger DataFrames for the full season.
-
-            Returns:
-                pandas.DataFrame: midgame_df statistics across all games
-                pandas.DataFrame: final_stats_df statistics across all games
-        """
-
-        odds_df = pd.DataFrame()
-        for game in self.games:
-            odds_df = pd.concat((odds_df, game.odds_df))
-
-        logger.debug(f'{self.year} odds_df rows: {odds_df.shape[0]}')
-
-        return odds_df
-
-
-    def generate_games(self, odds_file=None):
+    def generate_games(self, odds_file=None, player_props=None):
         team_abbrevs_to_process = [team_abbrs.pbp_abbrevs[name] for name in self.team_names]
 
         year_start_date, _ = week_to_date_range(self.year, week=1)
@@ -155,78 +128,8 @@ class SeasonalOddsCollector():
         for i, (event_id, game_id) in enumerate(zip(event_ids, game_ids)):
             logger.info(f'({i+1} of {n_games}): {game_id}')
             # Process data/stats for single game
-            game = SingleGameOdds(self, event_id, game_id, odds_file=odds_file)
+            game = SingleGameOddsGatherer(self, event_id, game_id, odds_file=odds_file, player_props=player_props)
             # Add to list of games
             games.append(game)
 
         return games
-
-
-    def process_rosters(self, filter_df=None):
-        """Trims DataFrame of all NFL week-by-week rosters in a given year to include only players of interest and data columns of interest.
-
-            Args:
-                filter_df (pandas.DataFrame, optional): Pre-determined list of players to include. Defaults to None.
-
-            Attributes Modified:
-                pandas.DataFrame: all_rosters_df filtered to players of interest, several columns removed, and indexed on Team & Week
-        """
-
-        # Copy of object attribute
-        all_rosters_df = self.raw_rosters_df.copy()
-
-        # Filter to only the desired weeks
-        all_rosters_df = all_rosters_df[all_rosters_df.apply(
-            lambda x: x['week'] in self.weeks, axis=1)]
-
-        # Filter to only the desired teams
-        all_rosters_df = all_rosters_df[all_rosters_df.apply(lambda x: x['team'] in
-            [team_abbrs.pbp_abbrevs[name] for name in self.team_names], axis=1)]
-
-        # Optionally filter based on subset of desired players
-        if filter_df is not None:
-            all_rosters_df = all_rosters_df[all_rosters_df.apply(
-                lambda x: x['full_name'] in filter_df['Name'].to_list(), axis=1)]
-
-        # Filter to only skill positions
-        # Positions currently being tracked for stats
-        skill_positions = ['QB', 'RB', 'FB', 'HB', 'WR', 'TE']
-        all_rosters_df = all_rosters_df[all_rosters_df.apply(
-            lambda x: x['position'] in skill_positions, axis=1)]
-
-        # Filter to only active players
-        valid_statuses = ['ACT']
-        all_rosters_df = all_rosters_df[all_rosters_df.apply(
-            lambda x: x['status'] in valid_statuses, axis=1)]
-
-        # Compute age based on birth date. Assign birth year of 2000 for anyone with missing birth date...
-        all_rosters_df['Age'] = all_rosters_df['season'] - all_rosters_df['birth_date'].apply(lambda x: dateparse.parse(x).year if (x==x) else 2000)
-
-        # Trim to just the fields that are useful
-        all_rosters_df=all_rosters_df[
-            player_id_config.PLAYER_IDS + [
-            'team',
-            'week',
-            'position',
-            'jersey_number',
-            'full_name',
-            'Age']]
-        # Reformat
-        all_rosters_df=all_rosters_df.rename(columns=
-            {
-            'team': 'Team',
-            'week': 'Week',
-            'position': 'Position',
-            'jersey_number': 'Number',
-            'full_name': 'Player Name'
-            }).set_index(['Team','Week']).sort_index()
-
-        # Update player IDs
-        all_rosters_df = fill_blank_player_ids(players_df=all_rosters_df,
-                                               master_id_file=data_files_config.MASTER_PLAYER_ID_FILE,
-                                               pfr_id_filename=data_files_config.PFR_ID_FILENAME,
-                                               add_missing_pfr=False,
-                                               update_master=False)
-
-
-        return all_rosters_df
