@@ -16,6 +16,7 @@ import json
 import pandas as pd
 from config.log_config import LOGGING_CONFIG
 from data_pipeline.stats_pipeline.scrape_pro_football_reference import search_for_missing_pfr_id
+from data_pipeline.utils.name_matching import find_matching_name_ind
 
 
 # Define constants for ID systems being used and tracked throughout the program
@@ -112,7 +113,7 @@ def update_master_player_ids(addl_players_df=None, master_id_file=None, pfr_id_f
 
     # Save updated map to file
     if save_data:
-        id_df.to_csv(master_id_file)
+        id_df.to_csv(master_id_file, index=False)
 
     return id_df
 
@@ -158,9 +159,9 @@ def __add_missing_pfr_ids(df, pfr_id_filename=None):
         logger.info(f'({ind+1} of {n_missing}): {player_name}')
         try:
             # Look for player name in dict of names/IDs already searched
-            pfr_ids_found.append(pfr_id_name_dict[player_name])
+            pfr_ids_found.append(list(pfr_id_name_dict.values())[find_matching_name_ind(player_name, pfr_id_name_dict)])
             logger.debug('id found in json file')
-        except KeyError:
+        except TypeError:
             # Search for the ID online
             try:
                 pfr_id, new_dict_entries = search_for_missing_pfr_id(player_name)

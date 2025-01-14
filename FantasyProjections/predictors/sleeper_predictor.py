@@ -11,12 +11,12 @@
 from dataclasses import dataclass
 import json
 import logging
-import numpy as np
 import pandas as pd
 import torch
 from sleeper_wrapper import Stats, Players
 from config import stats_config, data_files_config
 from config.player_id_config import PRIMARY_PLAYER_ID
+from data_pipeline.utils.name_matching import find_matching_name_ind
 from misc.stat_utils import stats_to_fantasy_points
 from predictors import FantasyPredictor
 
@@ -105,7 +105,7 @@ class SleeperPredictor(FantasyPredictor):
         for _, id_row in eval_data.id_data.iterrows():
             year_week = id_row['Year-Week']
             sleeper_id = int(id_row['sleeper_id'])
-            if sleeper_id in self.player_ids['sleeper_id'].values:
+            if sleeper_id in self.player_ids['sleeper_id'].dropna().values:
                 proj_stats = self.all_proj_dict[year_week][str(sleeper_id)]
                 stat_line = torch.tensor(self.__reformat_sleeper_stats(proj_stats, stat_columns))
             else:
@@ -145,12 +145,15 @@ class SleeperPredictor(FantasyPredictor):
         sleeper_player_df = collect_sleeper_player_list()
 
         # Drop players with missing primary IDs from df, and index on primary ID
-        sleeper_player_df = sleeper_player_df[np.logical_not(sleeper_player_df[PRIMARY_PLAYER_ID].isna()
-                                                                )].set_index(PRIMARY_PLAYER_ID)
+        sleeper_player_df = sleeper_player_df.dropna(subset=PRIMARY_PLAYER_ID).set_index(PRIMARY_PLAYER_ID)
 
         # Update master list with the Sleeper ID of any players that are common to both DataFrames
         intersecting_ids = player_id_df.index.intersection(sleeper_player_df.index)
         player_id_df.loc[intersecting_ids,'sleeper_id'] = sleeper_player_df.loc[intersecting_ids,'sleeper_id']
+
+        # Add any more IDs that can be found via fuzzy name matching
+        fuzzy_match_inds = player_id_df[player_id_df['sleeper_id'].isna()]['Player Name'].apply(find_matching_name_ind, args=(sleeper_player_df['full_name'],)).dropna()
+        player_id_df['sleeper_id'] = player_id_df.apply(lambda x: fuzzy_match_inds.loc[x.name] if x.name in fuzzy_match_inds.index else x['sleeper_id'], axis=1)
 
         # Save data to master list
         if save_data and self.player_id_file is not None:
@@ -170,7 +173,8 @@ class SleeperPredictor(FantasyPredictor):
             player_id_df = pd.read_csv(self.player_id_file,
                                     dtype={'sleeper_id': 'Int64'}).set_index(PRIMARY_PLAYER_ID)
         except (ValueError, FileNotFoundError):
-            player_id_df = collect_sleeper_player_list().set_index(PRIMARY_PLAYER_ID)
+            player_id_df = (collect_sleeper_player_list().rename(columns={'full_name':'Player Name'})
+                                                         .set_index(PRIMARY_PLAYER_ID))
 
         # Optionally use the Sleeper API to try and add missing Sleeper IDs to the master list
         if self.update_players:

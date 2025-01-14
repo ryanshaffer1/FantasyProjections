@@ -4,6 +4,7 @@
         SingleGamePbpParser : Collects all player stats for a single NFL game. Automatically processes data upon initialization.
 """
 from datetime import datetime
+import logging
 import json
 import dateutil.parser as dateparse
 import requests
@@ -15,6 +16,9 @@ from data_pipeline.single_game_data_worker import SingleGameDataWorker
 from data_pipeline.odds_pipeline.odds_api_helper_functions import SPORT_KEY, DATE_FMT, BOOKMAKER, log_api_usage
 from data_pipeline.utils.name_matching import find_matching_name_ind
 from data_pipeline.utils.time_helper_functions import find_prev_time_index
+
+# Set up logger
+logger = logging.getLogger('log')
 
 class SingleGameOddsGatherer(SingleGameDataWorker):
     """Collects all player stats for a single NFL game. Automatically processes data upon initialization.
@@ -72,50 +76,40 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
         self.event_id = event_id
 
         # Helpful: maps game time to UTC time
-        self.all_game_times = self.pbp_df.loc[np.logical_not(self.pbp_df['time_of_day'].isna()), 'time_of_day']
+        self.all_game_times = self.pbp_df['time_of_day'].dropna()
 
         # Load existing set of odds for this game
         try:
-            self.odds_df = pd.read_csv(odds_file)
-            self.odds_df = self.odds_df[self.odds_df['Game ID'] == self.game_id]
+            odds_df = pd.read_csv(odds_file)
+            odds_df = odds_df[odds_df['Game ID'] == self.game_id]
         except (FileNotFoundError, ValueError):
-            self.odds_df = pd.DataFrame()
+            odds_df = pd.DataFrame()
 
         # Determine the list of odds to collect
-        self.set_markets(player_props)
+        self.set_markets(odds_df, player_props)
 
         # Collect additional odds from API
         if len(self.markets) > 0:
-            self.gather_historical_odds(game_times=[0,30])
+            self.odds_df = self.gather_historical_odds(odds_df=odds_df, game_times=[0,30])
+        else:
+            self.odds_df = odds_df
 
         # Format self.odds_df for output
         self.reformat_odds_df()
 
 
-    def set_markets(self, player_props=None, remove_existing=True):
-
-        # Handle optional input
-        if player_props is None:
-            player_props = stats_config.default_stat_list
-
-        # Set default list of stats to include (formatted correctly for The Odds)
-        stat_names_dict = stats_config.labels_df_to_odds
-        self.markets = [stat_names_dict[stat] for stat in list(set(player_props) & set(stat_names_dict))]
-
-        # Remove any markets already in odds_df (assumes no updates are needed to that data)
-        if remove_existing and 'Player Prop Stat' in self.odds_df.columns:
-            existing_markets = self.odds_df['Player Prop Stat'].unique()
-            self.markets = [market for market in self.markets if market not in existing_markets]
-
-
-    def gather_historical_odds(self, game_times=None):
+    def gather_historical_odds(self, odds_df=None, game_times=None):
         # Default game time is just 0 (pre-game odds)
         if game_times is None:
             game_times = [0]
 
+        # Optional input: pre-existing dataframe to append to
+        if odds_df is None:
+            odds_df = pd.DataFrame()
+
         for game_time in game_times:
-            pbp_ind = find_prev_time_index(game_time, self.all_game_times)
-            time = datetime.strftime(dateparse.parse(self.all_game_times.iloc[pbp_ind]), DATE_FMT)
+            pbp_index = find_prev_time_index(game_time, self.all_game_times)
+            time = datetime.strftime(dateparse.parse(self.all_game_times.iloc[pbp_index]), DATE_FMT)
 
             response = requests.get(f'https://api.the-odds-api.com/v4/historical/sports/{SPORT_KEY}/events/{self.event_id}/odds', params={
                 'api_key': self.api_key,
@@ -124,7 +118,12 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
                 'date': time,
                 }, timeout=10)
             log_api_usage(response)
-            event_data = json.loads(response.text)['data']
+            try:
+                event_data = json.loads(response.text)['data']
+            except KeyError:
+                logger.warning(f'Key Error encountered in API request. Aborting game {self.game_id} early.')
+                return odds_df
+
             market_data = pd.DataFrame(event_data['bookmakers']).set_index('key').loc[BOOKMAKER, 'markets']
             for market in market_data:
                 # Process Odds data into a DataFrame
@@ -134,7 +133,9 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
                 df['Player Prop Stat'] = market['key']
                 df['UTC Time'] = market['last_update']
                 # Add to running list of all odds
-                self.odds_df = pd.concat((self.odds_df, df))
+                odds_df = pd.concat((odds_df, df))
+
+            return odds_df
 
 
     def reformat_odds_df(self):
@@ -161,3 +162,21 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
         self.odds_df['Elapsed Time'] = self.all_game_times.index[elapsed_time_inds].to_list()
 
         self.odds_df = self.odds_df.set_index('Player ID')
+
+
+    def set_markets(self, odds_df=None, player_props=None, remove_existing=True):
+
+        # Handle optional inputs
+        if odds_df is None:
+            odds_df = pd.DataFrame()
+        if player_props is None:
+            player_props = stats_config.default_stat_list
+
+        # Set default list of stats to include (formatted correctly for The Odds)
+        stat_names_dict = stats_config.labels_df_to_odds
+        self.markets = [stat_names_dict[stat] for stat in list(set(player_props) & set(stat_names_dict))]
+
+        # Remove any markets already in odds_df (assumes no updates are needed to that data)
+        if remove_existing and 'Player Prop Stat' in odds_df.columns:
+            existing_markets = odds_df['Player Prop Stat'].unique()
+            self.markets = [market for market in self.markets if market not in existing_markets]
