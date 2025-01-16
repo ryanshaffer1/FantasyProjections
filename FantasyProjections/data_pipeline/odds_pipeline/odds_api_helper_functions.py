@@ -23,4 +23,4 @@ def get_odds_api_key(filename=None):
 
 def log_api_usage(response):
     # Check your usage
-    logger.info(f'\n{response.headers['x-requests-remaining']} requests left ({response.headers['x-requests-used']} used)')
+    logger.info(f'{response.headers['x-requests-remaining']} requests left ({response.headers['x-requests-used']} used)')

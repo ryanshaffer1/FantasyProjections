@@ -17,6 +17,7 @@ from config.log_config import LOGGING_CONFIG
 
 from misc.manage_files import collect_roster_filter, create_folders, move_logfile
 
+from data_pipeline.odds_pipeline.odds_data_helper_functions import add_player_prop_results
 from data_pipeline.odds_pipeline.seasonal_odds_collector import SeasonalOddsCollector
 
 # Flags
@@ -29,7 +30,7 @@ SCRAPE_MISSING   = True # Scrapes Pro-Football-Reference.com to gather true play
 # Data Inputs
 TEAM_NAMES    = 'all' # All team names
 YEARS               = range(2024, 2025) # All years to process data for
-WEEKS               = range(1, 2)      # All weeks to process data for (applies this set to all years in YEARS)
+WEEKS               = range(1, 18)      # All weeks to process data for (applies this set to all years in YEARS)
 GAME_TIMES          = range(0, 76)      # range(0,76). Alternates: 'all', list of numbers
 
 
@@ -77,13 +78,14 @@ for year in YEARS:
     seasonal_data = SeasonalOddsCollector(year=year, team_names=TEAM_NAMES, weeks=WEEKS,
                                           filter_df=filter_df,
                                           odds_file=data_files_config.ODDS_FILE,
-                                          player_props=['Rec Yds'])
+                                          player_props=['Rec Yds', 'Rush Yds', 'Pass Yds'])
     # Concatenate results from current year to remaining years
     odds_df = pd.concat((odds_df, seasonal_data.odds_df))
 
     logger.info(f'{year} processing complete.')
 logger.info('Data collection complete.')
 # Clean up
+odds_df = add_player_prop_results(odds_df)
 odds_df = odds_df.drop_duplicates(keep='first')
 logger.info(f'Total odds data rows: {odds_df.shape[0]}')
 

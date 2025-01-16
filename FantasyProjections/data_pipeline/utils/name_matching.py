@@ -41,7 +41,8 @@ def fuzzy_match(name1, name2):
 def drop_name_frills(name, expand_nicknames=True, lowercase=True):
 
     special_chars = ['.','-',"'"]
-    suffixes = ['Sr', 'Jr', 'III']
+    unicode_quirks = {'Ã©':'é'}
+    suffixes = ['Sr', 'Jr', 'III', 'II']
     nicknames_to_full_names = {'Mike ': 'Michael ',
                                'Rob ': 'Robert ',
                                'Tim ': 'Timothy ',
@@ -51,6 +52,9 @@ def drop_name_frills(name, expand_nicknames=True, lowercase=True):
 
     for char in special_chars:
         name = name.replace(char, '')
+
+    for quirk, correct in unicode_quirks.items():
+        name = name.replace(quirk, correct)
 
     for suffix in suffixes:
         name = name.removesuffix(suffix)

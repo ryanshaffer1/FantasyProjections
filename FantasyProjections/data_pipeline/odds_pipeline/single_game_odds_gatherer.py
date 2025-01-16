@@ -16,6 +16,7 @@ from data_pipeline.single_game_data_worker import SingleGameDataWorker
 from data_pipeline.odds_pipeline.odds_api_helper_functions import SPORT_KEY, DATE_FMT, BOOKMAKER, log_api_usage
 from data_pipeline.utils.name_matching import find_matching_name_ind
 from data_pipeline.utils.time_helper_functions import find_prev_time_index
+from data_pipeline.utils import team_abbreviations as team_abbrs
 
 # Set up logger
 logger = logging.getLogger('log')
@@ -80,7 +81,7 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
 
         # Load existing set of odds for this game
         try:
-            odds_df = pd.read_csv(odds_file)
+            odds_df = pd.read_csv(odds_file, index_col=0)
             odds_df = odds_df[odds_df['Game ID'] == self.game_id]
         except (FileNotFoundError, ValueError):
             odds_df = pd.DataFrame()
@@ -92,10 +93,7 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
         if len(self.markets) > 0:
             self.odds_df = self.gather_historical_odds(odds_df=odds_df, game_times=[0,30])
         else:
-            self.odds_df = odds_df
-
-        # Format self.odds_df for output
-        self.reformat_odds_df()
+            self.odds_df = self.reformat_odds_df(odds_df)
 
 
     def gather_historical_odds(self, odds_df=None, game_times=None):
@@ -123,46 +121,53 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
             except KeyError:
                 logger.warning(f'Key Error encountered in API request. Aborting game {self.game_id} early.')
                 return odds_df
+            try:
+                market_data = pd.DataFrame(event_data['bookmakers']).set_index('key').loc[BOOKMAKER, 'markets']
+            except KeyError:
+                logger.warning(f'Key Error encountered: {BOOKMAKER} missing. Aborting game {self.game_id} early.')
+                return odds_df
 
-            market_data = pd.DataFrame(event_data['bookmakers']).set_index('key').loc[BOOKMAKER, 'markets']
             for market in market_data:
                 # Process Odds data into a DataFrame
                 df = pd.DataFrame(market['outcomes']
                                 ).rename(columns={'description': 'Player Name', 'name': 'Line'})
                 # Add Player Prop Stat and UTC time from market data
-                df['Player Prop Stat'] = market['key']
+                df['Player Prop Stat'] = team_abbrs.invert(stats_config.labels_df_to_odds)[market['key']]
                 df['UTC Time'] = market['last_update']
+                # Format dataframe for output
+                df = self.reformat_odds_df(df)
                 # Add to running list of all odds
                 odds_df = pd.concat((odds_df, df))
 
             return odds_df
 
 
-    def reformat_odds_df(self):
+    def reformat_odds_df(self, df):
 
         # Modify into the desired DataFrame structure
-        if 'Line' in self.odds_df.columns:
-            self.odds_df = self.odds_df.set_index(['Player Name', 'UTC Time'])
+        if 'Line' in df.columns:
+            df = df.set_index(['Player Name', 'UTC Time'])
             for line in ['Over','Under']:
-                self.odds_df[f'{line} Point'] = self.odds_df.reset_index().set_index(['Player Name','UTC Time','Line']).xs(line,level=2)['point']
-                self.odds_df[f'{line} Price'] = self.odds_df.reset_index().set_index(['Player Name','UTC Time','Line']).xs(line,level=2)['price']
-            self.odds_df = self.odds_df.reset_index().drop(columns=['Line','price','point']).drop_duplicates(keep='first')
+                df[f'{line} Point'] = df.reset_index().set_index(['Player Name','UTC Time','Line']).xs(line,level=2)['point']
+                df[f'{line} Price'] = df.reset_index().set_index(['Player Name','UTC Time','Line']).xs(line,level=2)['price']
+            df = df.reset_index().drop(columns=['Line','price','point']).drop_duplicates(keep='first')
 
         # Add Year, Week, and Game ID
-        self.odds_df['Year'] = self.year
-        self.odds_df['Week'] = self.week
-        self.odds_df['Game ID'] = self.game_id
+        df['Year'] = self.year
+        df['Week'] = self.week
+        df['Game ID'] = self.game_id
 
         # Add Player ID based on roster
-        roster_inds = self.odds_df['Player Name'].apply(find_matching_name_ind, args=(self.roster_df['Player Name'].unique(),))
-        self.odds_df['Player ID'] = roster_inds.apply(lambda x: self.roster_df.reset_index().iloc[int(x)][PRIMARY_PLAYER_ID] if not np.isnan(x) else np.nan)
+        roster_inds = df['Player Name'].apply(find_matching_name_ind, args=(self.roster_df['Player Name'].unique(),))
+        df['Player ID'] = roster_inds.apply(lambda x: self.roster_df.reset_index().iloc[int(x)][PRIMARY_PLAYER_ID] if not np.isnan(x) else np.nan)
 
-        elapsed_time_inds = self.odds_df['UTC Time'].apply(
+        elapsed_time_inds = df['UTC Time'].apply(
             find_prev_time_index, args=(self.all_game_times,))
-        self.odds_df['Elapsed Time'] = self.all_game_times.index[elapsed_time_inds].to_list()
+        df['Elapsed Time'] = self.all_game_times.index[elapsed_time_inds].to_list()
 
-        self.odds_df = self.odds_df.set_index('Player ID')
+        df = df.set_index('Player ID')
 
+        return df
 
     def set_markets(self, odds_df=None, player_props=None, remove_existing=True):
 
@@ -178,5 +183,5 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
 
         # Remove any markets already in odds_df (assumes no updates are needed to that data)
         if remove_existing and 'Player Prop Stat' in odds_df.columns:
-            existing_markets = odds_df['Player Prop Stat'].unique()
+            existing_markets = [stat_names_dict[stat] for stat in odds_df['Player Prop Stat'].unique()]
             self.markets = [market for market in self.markets if market not in existing_markets]
