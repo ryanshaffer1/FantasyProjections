@@ -25,6 +25,7 @@ from neural_net import HyperParameterSet
 from tuners import GridSearchTuner
 from predictors import NeuralNetPredictor, SleeperPredictor, PerfectPredictor, LastNPredictor
 from results import PredictionResultGroup, PredictionResult
+from gamblers import BasicGambler
 
 # Output files
 FOLDER_PREFIX = ''
@@ -68,6 +69,8 @@ test_data = all_data.slice_by_criteria(inplace=False, years=[2023], weeks=range(
 test_data.name = 'Test'
 test_data_pregame = test_data.slice_by_criteria(inplace=False,elapsed_time=[0])
 test_data_pregame.name = 'Test (Pre-Game)'
+pregame_2024_data = all_data.slice_by_criteria(inplace=False, years=[2024], elapsed_time=[0])
+pregame_2024_data.name = '2024 (Pre-Game)'
 for dataset in (training_data,validation_data,test_data):
     logger.info(f'{dataset.name} Dataset size: {dataset.x_data.shape[0]}')
 
@@ -101,6 +104,14 @@ nn_result = neural_net.eval_model(eval_data=test_data)
 sleeper_result = sleeper_predictor.eval_model(eval_data=test_data_pregame)
 naive_result = naive_predictor.eval_model(eval_data=test_data_pregame, all_data=all_data)
 perfect_result = perfect_predictor.eval_model(eval_data=test_data)
+
+# Gamble based on prediction results, and evaluate success
+nn_result = neural_net.eval_model(eval_data=pregame_2024_data)
+naive_result = naive_predictor.eval_model(eval_data=pregame_2024_data, all_data=all_data)
+gambler = BasicGambler(nn_result)
+gambler.plot_earnings()
+logger.info(f'Earnings from gambling: {gambler.earnings: 0.2f} units ({gambler.accuracy*100 :0.2f}% accurate)')
+
 
 # Plot evaluation results
 all_results = PredictionResultGroup((nn_result,))
