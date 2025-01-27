@@ -13,7 +13,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from config.log_config import LOGGING_CONFIG
-from config import data_vis_config
+from config import data_files_config, data_vis_config
 from config import hp_config
 from config import nn_config
 
@@ -33,12 +33,9 @@ save_folder = f'models/{FOLDER_PREFIX}{datetime.strftime(datetime.now(),'%Y%m%d_
 LOAD_FOLDER = 'models/20241126_120555/'
 
 # Neural Net Data files
-PBP_DATAFILE = 'data/to_nn/midgame_data_to_nn.csv'
-BOXSCORE_DATAFILE = 'data/to_nn/final_stats_to_nn.csv'
-ID_DATAFILE = 'data/to_nn/data_ids.csv'
-
-# Sleeper Data files
-SLEEPER_PROJ_DICT_FILE = 'data/misc/sleeper_projections_dict.json'
+PBP_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_STAT_FILES['midgame']
+BOXSCORE_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_STAT_FILES['final']
+ID_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_STAT_FILES['id']
 
 # Set up logger
 logging.config.dictConfig(LOGGING_CONFIG)
@@ -94,7 +91,7 @@ if hp_config.hp_tuner_settings['optimize_hypers']:
 
 # Alternate predictors
 sleeper_predictor = SleeperPredictor(name='Sleeper',
-                                     proj_dict_file=SLEEPER_PROJ_DICT_FILE,
+                                     proj_dict_file=data_files_config.SLEEPER_PROJ_DICT_FILE,
                                      update_players=False) # Create Sleeper prediction model
 naive_predictor = LastNPredictor(name='Last N Games Predictor', n=3) # Create Naive prediction model
 perfect_predictor = PerfectPredictor(name='Perfect Predictor') # Create Perfect prediction model
