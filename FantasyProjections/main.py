@@ -30,7 +30,7 @@ from gamblers import BasicGambler
 # Output files
 FOLDER_PREFIX = ''
 save_folder = f'models/{FOLDER_PREFIX}{datetime.strftime(datetime.now(),'%Y%m%d_%H%M%S')}/'
-LOAD_FOLDER = 'models/11222024003003/'
+LOAD_FOLDER = 'models/20241126_120555/'
 
 # Neural Net Data files
 PBP_DATAFILE = 'data/to_nn/midgame_data_to_nn.csv'
@@ -78,8 +78,8 @@ for dataset in (training_data,validation_data,test_data):
 param_set = HyperParameterSet(hp_dict=hp_config.hp_defaults)
 
 # Initialize and train neural net
-# neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, **nn_config.nn_train_settings)
-neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_config.nn_train_settings)
+neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, **nn_config.nn_train_settings)
+# neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_config.nn_train_settings)
 
 if hp_config.hp_tuner_settings['optimize_hypers']:
     # Tuning algorithm for Neural Net Hyper-Parameters
@@ -89,8 +89,8 @@ if hp_config.hp_tuner_settings['optimize_hypers']:
                                     eval_kwargs = {'training_data':training_data, 'validation_data':validation_data},
                                     reset_kwargs = {'model_folder':save_folder},
                                     plot_variables = ['learning_rate','lmbda'])
-else:
-    neural_net.train_and_validate(training_data=training_data, validation_data=validation_data, param_set=param_set)
+# else:
+    # neural_net.train_and_validate(training_data=training_data, validation_data=validation_data, param_set=param_set)
 
 # Alternate predictors
 sleeper_predictor = SleeperPredictor(name='Sleeper',
