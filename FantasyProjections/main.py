@@ -30,7 +30,7 @@ from gamblers import BasicGambler
 # Output files
 FOLDER_PREFIX = ''
 save_folder = f'models/{FOLDER_PREFIX}{datetime.strftime(datetime.now(),'%Y%m%d_%H%M%S')}/'
-LOAD_FOLDER = 'models/11222024003003/'
+LOAD_FOLDER = 'models/20241126_120555/'
 
 # Neural Net Data files
 PBP_DATAFILE = 'data/to_nn/midgame_data_to_nn.csv'

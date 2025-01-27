@@ -9,7 +9,7 @@ from torch import nn
 
 # Hyper-Parameter Tuning Settings
 hp_tuner_settings = {
-    'optimize_hypers': True,
+    'optimize_hypers': False,
     'hyper_tuner_layers': 2,
     'hyper_tuner_steps_per_dim': 2,
     'plot_tuning_results': True,
