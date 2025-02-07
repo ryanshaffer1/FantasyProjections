@@ -113,4 +113,4 @@ labels_df_to_odds = {
     'Rec': 'player_receptions',
     'Rec Yds': 'player_reception_yds',
     'Rec TD': 'player_reception_tds',
-}   
+}
