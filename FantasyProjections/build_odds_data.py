@@ -16,8 +16,6 @@ from config import data_files_config
 from config.log_config import LOGGING_CONFIG
 
 from misc.manage_files import collect_roster_filter, create_folders, move_logfile
-
-from data_pipeline.odds_pipeline.odds_data_helper_functions import add_player_prop_results
 from data_pipeline.odds_pipeline.seasonal_odds_collector import SeasonalOddsCollector
 
 # Flags
@@ -29,9 +27,8 @@ VALIDATE_PARSING = True # Gathers true box scores from the internet to confirm l
 SCRAPE_MISSING   = True # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
 # Data Inputs
 TEAM_NAMES    = 'all' # All team names
-YEARS               = range(2024, 2025) # All years to process data for
+YEARS               = range(2023, 2024) # All years to process data for
 WEEKS               = range(1, 18)      # All weeks to process data for (applies this set to all years in YEARS)
-GAME_TIMES          = range(0, 76)      # range(0,76). Alternates: 'all', list of numbers
 
 
 # Set up logger
@@ -45,7 +42,7 @@ logger.info('Starting Program')
 # Log user inputs
 logger.debug(f'FLAGS: \nSAVE_DATA={SAVE_DATA} \nPROCESS_TO_NN={PROCESS_TO_NN} \nFILTER_ROSTER={FILTER_ROSTER} \nUPDATE_FILTER={UPDATE_FILTER}\
             \nVALIDATE_PARSING={VALIDATE_PARSING} \nSCRAPE_MISSING={SCRAPE_MISSING}')
-logger.debug(f'DATA INPUTS: \nTEAM_NAMES={TEAM_NAMES} \nYEARS={YEARS} \nWEEKS={WEEKS} \nGAME_TIMES={GAME_TIMES}')
+logger.debug(f'DATA INPUTS: \nTEAM_NAMES={TEAM_NAMES} \nYEARS={YEARS} \nWEEKS={WEEKS}')
 
 # Files to optionally load
 ROSTER_FILTER_FILE = data_files_config.ROSTER_FILTER_FILE if FILTER_ROSTER else None
@@ -85,7 +82,6 @@ for year in YEARS:
     logger.info(f'{year} processing complete.')
 logger.info('Data collection complete.')
 # Clean up
-odds_df = add_player_prop_results(odds_df)
 odds_df = odds_df.drop_duplicates(keep='first')
 logger.info(f'Total odds data rows: {odds_df.shape[0]}')
 
