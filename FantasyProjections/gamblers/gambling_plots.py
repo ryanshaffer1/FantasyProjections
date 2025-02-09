@@ -1,3 +1,9 @@
+"""Creates and exports functions related to plotting the results of player prop gambling.
+
+    Functions:
+        plot_earnings_by_week : Plots line graph tracking cumulative gambling earnings over each NFL week in the bet results.
+        compute_cum_earnings : Calculates the cumulative gambling earnings for each week in the results dataset.
+"""
 
 import matplotlib.pyplot as plt
 
@@ -6,6 +12,13 @@ plt.rcParams['font.weight'] = 'bold'
 plt.rcParams["axes.labelweight"] = "bold"
 
 def plot_earnings_by_week(bet_results, individual_stats=True, fig=None):
+    """Plots line graph tracking cumulative gambling earnings over each NFL week in the bet results.
+
+        Args:
+            bet_results (pandas.DataFrame): Contains results of each bet made on player props in the dataset.
+            individual_stats (bool, optional): Whether to include individual stats alongside overall earnings. Defaults to True.
+            fig (matplotlib.figure.Figure, optional): handle to the figure to add the plot to. Defaults to None.
+    """
 
     # Track cumulative earnings for each week
     overall_results = compute_cum_earnings(bet_results)
@@ -36,7 +49,18 @@ def plot_earnings_by_week(bet_results, individual_stats=True, fig=None):
     # "Display" plot (won't really be displayed until plt.show is called again without block=False)
     plt.show(block=False)
 
+
 def compute_cum_earnings(bet_results_df, player_prop=None):
+    """Calculates the cumulative gambling earnings for each week in the results dataset.
+
+        Args:
+            bet_results_df (pandas.DataFrame): Contains results of each bet made on player props in the dataset.
+            player_prop (str, optional): Specific stat to filter on. Defaults to None (computes overall total).
+
+        Returns:
+            pandas.DataFrame: DataFrame containing only each week and the cumulative earnings through that week.
+    """
+
     # Copy input and reset index
     cum_earnings_df = bet_results_df.copy().reset_index()
 

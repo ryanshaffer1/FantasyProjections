@@ -1,10 +1,51 @@
+"""Creates and exports classes to be used in gambling on player props based on predicted stat lines.
+
+    Classes:
+        BasicGambler : Class containing an algorithm to place bets on NFL Player Props, based on predicted performance and odds/lines set by a sportsbook. Also contains the results of these bets.
+"""
+
 import numpy as np
 import pandas as pd
 from config import data_files_config
 from gamblers.gambling_plots import plot_earnings_by_week
 
 class BasicGambler():
+    """Class containing an algorithm to place bets on NFL Player Props, based on predicted performance and odds/lines set by a sportsbook. Also contains the results of these bets.
+        
+        The BasicGambler class implements a simple betting algorithm, where one unit is bet on the over if the predicted player performance is greater than 
+        the over/under line set by the sports book, and one unit is bet on the under if the predicted performance is less than the line.
+        
+        Attributes:
+            prediction_result (PredictionResult): object created by a FantasyPredictor that contains predicted player stats, and the true outcomes of past games.
+            odds_file (str, optional): Path to a csv file containing player prop over/under lines from a sportsbook. Defaults to the filepath in data_files_config.
+            odds_df (pandas.DataFrame): Data from odds_file, pre-processed to be used for placing and evaluating bets.
+            bets (pandas.DataFrame): DataFrame containing all bets placed on player props in the dataset, as well as their payouts for winning and losing.
+            bet_results (pandas.DataFrame): DataFrame containing the results of all bets placed on player props: whether the bet hit, and the earnings (positive or negative).
+            earnings (float): Total gambling earnings (or losses, if negative) over the dataset
+            accuracy (float): Accuracy, as a fraction of correct bets divided by all bets
+        
+        Public Methods:
+            process_odds_df : Read master sheet of player prop odds, and format into DataFrame where each row matches the corresponding player/game in the prediction result dataset.
+            place_bets : Uses predicted stats and odds over/under lines to decide whether to place a bet on each over or under.
+            score_bets : Determines the success and payout from each bet placed on a player prop.
+            compute_performance : Outputs basic gambling performance metrics: total earnings, and accuracy percentage.
+            plot_earnings : Plots line graph tracking cumulative gambling earnings over each NFL week in the bet results.
+    """
+
     def __init__(self, prediction_result, odds_file=None):
+        """Constructor for BasicGambler.
+
+            Args:
+                prediction_result (PredictionResult): object created by a FantasyPredictor that contains predicted player stats, and the true outcomes of past games.
+                odds_file (str, optional): Path to a csv file containing player prop over/under lines from a sportsbook. Defaults to the filepath in data_files_config.
+            
+            Additional Class Attributes (generated, not passed as inputs):
+                odds_df (pandas.DataFrame): Data from odds_file, pre-processed to be used for placing and evaluating bets.
+                bets (pandas.DataFrame): DataFrame containing all bets placed on player props in the dataset, as well as their payouts for winning and losing.
+                bet_results (pandas.DataFrame): DataFrame containing the results of all bets placed on player props: whether the bet hit, and the earnings (positive or negative).
+                earnings (float): Total gambling earnings (or losses, if negative) over the dataset
+                accuracy (float): Accuracy, as a fraction of correct bets divided by all bets
+        """
 
         # Optional input
         if  odds_file is None:
@@ -21,9 +62,9 @@ class BasicGambler():
 
         # Compare true stats against odds to determine results of bets
         self.bet_results = self.score_bets()
-        self.bet_results = self.__process_bet_results()
 
         self.earnings, self.accuracy = self.compute_performance()
+
 
     def process_odds_df(self):
         """Read master sheet of player prop odds, and format into DataFrame where each row matches the corresponding player/game in the prediction result dataset.
@@ -49,6 +90,19 @@ class BasicGambler():
 
 
     def place_bets(self):
+        """Uses predicted stats and odds over/under lines to decide whether to place a bet on each over or under.
+        
+            The BasicGambler class simply bets one unit on the over if the predicted stat > odds line, and one unit on the under if predicted stat < odds line.
+            
+            Note that the DataFrame returned from this method has a column for each player prop named "Over Units". This quantifies the bet being placed. A positive
+            number is the amount of units bet on the over. A negative number is the amount of units bet on the under. Zero means no bet is placed on this player/player prop.
+
+            Returns:
+                pandas.DataFrame: DataFrame containing all bets placed on player props in the dataset, as well as their payouts for winning and losing. 
+                    The DataFrame columns are a multiindex, where the first level is the player prop (e.g. "Pass Yds") 
+                    and the second level contains "Over Units", "Win Earns", and "Loss Earns".
+        """
+
         # Initialize dataframe holding index values from odds (players/games)
         bets = self.odds_df.index.to_frame(index=False)
 
@@ -79,6 +133,13 @@ class BasicGambler():
 
 
     def score_bets(self):
+        """Determines the success and payout from each bet placed on a player prop.
+
+            Returns:
+                pandas.DataFrame: DataFrame containing the results of all bets placed on player props: whether the bet hit, and the earnings (positive or negative).
+                    There is one row per bet placed.
+        """
+
         bet_results = self.bets.index.to_frame(index=False)
 
         for player_prop in ['Pass Yds', 'Rush Yds', 'Rec Yds']:
@@ -99,19 +160,28 @@ class BasicGambler():
         bet_results = bet_results.set_index(self.bets.index.names)
         bet_results.columns = pd.MultiIndex.from_product([['Pass Yds','Rush Yds','Rec Yds'], ['Hit','Earnings']])
 
-        # Add column tracking all earnings across this player/game
-        bet_results['Total Earnings'] = bet_results[[(player_prop, 'Earnings') for player_prop in ['Pass Yds','Rush Yds','Rec Yds']]].sum(axis=1)
+        # Flatten to a row per bet, and keep only the bets placed (filtering out zeros)
+        bet_results = self.__process_bet_results(bet_results_df=bet_results)
 
         return bet_results
 
 
     def compute_performance(self):
+        """Outputs basic gambling performance metrics: total earnings, and accuracy percentage.
+
+            Returns:
+                float: Total gambling earnings (or losses, if negative) over the dataset
+                float: Accuracy, as a fraction of correct bets divided by all bets
+        """
         earnings = self.bet_results['Earnings'].sum()
         accuracy = self.bet_results['Hit'].sum() / self.bet_results.shape[0]
 
         return earnings, accuracy
 
+
     def plot_earnings(self):
+        """Plots line graph tracking cumulative gambling earnings over each NFL week in the bet results.
+        """
         plot_earnings_by_week(self.bet_results)
 
 
@@ -125,7 +195,6 @@ class BasicGambler():
             prop_df = bet_results_df[player_prop].copy()
             prop_df['Player Prop Stat'] = player_prop
             flattened_df = pd.concat((flattened_df, prop_df))
-        # flattened_df = flattened_df.reset_index().set_index(bet_results_df.index.names + ['Player Prop Stat'])
 
         # Remove rows that correspond to empty bets
         flattened_df = flattened_df[flattened_df['Earnings'] != 0]

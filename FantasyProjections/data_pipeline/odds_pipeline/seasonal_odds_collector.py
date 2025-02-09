@@ -1,7 +1,7 @@
 """Creates and exports class to be used in NFL player statistics data collection.
 
     Classes:
-        SeasonalDataCollector : Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
+        SeasonalOddsCollector : Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
 """
 
 import logging
@@ -19,36 +19,31 @@ from data_pipeline.utils.time_helper_functions import week_to_date_range, date_t
 logger = logging.getLogger('log')
 
 class SeasonalOddsCollector(SeasonalDataCollector):
-    """Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
+    """Collects all player props odds for all games in an NFL season. Automatically pulls data from The Odds API and processes upon initialization.
     
         Args:
             year (int): Year for season (e.g. 2023).
             team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
             weeks (list, optional): Weeks in the NFL season to collect data for. Defaults to range(1,19).
-        Keyword Arguments: 
-            game_times (list): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
-                Not stored as an object attribute.
+        Keyword Arguments:
             filter_df (pandas.DataFrame): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
                 Not stored as an object attribute.
+            player_props (list, optional): List of stats to gather gambling odds for. Defaults to None.
+            odds_file (str, optional): File path to csv containing all previously-obtained player prop odds.
 
         Additional Attributes Created during Initialization:
             pbp_df (pandas.DataFrame): Play-by-play data for all plays in an NFL season, taken from nfl-verse.
             raw_rosters_df (pandas.DataFrame): Weekly roster information for all teams in an NFL season, taken from nfl-verse.
-            all_game_info_df (pandas.DataFrame): Information setting context for each game in an NFL season, including home/away teams, team records, etc.
             all_rosters_df (pandas.DataFrame): Filtered roster dataframe to include only players of interest (skill positions, in the optional filter_df, etc.)
+            api_key (str): Key to use in requests to The Odds API.
             games (list): List of SingleGamePbpParser objects containing data for every game in the NFL season.
-            midgame_df (pandas.DataFrame): All midgame statistics for each player of interest, in every game of the NFL season. 
-                Sampled throughout the game according to optional game_times input.
-            final_stats_df (pandas.DataFrame): All final statistics for each player of interest, in every game of the NFL season.
+            odds_df (pandas.DataFrame): All collected (including previously-collected) player prop lines for all games in the season.
 
         Objects Created:
-            List of SingleGamePbpParser objects
+            List of SingleGameOddsGatherer objects
         
         Public Methods: 
-            gather_all_game_stats : Concatenates all statistics (midgame_df and final_stats_df) from individual games in self.games into larger DataFrames for the full season.
-            generate_games : Creates a SingleGamePbpParser object for each unique game included in the SeasonalDataCollector.
-            get_game_info : Generates info on every game for each team in a given year: who is home vs away, and records of each team going into the game.     
-            process_rosters : Trims DataFrame of all NFL week-by-week rosters in a given year to include only players of interest and data columns of interest.
+            generate_games : Creates a SingleGameOddsGatherer object for each unique game included in the SeasonalOddsCollector.
     """
 
     def __init__(self, year, team_names='all', weeks=range(1,19), **kwargs):
@@ -58,21 +53,21 @@ class SeasonalOddsCollector(SeasonalDataCollector):
                 year (int): Year for season (e.g. 2023).
                 team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
                 weeks (list, optional): Weeks in the NFL season to collect data for. Defaults to range(1,19).
-            Keyword Arguments: 
-                filter_df (pandas.DataFrame, optional): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
+            Keyword Arguments:
+                filter_df (pandas.DataFrame): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
                     Not stored as an object attribute.
+                player_props (list, optional): List of stats to gather gambling odds for. Defaults to None.
+                odds_file (str, optional): File path to csv containing all previously-obtained player prop odds.
 
             Additional Attributes Created during Initialization:
                 pbp_df (pandas.DataFrame): Play-by-play data for all plays in an NFL season, taken from nfl-verse.
                 raw_rosters_df (pandas.DataFrame): Weekly roster information for all teams in an NFL season, taken from nfl-verse.
-                all_game_info_df (pandas.DataFrame): Information setting context for each game in an NFL season, including home/away teams, team records, etc.
                 all_rosters_df (pandas.DataFrame): Filtered roster dataframe to include only players of interest (skill positions, in the optional filter_df, etc.)
+                api_key (str): Key to use in requests to The Odds API.
                 games (list): List of SingleGamePbpParser objects containing data for every game in the NFL season.
-                midgame_df (pandas.DataFrame): All midgame statistics for each player of interest, in every game of the NFL season. 
-                    Sampled throughout the game according to optional game_times input.
-                final_stats_df (pandas.DataFrame): All final statistics for each player of interest, in every game of the NFL season.
-
+                odds_df (pandas.DataFrame): All collected (including previously-collected) player prop lines for all games in the season.
         """
+
         # Initialize SeasonalDataCollector
         super().__init__(year=year, team_names=team_names, weeks=weeks, **kwargs)
 
@@ -94,6 +89,16 @@ class SeasonalOddsCollector(SeasonalDataCollector):
     # PUBLIC METHODS
 
     def generate_games(self, odds_file=None, player_props=None):
+        """Creates a SingleGameOddsGatherer object for each unique game included in the SeasonalOddsCollector.
+
+            Args:
+                odds_file (str, optional): File path to csv containing all previously-obtained player prop odds. Defaults to None.
+                player_props (list, optional): List of stats to gather gambling odds for. Defaults to None.
+
+            Returns:
+                list(SingleGameOddsGatherer): List of SingleGameOddsGatherer objects corresponding to each game included in the SeasonalOddsCollector.
+        """
+
         team_abbrevs_to_process = [team_abbrs.pbp_abbrevs[name] for name in self.team_names]
 
         year_start_date, _ = week_to_date_range(self.year, week=1)

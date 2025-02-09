@@ -1,7 +1,7 @@
 """Creates and exports class to be used in NFL player statistics data collection.
 
     Classes:
-        SeasonalDataCollector : Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
+        SeasonalStatsCollector : Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
 """
 
 import logging
@@ -44,10 +44,8 @@ class SeasonalStatsCollector(SeasonalDataCollector):
             List of SingleGamePbpParser objects
         
         Public Methods: 
-            gather_all_game_stats : Concatenates all statistics (midgame_df and final_stats_df) from individual games in self.games into larger DataFrames for the full season.
             generate_games : Creates a SingleGamePbpParser object for each unique game included in the SeasonalDataCollector.
             get_game_info : Generates info on every game for each team in a given year: who is home vs away, and records of each team going into the game.     
-            process_rosters : Trims DataFrame of all NFL week-by-week rosters in a given year to include only players of interest and data columns of interest.
     """
 
     def __init__(self, year, team_names='all', weeks=range(1,19), **kwargs):

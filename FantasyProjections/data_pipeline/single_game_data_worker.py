@@ -1,35 +1,32 @@
 """Creates and exports class to be used in NFL player statistics data collection.
 
     Classes:
-        SingleGamePbpParser : Collects all player stats for a single NFL game. Automatically processes data upon initialization.
+        SingleGameDataWorker : Collects data (e.g. player stats or gambling odds) for a single NFL game. Automatically processes data upon initialization.
 """
 
 from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.utils.data_helper_functions import calc_game_time_elapsed
 
 class SingleGameDataWorker():
-    """Collects all player stats for a single NFL game. Automatically processes data upon initialization.
+    """Collects data (e.g. player stats or gambling odds) for a single NFL game. Automatically processes data upon initialization.
+
+        Specific data processing steps are carried out in sub-classes.
     
         Args:
             seasonal_data (SeasonalDataCollector): "Parent" object containing data relating to the NFL season.
                 Not stored as an object attribute.
             game_id (str): Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
         Keyword Arguments: 
-            game_times (list | str, optional): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
-                Not stored as an object attribute.
 
         Additional Attributes Created during Initialization:
             year (int): Year of game being processed
             week (int): Week in NFL season of game being processed
             game_info (pandas.DataFrame): Information setting context for the game, including home/away teams, team records, etc.
-            roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
             pbp_df (pandas.DataFrame): Play-by-play data for all plays in the game, taken from nfl-verse.
-            midgame_df (pandas.DataFrame): All midgame statistics for each player of interest over the course of the game. 
-                Sampled throughout the game according to optional game_times input.
-            final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
+            roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
         
         Public Methods: 
-            parse_play_by_play : Calculates midgame and final statistics for all players in a game, using play-by-play data describing passes, rushes, etc.
+            single_game_play_by_play : Filters and cleans play-by-play data for a specific game; keeps all plays from that game and sorts by increasing elapsed game time.
     """
 
     def __init__(self, seasonal_data, game_id):
@@ -39,19 +36,12 @@ class SingleGameDataWorker():
                 seasonal_data (SeasonalDataCollector): "Parent" object containing data relating to the NFL season.
                     Not stored as an object attribute.
                 game_id (str): Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
-            Keyword Arguments: 
-                game_times (list | str, optional): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
-                    Not stored as an object attribute.
 
             Additional Attributes Created during Initialization:
                 year (int): Year of game being processed
                 week (int): Week in NFL season of game being processed
-                game_info (pandas.DataFrame): Information setting context for the game, including home/away teams, team records, etc.
-                roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
                 pbp_df (pandas.DataFrame): Play-by-play data for all plays in the game, taken from nfl-verse.
-                midgame_df (pandas.DataFrame): All midgame statistics for each player of interest over the course of the game. 
-                    Sampled throughout the game according to optional game_times input.
-                final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
+                roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
         """
 
         # Basic info

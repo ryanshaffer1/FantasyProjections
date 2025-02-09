@@ -1,7 +1,7 @@
 """Creates and exports class to be used in NFL player statistics data collection.
 
     Classes:
-        SingleGamePbpParser : Collects all player stats for a single NFL game. Automatically processes data upon initialization.
+        SingleGameOddsGatherer : Collects all player props ("odds") for a single NFL game. Automatically processes data upon initialization.
 """
 from datetime import datetime
 import logging
@@ -22,28 +22,32 @@ from data_pipeline.utils import team_abbreviations as team_abbrs
 logger = logging.getLogger('log')
 
 class SingleGameOddsGatherer(SingleGameDataWorker):
-    """Collects all player stats for a single NFL game. Automatically processes data upon initialization.
-    
+    """Collects all player props ("odds") for a single NFL game. Automatically processes data upon initialization.
+
+        Subclass of SingleGameDataWorker.
+
         Args:
             seasonal_data (SeasonalDataCollector): "Parent" object containing data relating to the NFL season.
                 Not stored as an object attribute.
+            event_id (str): Game ID for specific game ("event"), as used by The Odds API. Format is random characters.
             game_id (str): Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
-        Keyword Arguments: 
-            game_times (list | str, optional): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
-                Not stored as an object attribute.
+        Keyword Arguments:
+            player_props (list, optional): List of stats to gather gambling odds for. Defaults to None.
+            odds_file (str, optional): File path to csv containing all previously-obtained player prop odds.
 
         Additional Attributes Created during Initialization:
             year (int): Year of game being processed
             week (int): Week in NFL season of game being processed
-            game_info (pandas.DataFrame): Information setting context for the game, including home/away teams, team records, etc.
-            roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
             pbp_df (pandas.DataFrame): Play-by-play data for all plays in the game, taken from nfl-verse.
-            midgame_df (pandas.DataFrame): All midgame statistics for each player of interest over the course of the game. 
-                Sampled throughout the game according to optional game_times input.
-            final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
-        
-        Public Methods: 
-            parse_play_by_play : Calculates midgame and final statistics for all players in a game, using play-by-play data describing passes, rushes, etc.
+            roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
+            api_key (str): Key to use in requests to The Odds API.
+            all_game_times (pandas.Series): Maps elapsed time in game to UTC ("real world") time.
+            odds_df (pandas.DataFrame): All collected (including previously-collected) player prop lines for the game, at potentially varying game times.
+
+        Public Methods:
+            gather_historical_odds : Requests historical odds data from The Odds API for the player props of interest at game times of interest.
+            reformat_odds_df : Formats data collected from The Odds into consistent style as other data products (common Player IDs, etc.) and structures as one row per player/stat.
+            set_markets : Creates list of player props data to gather from The Odds for this game, optionally removing any player props already present in preexisting odds data.
     """
 
     def __init__(self, seasonal_data, event_id, game_id, **kwargs):
@@ -52,17 +56,20 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
             Args:
                 seasonal_data (SeasonalDataCollector): "Parent" object containing data relating to the NFL season.
                     Not stored as an object attribute.
+                event_id (str): Game ID for specific game ("event"), as used by The Odds API. Format is random characters.
                 game_id (str): Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
+            Keyword Arguments:
+                player_props (list, optional): List of stats to gather gambling odds for. Defaults to None.
+                odds_file (str, optional): File path to csv containing all previously-obtained player prop odds. Defaults to None.
 
             Additional Attributes Created during Initialization:
                 year (int): Year of game being processed
                 week (int): Week in NFL season of game being processed
-                game_info (pandas.DataFrame): Information setting context for the game, including home/away teams, team records, etc.
-                roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
                 pbp_df (pandas.DataFrame): Play-by-play data for all plays in the game, taken from nfl-verse.
-                midgame_df (pandas.DataFrame): All midgame statistics for each player of interest over the course of the game. 
-                    Sampled throughout the game according to optional game_times input.
-                final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
+                roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
+                api_key (str): Key to use in requests to The Odds API.
+                all_game_times (pandas.Series): Maps elapsed time in game to UTC ("real world") time.
+                odds_df (pandas.DataFrame): All collected (including previously-collected) player prop lines for the game, at potentially varying game times.
         """
 
         # Initialize SingleGameDataWorker
@@ -97,6 +104,16 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
 
 
     def gather_historical_odds(self, odds_df=None, game_times=None):
+        """Requests historical odds data from The Odds API for the player props of interest at game times of interest.
+
+            Args:
+                odds_df (pandas.DataFrame, optional): Preexisting player prop data. Any data collected in this function will be appended. Defaults to None.
+                game_times (list, optional): List of game elapsed times to collect odds data for (e.g. pregame odds at time=0, halftime odds at time=30). Defaults to [0] (pregame).
+
+            Returns:
+                pandas.DataFrame: All collected (including previously-collected) player prop lines for the game, at potentially varying game times.
+        """
+
         # Default game time is just 0 (pre-game odds)
         if game_times is None:
             game_times = [0]
@@ -105,17 +122,23 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
         if odds_df is None:
             odds_df = pd.DataFrame()
 
+        # Make a separate API request for each desired game time
         for game_time in game_times:
+            # Determine time of the most recent play in order to request the odds from that time
             pbp_index = find_prev_time_index(game_time, self.all_game_times)
             time = datetime.strftime(dateparse.parse(self.all_game_times.iloc[pbp_index]), DATE_FMT)
 
+            # Make the request to The Odds for data on the selected markets at the correct time
             response = requests.get(f'https://api.the-odds-api.com/v4/historical/sports/{SPORT_KEY}/events/{self.event_id}/odds', params={
                 'api_key': self.api_key,
                 'regions': 'us',
                 'markets': ','.join(self.markets),
                 'date': time,
                 }, timeout=10)
+            # Track usage of API key
             log_api_usage(response)
+
+            # Process API Response to obtain market data. Exit gracefully if response does not contain "data" or data does not contain "markets".
             try:
                 event_data = json.loads(response.text)['data']
             except KeyError:
@@ -143,6 +166,14 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
 
 
     def reformat_odds_df(self, df):
+        """Formats data collected from The Odds into consistent style as other data products (common Player IDs, etc.) and structures as one row per player/stat.
+
+            Args:
+                df (pandas.DataFrame): Data collected from The Odds with some minor formatting/added info already applied.
+
+            Returns:
+                pandas.DataFrame: Data in consistent structure/style as other data products.
+        """
 
         # Modify into the desired DataFrame structure
         if 'Line' in df.columns:
@@ -170,6 +201,17 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
         return df
 
     def set_markets(self, odds_df=None, player_props=None, remove_existing=True):
+        """Creates list of player props data to gather from The Odds for this game, optionally removing any player props already present in preexisting odds data.
+
+            Args:
+                odds_df (pandas.DataFrame, optional): Pre-collected player prop lines, used to prevent duplication of data. Defaults to None.
+                player_props (list, optional): List of player props to include in odds data. Defaults to None.
+                remove_existing (bool, optional): Whether to remove player props already present in preexisting odds data. Defaults to True.
+
+            Properties Modified:
+                markets (list): player props to request from The Odds, in the correct format used by The Odds.
+
+        """
 
         # Handle optional inputs
         if odds_df is None:
