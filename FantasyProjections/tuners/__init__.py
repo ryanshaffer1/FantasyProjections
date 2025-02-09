@@ -1,4 +1,4 @@
-from .grid_search_tuner import GridSearchTuner
-from .hyper_tuner import HyperParamTuner
-from .random_search_tuner import RandomSearchTuner
-from .recursive_random_search_tuner import RecursiveRandomSearchTuner
+from .grid_search_tuner import GridSearchTuner as GridSearchTuner
+from .hyper_tuner import HyperParamTuner as HyperParamTuner
+from .random_search_tuner import RandomSearchTuner as RandomSearchTuner
+from .recursive_random_search_tuner import RecursiveRandomSearchTuner as RecursiveRandomSearchTuner

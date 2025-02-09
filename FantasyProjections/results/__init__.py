@@ -1,2 +1,2 @@
-from .prediction_result import PredictionResult
-from .prediction_result_group import PredictionResultGroup
+from .prediction_result import PredictionResult as PredictionResult
+from .prediction_result_group import PredictionResultGroup as PredictionResultGroup

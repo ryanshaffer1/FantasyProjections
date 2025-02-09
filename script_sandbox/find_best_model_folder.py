@@ -40,7 +40,7 @@ for i, folder in enumerate(folders):
         neural_net = NeuralNetPredictor(name='Neural Net', load_folder=folder, **nn_config.nn_train_settings)
     except FileNotFoundError:
         print(f'no model found in {folder}.')
-    except _pickle.UnpicklingError as e:
+    except _pickle.UnpicklingError:
         print(f'incompatible model found in {folder}.')
     nn_result_all_test = neural_net.eval_model(eval_data=test_data)
     nn_result_pregame = neural_net.eval_model(eval_data=test_data_pregame)

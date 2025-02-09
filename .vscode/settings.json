@@ -1,22 +1,13 @@
 {
-    "pylint.args": [
-        "--disable=W0511",
-        "--disable=C0301",
-        "--disable=E0401",
-        "--disable=W1203"
-    ],
-    "pylint.ignorePatterns": [
-        "**/site-packages/**/*.py",
-        ".vscode/*.py",
-        "**/tests/**/*.py",
-        "**/script_sandbox/*.py",
-        "**/__init__.py"
-    ],
-    "black-formatter.args": ["--line-length", "100"],
-    "editor.defaultFormatter": "mikoz.black-py",
-    "notebook.defaultFormatter": "mikoz.black-py",
-    "editor.defaultFoldingRangeProvider": "mikoz.black-py",
-    "editor.formatOnSave": false,
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll": "explicit",
+          "source.organizeImports": "explicit"
+        },
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.defaultFoldingRangeProvider": "charliermarsh.ruff"
+    },
     "files.saveConflictResolution": "overwriteFileOnDisk",
     "austin.path": ".venv/Scripts/austin.exe",
     "autoDocstring.customTemplatePath": "FantasyProjections/config/docstring.mustache",
@@ -33,5 +24,7 @@
     "python.analysis.extraPaths": [
         "./FantasyProjections"
     ],
-    "python.experiments.optInto": ["pythonTestAdapter"]
+    "python.experiments.optInto": [
+        "pythonTestAdapter"
+    ],
 }

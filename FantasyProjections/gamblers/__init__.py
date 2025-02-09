@@ -1,1 +1,1 @@
-from .basic_gambler import BasicGambler
+from .basic_gambler import BasicGambler as BasicGambler

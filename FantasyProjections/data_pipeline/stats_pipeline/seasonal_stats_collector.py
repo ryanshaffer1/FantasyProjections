@@ -5,14 +5,14 @@
 """
 
 import logging
+
 import dateutil.parser as dateparse
 import pandas as pd
 from config import data_files_config
 from data_pipeline.seasonal_data_collector import SeasonalDataCollector
-from data_pipeline.utils import team_abbreviations as team_abbrs
 from data_pipeline.stats_pipeline.single_game_pbp_parser import SingleGamePbpParser
+from data_pipeline.utils import team_abbreviations as team_abbrs
 from data_pipeline.utils.data_helper_functions import compute_team_record
-
 
 # Set up logger
 logger = logging.getLogger('log')
@@ -48,7 +48,7 @@ class SeasonalStatsCollector(SeasonalDataCollector):
             get_game_info : Generates info on every game for each team in a given year: who is home vs away, and records of each team going into the game.     
     """
 
-    def __init__(self, year, team_names='all', weeks=range(1,19), **kwargs):
+    def __init__(self, year, team_names='all', weeks=None, **kwargs):
         """Constructor for SeasonalDataCollector class.
 
             Args:
@@ -105,7 +105,7 @@ class SeasonalStatsCollector(SeasonalDataCollector):
 
         # Generate list of game IDs to process (based on weeks and teams to include)
         game_ids = []
-        for i, game_id in enumerate(self.all_game_info_df.index.unique()):
+        for game_id in self.all_game_info_df.index.unique():
             game_info = self.all_game_info_df.loc[game_id].iloc[0]
             week = int(game_info['Week'])
             home_team = game_info['Home Team Abbrev']

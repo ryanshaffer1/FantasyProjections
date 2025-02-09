@@ -1,16 +1,18 @@
 # Make source code importable from sandbox folder
-import sys
 import os
+import sys
+
 sys.path.append(os.getcwd()+'/FantasyProjections')
 
 import random
-import numpy as np
+
 import matplotlib.pyplot as plt
-from neural_net import HyperParameterSet
-from tuners import GridSearchTuner, RandomSearchTuner, RecursiveRandomSearchTuner
-from plot_cost_vs_computation import plot_cost_vs_computation, plot_continuous_cost
-from sandbox_helpers import get_min_by_layer, add_artificial_layers
+import numpy as np
 import optimization_test_functions as opt_fnc
+from neural_net import HyperParameterSet
+from plot_cost_vs_computation import plot_continuous_cost
+from sandbox_helpers import add_artificial_layers, get_min_by_layer
+from tuners import GridSearchTuner, RandomSearchTuner, RecursiveRandomSearchTuner
 
 SAVE_FOLDER = 'script_sandbox/sandbox_files/'
 SAVE = False
@@ -80,7 +82,7 @@ for eval_function, func_name in zip(eval_functions, func_names):
         tuners = [grid_tuner, grid_tuner2, random_tuner, rec_random_tuner]
         tuner_names = ['Grid Search (Breadth)','Grid Search (Depth)','Random Search', 'Recursive Random Search']
 
-        for ind, (tuner, name) in enumerate(zip(tuners, tuner_names)):
+        for ind, tuner in enumerate(tuners):
             tuner.tune_hyper_parameters(eval_function=eval_function, eval_kwargs={'root':zero_point, 'n_dimensions': len(hp_dict)},
                                                     plot_variables=all_hp_tuner_settings['plot_variables'])
             if isinstance(tuner, RandomSearchTuner) or isinstance(tuner, RecursiveRandomSearchTuner):
