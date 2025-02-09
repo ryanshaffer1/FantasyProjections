@@ -6,7 +6,7 @@
 
 import logging
 import pandas as pd
-from config import stats_config
+from config import data_files_config, stats_config
 from config.player_id_config import PRIMARY_PLAYER_ID, ALT_PLAYER_IDS
 from misc.stat_utils import normalize_stat
 from misc.manage_files import create_folders
@@ -28,12 +28,7 @@ def preprocess_nn_data(midgame_input, final_stats_input,
             midgame_input (pandas.DataFrame | str): Stats accrued over the course of an NFL game for a set of players/games, OR path to csv file containing this data.
             final_stats_input (pandas.DataFrame | str): Stats at the end of an NFL game for a set of players/games, OR path to csv file containing this data.
             save_folder (str, optional): folder to save files that can be ingested by a Neural Net Fantasy Predictor. Defaults to None (files will not be saved).
-            save_filenames (dict, optional): Filename to use for each neural net input csv. Defaults to:
-            {
-                "midgame": "midgame_data_to_nn.csv",
-                "final": "final_stats_to_nn.csv",
-                "id": "data_ids.csv"
-            }
+            save_filenames (dict, optional): Filename to use for each neural net input csv. Defaults to filenames in data_files_config.
 
         Returns:
             pandas.DataFrame: Midgame input data in Neural Net-readable format
@@ -43,10 +38,7 @@ def preprocess_nn_data(midgame_input, final_stats_input,
 
     # Optional save_filenames input
     if not save_filenames:
-        save_filenames = {
-            'midgame': 'midgame_data_to_nn.csv',
-            'final': 'final_stats_to_nn.csv',
-            'id': 'data_ids.csv'}
+        save_filenames = data_files_config.NN_STAT_FILES
 
     # Read files if raw dataframes are not passed in
     if not isinstance(midgame_input,pd.DataFrame):

@@ -8,6 +8,7 @@
         default_scoring_weights (dict): Fantasy Points per unit of each statistic, i.e. the Fantasy Football scoring rules used.
         labels_df_to_sleeper (dict): Maps stats names used throughout the project to corresponding stats names used in the Sleeper API.
         labels_df_to_pfr (dict): Maps stats names used throughout the project to corresponding stats names used on pro-football-reference.com (PFR).
+        labels_df_to_odds (dict): Maps stats names used throughout the project to corresponding stat names used by The Odds.
 """
 
 default_stat_list = [
@@ -98,4 +99,18 @@ labels_df_to_pfr = {
     'Rec Yds': 'rec_yds',
     'Rec TD': 'rec_td',
     'Fmb': 'fumbles_lost'    
+}
+
+labels_df_to_odds = {
+    'Pass Att': 'player_pass_attempts',
+    'Pass Cmp': 'player_pass_completions',
+    'Pass Yds': 'player_pass_yds',
+    'Pass TD': 'player_pass_tds',
+    'Int': 'player_pass_interceptions',
+    'Rush Att': 'player_rush_attempts',
+    'Rush Yds': 'player_rush_yds',
+    'Rush TD': 'player_rush_tds',
+    'Rec': 'player_receptions',
+    'Rec Yds': 'player_reception_yds',
+    'Rec TD': 'player_reception_tds',
 }

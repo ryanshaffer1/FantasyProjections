@@ -1,24 +1,23 @@
 """Creates and exports class to be used in NFL player statistics data collection.
 
     Classes:
-        SeasonalDataCollector : Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
+        SeasonalStatsCollector : Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
 """
 
 import logging
 import dateutil.parser as dateparse
 import pandas as pd
 from config import data_files_config
-from config import player_id_config
-from config.player_id_config import fill_blank_player_ids
-from data_pipeline import team_abbreviations as team_abbrs
+from data_pipeline.seasonal_data_collector import SeasonalDataCollector
+from data_pipeline.utils import team_abbreviations as team_abbrs
 from data_pipeline.stats_pipeline.single_game_pbp_parser import SingleGamePbpParser
-from data_pipeline.data_helper_functions import compute_team_record, clean_team_names
-from misc.manage_files import collect_input_dfs
+from data_pipeline.utils.data_helper_functions import compute_team_record
+
 
 # Set up logger
 logger = logging.getLogger('log')
 
-class SeasonalDataCollector():
+class SeasonalStatsCollector(SeasonalDataCollector):
     """Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
     
         Args:
@@ -45,10 +44,8 @@ class SeasonalDataCollector():
             List of SingleGamePbpParser objects
         
         Public Methods: 
-            gather_all_game_stats : Concatenates all statistics (midgame_df and final_stats_df) from individual games in self.games into larger DataFrames for the full season.
             generate_games : Creates a SingleGamePbpParser object for each unique game included in the SeasonalDataCollector.
             get_game_info : Generates info on every game for each team in a given year: who is home vs away, and records of each team going into the game.     
-            process_rosters : Trims DataFrame of all NFL week-by-week rosters in a given year to include only players of interest and data columns of interest.
     """
 
     def __init__(self, year, team_names='all', weeks=range(1,19), **kwargs):
@@ -76,78 +73,23 @@ class SeasonalDataCollector():
 
         """
 
+        # Initialize SeasonalDataCollector
+        super().__init__(year=year, team_names=team_names, weeks=weeks, **kwargs)
+
+        # Optional keyword arguments
         game_times = kwargs.get('game_times', 'all')
-        filter_df= kwargs.get('filter_df', None)
-
-        self.year = year
-        self.weeks = weeks
-        self.team_names = clean_team_names(team_names, self.year)
-
-        # Collect input data
-        self.pbp_df, self.raw_rosters_df, *_ = collect_input_dfs(self.year, self.weeks, data_files_config.local_file_paths,
-                                                        data_files_config.online_file_paths, online_avail=True)
 
         # Process team records, game sites, and other game info for every game of the year, for every team
         self.all_game_info_df = self.get_game_info()
-
-        # Gather team roster for all teams, all weeks of input year
-        self.all_rosters_df = self.process_rosters(filter_df)
 
         # List of SingleGameData objects
         self.games = self.generate_games(game_times)
 
         # Gather all stats (midgame and final) from the individual teams
-        self.midgame_df, self.final_stats_df = self.gather_all_game_stats()
+        self.midgame_df, self.final_stats_df, *_ = self.gather_all_game_data(['midgame_df', 'final_stats_df'])
+
 
     # PUBLIC METHODS
-
-    def gather_all_game_stats(self):
-        """Concatenates all statistics (midgame_df and final_stats_df) from individual games in self.games into larger DataFrames for the full season.
-
-            Returns:
-                pandas.DataFrame: midgame_df statistics across all games
-                pandas.DataFrame: final_stats_df statistics across all games
-        """
-
-        midgame_df = pd.DataFrame()
-        final_stats_df = pd.DataFrame()
-        for game in self.games:
-            midgame_df = pd.concat((midgame_df, game.midgame_df))
-            final_stats_df = pd.concat((final_stats_df, game.final_stats_df))
-
-        logger.debug(f'{self.year} midgame_df rows: {midgame_df.shape[0]}')
-
-        return midgame_df, final_stats_df
-
-
-    def generate_games_old(self, game_times):
-        """Creates a SingleGamePbpParser object for each unique game included in the SeasonalDataCollector.
-
-            Args:
-                game_times (list | str): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). May be "all", meaning every play.
-
-            Returns:
-                list: List of SingleGamePbpParser objects containing data for each game in the SeasonalDataCollector
-        """
-
-        games = []
-        team_abbrevs = [team_abbrs.pbp_abbrevs[name] for name in self.team_names]
-        n_games = self.all_game_info_df.index.nunique()
-        logger.info(f'Processing {n_games} games:')
-        for i, game_id in enumerate(self.all_game_info_df.index.unique()):
-            game_info = self.all_game_info_df.loc[game_id].iloc[0]
-            week = int(game_info['Week'])
-            home_team = game_info['Home Team Abbrev']
-            away_team = game_info['Away Team Abbrev']
-            if week in self.weeks and (home_team in team_abbrevs or away_team in team_abbrevs):
-                logger.info(f'({i+1} of {n_games}): {game_id}')
-                # Process data/stats for single game
-                game = SingleGamePbpParser(self, game_id, game_times=game_times)
-                # Add to list of games
-                games.append(game)
-
-        return games
-
 
     def generate_games(self, game_times):
         """Creates a SingleGamePbpParser object for each unique game included in the SeasonalDataCollector.
@@ -177,8 +119,8 @@ class SeasonalDataCollector():
         logger.info(f'Processing {n_games} games:')
         for i, game_id in enumerate(game_ids):
             logger.info(f'({i+1} of {n_games}): {game_id}')
-            game = SingleGamePbpParser(self, game_id, game_times=game_times)
             # Process data/stats for single game
+            game = SingleGamePbpParser(self, game_id, game_times=game_times)
             # Add to list of games
             games.append(game)
 
@@ -258,73 +200,3 @@ class SeasonalDataCollector():
             team_abbrs.invert(team_abbrs.pbp_abbrevs)[x])
 
         return all_game_info_df
-
-
-    def process_rosters(self, filter_df=None):
-        """Trims DataFrame of all NFL week-by-week rosters in a given year to include only players of interest and data columns of interest.
-
-            Args:
-                filter_df (pandas.DataFrame, optional): Pre-determined list of players to include. Defaults to None.
-
-            Attributes Modified:
-                pandas.DataFrame: all_rosters_df filtered to players of interest, several columns removed, and indexed on Team & Week
-        """
-
-        # Copy of object attribute
-        all_rosters_df = self.raw_rosters_df.copy()
-
-        # Filter to only the desired weeks
-        all_rosters_df = all_rosters_df[all_rosters_df.apply(
-            lambda x: x['week'] in self.weeks, axis=1)]
-
-        # Filter to only the desired teams
-        all_rosters_df = all_rosters_df[all_rosters_df.apply(lambda x: x['team'] in
-            [team_abbrs.pbp_abbrevs[name] for name in self.team_names], axis=1)]
-
-        # Optionally filter based on subset of desired players
-        if filter_df is not None:
-            all_rosters_df = all_rosters_df[all_rosters_df.apply(
-                lambda x: x['full_name'] in filter_df['Name'].to_list(), axis=1)]
-
-        # Filter to only skill positions
-        # Positions currently being tracked for stats
-        skill_positions = ['QB', 'RB', 'FB', 'HB', 'WR', 'TE']
-        all_rosters_df = all_rosters_df[all_rosters_df.apply(
-            lambda x: x['position'] in skill_positions, axis=1)]
-
-        # Filter to only active players
-        valid_statuses = ['ACT']
-        all_rosters_df = all_rosters_df[all_rosters_df.apply(
-            lambda x: x['status'] in valid_statuses, axis=1)]
-
-        # Compute age based on birth date. Assign birth year of 2000 for anyone with missing birth date...
-        all_rosters_df['Age'] = all_rosters_df['season'] - all_rosters_df['birth_date'].apply(lambda x: dateparse.parse(x).year if (x==x) else 2000)
-
-        # Trim to just the fields that are useful
-        all_rosters_df=all_rosters_df[
-            player_id_config.PLAYER_IDS + [
-            'team',
-            'week',
-            'position',
-            'jersey_number',
-            'full_name',
-            'Age']]
-        # Reformat
-        all_rosters_df=all_rosters_df.rename(columns=
-            {
-            'team': 'Team',
-            'week': 'Week',
-            'position': 'Position',
-            'jersey_number': 'Number',
-            'full_name': 'Player Name'
-            }).set_index(['Team','Week']).sort_index()
-
-        # Update player IDs
-        all_rosters_df = fill_blank_player_ids(players_df=all_rosters_df,
-                                               master_id_file=data_files_config.MASTER_PLAYER_ID_FILE,
-                                               pfr_id_filename=data_files_config.PFR_ID_FILENAME,
-                                               add_missing_pfr=False,
-                                               update_master=False)
-
-
-        return all_rosters_df

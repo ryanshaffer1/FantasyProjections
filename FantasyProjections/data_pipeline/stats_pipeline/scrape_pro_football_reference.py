@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 from config import stats_config
 from config.data_files_config import PFR_PLAYER_URL_INTRO
+from data_pipeline.utils.name_matching import fuzzy_match, drop_name_frills
 
 # Set up logger
 logger = logging.getLogger('log')
@@ -83,7 +84,7 @@ def scrape_box_score(stats_html, team_abbrevs, last_req_time):
     return box_score_df, last_req_time
 
 
-def search_for_missing_pfr_id(player_name, max_attempts=20):
+def search_for_missing_pfr_id(player_name, max_attempts=20, continue_on_404=False):
     """Checks pro-football-reference.com for a player ID which corresponds to the input player name.
 
         Generates a dict mapping each ID it checks to the corresponding player name, 
@@ -93,6 +94,7 @@ def search_for_missing_pfr_id(player_name, max_attempts=20):
             player_name (str): Player name.
             max_attempts (int, optional): Max number of player IDs to try. Defaults to 20.
                 Note that the search will also abort if it encounters an HTTPError (like 404/page not found).
+            continue_on_404 (bool, optional): Whether to keep trying new pages after encountering a 404 error. Defaults to False.
 
         Returns:
             str | None: Player ID in PFR format, if a match was found. If no matching player name was found, returns None.
@@ -102,7 +104,9 @@ def search_for_missing_pfr_id(player_name, max_attempts=20):
     last_req_time = datetime.now()  # Keep track of last time a GET request was made
 
     # All PFR IDs have same format: LastFiXX where XX are numbers (e.g. Jayden Daniels -> DaniJa00)
-    pfr_id_base = player_name.split(' ')[1][:4].ljust(4,'x') + player_name.split(' ')[0][:2]
+    # Special characters like ' must be removed (performed by drop_name_frills)
+    cleaned_name = drop_name_frills(player_name, expand_nicknames=False, lowercase=False)
+    pfr_id_base = cleaned_name.split(' ')[1][:4].ljust(4,'x') + player_name.split(' ')[0][:2]
 
     # Try multiple PFR IDs to find one that has a matching player name
     i = 0
@@ -115,11 +119,15 @@ def search_for_missing_pfr_id(player_name, max_attempts=20):
         # Scrape Pro Football Reference for player name associated with current pfr_id
         scraped_name, last_req_time = scrape_player_page_for_name(player_url, last_req_time)
         if scraped_name is None:
-            # Reached a 404 error without finding the name, meaning it's not there
+            # Reached a 404 error before finding the name
+            if continue_on_404:
+                i += 1
+                continue
+            # If not continue on 404, return None
             return None, names_to_pfr_ids
 
         names_to_pfr_ids[scraped_name] = curr_pfr_id # Add pair of name and ID to running dict
-        if scraped_name == player_name:
+        if fuzzy_match(scraped_name, player_name):
             # Match!
             return curr_pfr_id, names_to_pfr_ids
 
@@ -146,8 +154,12 @@ def scrape_player_page_for_name(player_url, last_req_time):
 
     sleep_time = max(0, REQ_WAIT_TIME - (datetime.now() - last_req_time).total_seconds())
     sleep(sleep_time)  # Wait until enough time has passed
-    r = requests.get(player_url, timeout=10)  # Make the GET request
     last_req_time = datetime.now()  # Keep track of last time a GET request was made
+
+    try:
+        r = requests.get(player_url, timeout=10)  # Make the GET request
+    except requests.exceptions.ReadTimeout:
+        return None, last_req_time
 
     # Check if HTTPError
     try:

@@ -7,11 +7,14 @@ import numpy as np
 import pandas as pd
 from config import stats_config
 from config.player_id_config import PRIMARY_PLAYER_ID, PLAYER_IDS
+from data_pipeline.single_game_data_worker import SingleGameDataWorker
+from data_pipeline.utils.data_helper_functions import subsample_game_time
 from misc.stat_utils import stats_to_fantasy_points
-from data_pipeline.data_helper_functions import single_game_play_by_play, subsample_game_time
 
-class SingleGamePbpParser():
+class SingleGamePbpParser(SingleGameDataWorker):
     """Collects all player stats for a single NFL game. Automatically processes data upon initialization.
+    
+        Subclass of SingleGameDataWorker.
     
         Args:
             seasonal_data (SeasonalDataCollector): "Parent" object containing data relating to the NFL season.
@@ -25,8 +28,8 @@ class SingleGamePbpParser():
             year (int): Year of game being processed
             week (int): Week in NFL season of game being processed
             game_info (pandas.DataFrame): Information setting context for the game, including home/away teams, team records, etc.
-            roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
             pbp_df (pandas.DataFrame): Play-by-play data for all plays in the game, taken from nfl-verse.
+            roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
             midgame_df (pandas.DataFrame): All midgame statistics for each player of interest over the course of the game. 
                 Sampled throughout the game according to optional game_times input.
             final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
@@ -50,29 +53,23 @@ class SingleGamePbpParser():
                 year (int): Year of game being processed
                 week (int): Week in NFL season of game being processed
                 game_info (pandas.DataFrame): Information setting context for the game, including home/away teams, team records, etc.
-                roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
                 pbp_df (pandas.DataFrame): Play-by-play data for all plays in the game, taken from nfl-verse.
+                roster_df (pandas.DataFrame): Players in the game (from both teams) to collect stats for.
                 midgame_df (pandas.DataFrame): All midgame statistics for each player of interest over the course of the game. 
                     Sampled throughout the game according to optional game_times input.
                 final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
         """
 
+        # Initialize SingleGameDataWorker
+        super().__init__(seasonal_data=seasonal_data, game_id=game_id)
+
         # Optional keyword arguments
         game_times = kwargs.get('game_times','all')
 
-        # Basic info
-        self.year = seasonal_data.year
-        self.week = int(game_id.split('_')[1])
         # Game info
         self.game_info = seasonal_data.all_game_info_df.loc[game_id]
-        # Roster info for this game from the two teams' seasonal data
-        self.roster_df = seasonal_data.all_rosters_df.loc[
-            seasonal_data.all_rosters_df.index.intersection(
-                [(team, self.week) for team in self.game_info['Team Abbrev'].unique()])
-            ].reset_index().set_index(PRIMARY_PLAYER_ID)
 
         # Parse Play-by-Play to generate statistics dataframes
-        self.pbp_df = single_game_play_by_play(seasonal_data.pbp_df, game_id)
         self.midgame_df, self.final_stats_df = self.parse_play_by_play(game_times)
 
 
@@ -80,9 +77,6 @@ class SingleGamePbpParser():
         """Calculates midgame and final statistics for all players in a game, using play-by-play data describing passes, rushes, etc.
 
             Args:
-                pbp_df (pandas.DataFrame): Play-by-play data obtained from nfl-verse
-                roster_df (pandas.DataFrame): List of players on a team to track stats for.
-                game_info (pandas.Series): Information related to the game, including home team, away team, etc.
                 game_times (list | str, optional): Times in the game to output midgame stats for. May be a list of elapsed times in minutes, 
                     in which case the soonest play-by-play time after that elapsed time will be used as the stats at that time. Defaults to 'all' (every play is included).
 

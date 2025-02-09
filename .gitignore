@@ -1,8 +1,10 @@
 # Project-specific .gitignore:
+FantasyProjections/config/private/*
+!FantasyProjections/config/private/__init__.py
 data/
+docs/temp/
+docs/graphics/
 script_sandbox/sandbox_files/
-archive/
-graphics/
 models/
 .VSCodeCounter
 

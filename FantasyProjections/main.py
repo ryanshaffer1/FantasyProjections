@@ -13,7 +13,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from config.log_config import LOGGING_CONFIG
-from config import data_vis_config
+from config import data_files_config, data_vis_config
 from config import hp_config
 from config import nn_config
 
@@ -25,19 +25,17 @@ from neural_net import HyperParameterSet
 from tuners import GridSearchTuner
 from predictors import NeuralNetPredictor, SleeperPredictor, PerfectPredictor, LastNPredictor
 from results import PredictionResultGroup, PredictionResult
+from gamblers import BasicGambler
 
 # Output files
 FOLDER_PREFIX = ''
 save_folder = f'models/{FOLDER_PREFIX}{datetime.strftime(datetime.now(),'%Y%m%d_%H%M%S')}/'
-LOAD_FOLDER = 'models/11222024003003/'
+LOAD_FOLDER = 'models/20241126_120555/'
 
 # Neural Net Data files
-PBP_DATAFILE = 'data/to_nn/midgame_data_to_nn.csv'
-BOXSCORE_DATAFILE = 'data/to_nn/final_stats_to_nn.csv'
-ID_DATAFILE = 'data/to_nn/data_ids.csv'
-
-# Sleeper Data files
-SLEEPER_PROJ_DICT_FILE = 'data/misc/sleeper_projections_dict.json'
+PBP_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_STAT_FILES['midgame']
+BOXSCORE_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_STAT_FILES['final']
+ID_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_STAT_FILES['id']
 
 # Set up logger
 logging.config.dictConfig(LOGGING_CONFIG)
@@ -68,6 +66,8 @@ test_data = all_data.slice_by_criteria(inplace=False, years=[2023], weeks=range(
 test_data.name = 'Test'
 test_data_pregame = test_data.slice_by_criteria(inplace=False,elapsed_time=[0])
 test_data_pregame.name = 'Test (Pre-Game)'
+pregame_2024_data = all_data.slice_by_criteria(inplace=False, years=[2024], elapsed_time=[0])
+pregame_2024_data.name = '2024 (Pre-Game)'
 for dataset in (training_data,validation_data,test_data):
     logger.info(f'{dataset.name} Dataset size: {dataset.x_data.shape[0]}')
 
@@ -75,8 +75,8 @@ for dataset in (training_data,validation_data,test_data):
 param_set = HyperParameterSet(hp_dict=hp_config.hp_defaults)
 
 # Initialize and train neural net
-# neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, **nn_config.nn_train_settings)
-neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_config.nn_train_settings)
+neural_net = NeuralNetPredictor(name='Neural Net', load_folder=LOAD_FOLDER, **nn_config.nn_train_settings)
+# neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_config.nn_train_settings)
 
 if hp_config.hp_tuner_settings['optimize_hypers']:
     # Tuning algorithm for Neural Net Hyper-Parameters
@@ -86,12 +86,12 @@ if hp_config.hp_tuner_settings['optimize_hypers']:
                                     eval_kwargs = {'training_data':training_data, 'validation_data':validation_data},
                                     reset_kwargs = {'model_folder':save_folder},
                                     plot_variables = ['learning_rate','lmbda'])
-else:
-    neural_net.train_and_validate(training_data=training_data, validation_data=validation_data, param_set=param_set)
+# else:
+    # neural_net.train_and_validate(training_data=training_data, validation_data=validation_data, param_set=param_set)
 
 # Alternate predictors
 sleeper_predictor = SleeperPredictor(name='Sleeper',
-                                     proj_dict_file=SLEEPER_PROJ_DICT_FILE,
+                                     proj_dict_file=data_files_config.SLEEPER_PROJ_DICT_FILE,
                                      update_players=False) # Create Sleeper prediction model
 naive_predictor = LastNPredictor(name='Last N Games Predictor', n=3) # Create Naive prediction model
 perfect_predictor = PerfectPredictor(name='Perfect Predictor') # Create Perfect prediction model
@@ -101,6 +101,14 @@ nn_result = neural_net.eval_model(eval_data=test_data)
 sleeper_result = sleeper_predictor.eval_model(eval_data=test_data_pregame)
 naive_result = naive_predictor.eval_model(eval_data=test_data_pregame, all_data=all_data)
 perfect_result = perfect_predictor.eval_model(eval_data=test_data)
+
+# Gamble based on prediction results, and evaluate success
+nn_result = neural_net.eval_model(eval_data=pregame_2024_data)
+naive_result = naive_predictor.eval_model(eval_data=pregame_2024_data, all_data=all_data)
+gambler = BasicGambler(nn_result)
+gambler.plot_earnings()
+logger.info(f'Earnings from gambling: {gambler.earnings: 0.2f} units ({gambler.accuracy*100 :0.2f}% accurate)')
+
 
 # Plot evaluation results
 all_results = PredictionResultGroup((nn_result,))
