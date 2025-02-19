@@ -1,6 +1,6 @@
 """Contains variables defining the configuration of data used in Fantasy Projections.
 
-    Variables: 
+    Variables:
         default_stat_list (list): list of statistics tracked for all NFL players/games
         default_norm_thresholds (dict): Map for each numeric variable passed into StatsDataset, including (but not limited to) stats in the stat list.
             Also includes variables such as Elapsed Time, Team Wins, etc.
@@ -12,18 +12,18 @@
 """
 
 default_stat_list = [
-    'Pass Att',
-    'Pass Cmp',
-    'Pass Yds',
-    'Pass TD',
-    'Int',
-    'Rush Att',
-    'Rush Yds',
-    'Rush TD',
-    'Rec',
-    'Rec Yds',
-    'Rec TD',
-    'Fmb'
+    "Pass Att",
+    "Pass Cmp",
+    "Pass Yds",
+    "Pass TD",
+    "Int",
+    "Rush Att",
+    "Rush Yds",
+    "Rush TD",
+    "Rec",
+    "Rec Yds",
+    "Rec TD",
+    "Fmb",
                      ]
 
 
@@ -57,60 +57,60 @@ default_norm_thresholds = {
 
 
 default_scoring_weights = {
-    'Pass Att'  : 0,
-    'Pass Cmp'  : 0,
-    'Pass Yds'  : 0.04,
-    'Pass TD'   : 4,
-    'Int'       : -2,
-    'Rush Att'  : 0,
-    'Rush Yds'  : 0.1,
-    'Rush TD'   : 6,
-    'Rec'       : 1,
-    'Rec Yds'   : 0.1,
-    'Rec TD'    : 6,
-    'Fmb'       : -2,
+    "Pass Att"  : 0,
+    "Pass Cmp"  : 0,
+    "Pass Yds"  : 0.04,
+    "Pass TD"   : 4,
+    "Int"       : -2,
+    "Rush Att"  : 0,
+    "Rush Yds"  : 0.1,
+    "Rush TD"   : 6,
+    "Rec"       : 1,
+    "Rec Yds"   : 0.1,
+    "Rec TD"    : 6,
+    "Fmb"       : -2,
 }
 
 labels_df_to_sleeper = {
-    'Pass Att': 'pass_att',
-    'Pass Cmp': 'pass_cmp',
-    'Pass Yds': 'pass_yd',
-    'Pass TD': 'pass_td',
-    'Int': 'pass_int',
-    'Rush Att': 'rush_att',
-    'Rush Yds': 'rush_yd',
-    'Rush TD': 'rush_td',
-    'Rec': 'rec',
-    'Rec Yds': 'rec_yd',
-    'Rec TD': 'rec_td',
-    'Fmb': 'fum_lost'
+    "Pass Att": "pass_att",
+    "Pass Cmp": "pass_cmp",
+    "Pass Yds": "pass_yd",
+    "Pass TD": "pass_td",
+    "Int": "pass_int",
+    "Rush Att": "rush_att",
+    "Rush Yds": "rush_yd",
+    "Rush TD": "rush_td",
+    "Rec": "rec",
+    "Rec Yds": "rec_yd",
+    "Rec TD": "rec_td",
+    "Fmb": "fum_lost",
 }
 
 labels_df_to_pfr = {
-    'Pass Att': 'pass_att',
-    'Pass Cmp': 'pass_cmp',
-    'Pass Yds': 'pass_yds',
-    'Pass TD': 'pass_td',
-    'Int': 'pass_int',
-    'Rush Att': 'rush_att',
-    'Rush Yds': 'rush_yds',
-    'Rush TD': 'rush_td',
-    'Rec': 'rec',
-    'Rec Yds': 'rec_yds',
-    'Rec TD': 'rec_td',
-    'Fmb': 'fumbles_lost'    
+    "Pass Att": "pass_att",
+    "Pass Cmp": "pass_cmp",
+    "Pass Yds": "pass_yds",
+    "Pass TD": "pass_td",
+    "Int": "pass_int",
+    "Rush Att": "rush_att",
+    "Rush Yds": "rush_yds",
+    "Rush TD": "rush_td",
+    "Rec": "rec",
+    "Rec Yds": "rec_yds",
+    "Rec TD": "rec_td",
+    "Fmb": "fumbles_lost",
 }
 
 labels_df_to_odds = {
-    'Pass Att': 'player_pass_attempts',
-    'Pass Cmp': 'player_pass_completions',
-    'Pass Yds': 'player_pass_yds',
-    'Pass TD': 'player_pass_tds',
-    'Int': 'player_pass_interceptions',
-    'Rush Att': 'player_rush_attempts',
-    'Rush Yds': 'player_rush_yds',
-    'Rush TD': 'player_rush_tds',
-    'Rec': 'player_receptions',
-    'Rec Yds': 'player_reception_yds',
-    'Rec TD': 'player_reception_tds',
+    "Pass Att": "player_pass_attempts",
+    "Pass Cmp": "player_pass_completions",
+    "Pass Yds": "player_pass_yds",
+    "Pass TD": "player_pass_tds",
+    "Int": "player_pass_interceptions",
+    "Rush Att": "player_rush_attempts",
+    "Rush Yds": "player_rush_yds",
+    "Rush TD": "player_rush_tds",
+    "Rec": "player_receptions",
+    "Rec Yds": "player_reception_yds",
+    "Rec TD": "player_reception_tds",
 }

@@ -4,22 +4,27 @@
         week_to_date_range : Returns the start and end dates of a given NFL week.
         date_to_nfl_week : Returns the NFL season/week that contains a given date.
         find_prev_time_index : Finds the most recent time before a given time in a series of times (i.e. the nearest time in the past.)
-"""
+"""  # fmt: skip
 
+import contextlib
 import datetime as dt
+
 import dateutil.parser as dateparse
 import dateutil.relativedelta as datedelta
 import numpy as np
 
 # Week starts on WEDNESDAY
-WEEK_1_DATES = {2018: '2018-09-05 00:00:00Z',
-                2019: '2019-09-04 00:00:00Z',
-                2020: '2020-09-09 00:00:00Z',
-                2021: '2021-09-08 00:00:00Z',
-                2022: '2022-09-07 00:00:00Z',
-                2023: '2023-09-06 00:00:00Z',
-                2024: '2024-09-04 00:00:00Z'}
-WEEK_1_DATES = {key:dateparse.parse(val) for key, val in WEEK_1_DATES.items()}
+WEEK_1_DATES = {
+    2018: "2018-09-05 00:00:00Z",
+    2019: "2019-09-04 00:00:00Z",
+    2020: "2020-09-09 00:00:00Z",
+    2021: "2021-09-08 00:00:00Z",
+    2022: "2022-09-07 00:00:00Z",
+    2023: "2023-09-06 00:00:00Z",
+    2024: "2024-09-04 00:00:00Z",
+}
+WEEK_1_DATES = {key: dateparse.parse(val) for key, val in WEEK_1_DATES.items()}
+
 
 def week_to_date_range(year, week):
     """Returns the start and end dates of a given NFL week.
@@ -32,10 +37,10 @@ def week_to_date_range(year, week):
 
         Returns:
             list: List of two datetime objects, corresponding to the start and end dates of the week.
-    """
+    """  # fmt: skip
 
     week_1_date = WEEK_1_DATES[year]
-    days_from_week_1 = (week-1)*7
+    days_from_week_1 = (week - 1) * 7
     week_start_date = week_1_date + datedelta.relativedelta(days=days_from_week_1)
     week_end_date = week_start_date + datedelta.relativedelta(days=6)
     date_range = [week_start_date, week_end_date]
@@ -54,13 +59,10 @@ def date_to_nfl_week(date):
         Returns:
             int: NFL season (year)
             int: NFL week
-    """
+    """  # fmt: skip
 
-    try:
+    with contextlib.suppress(TypeError):  # Assume date is already a datetime
         date = dateparse.parse(date)
-    except TypeError:
-        # Assume date is already a datetime
-        pass
 
     days_delta = np.array([(date - start_date).days for start_date in WEEK_1_DATES.values()])
     year = list(WEEK_1_DATES.keys())[np.argmin(np.where(days_delta < 0, np.inf, days_delta))]
@@ -83,7 +85,7 @@ def find_prev_time_index(time, other_times_series):
 
         Returns:
             int: Index of other_times_series that is the most recent time before the input time.
-    """
+    """  # fmt: skip
 
     # Time input as an elapsed time float
     if isinstance(time, (float, int)):

@@ -6,15 +6,17 @@
         stats_to_fantasy_points : Calculates Fantasy Points corresponding to an input stat line, based on fantasy scoring rules.
         gen_random_games : Generates random game/player combinations from input dataset, with no repeating.
         linear_regression : Performs Simple Linear Regression on x_data and y_data to determine line of best fit (slope, intercept) and coefficient of determination (r_squared).
-"""
+"""  # fmt: skip
 
 import logging
+
 import numpy as np
 import pandas as pd
 from config import stats_config
 
 # Set up logger
-logger = logging.getLogger('log')
+logger = logging.getLogger("log")
+
 
 def normalize_stat(data, thresholds=None):
     """Converts statistics from true values (i.e. football stats) to normalized values (scaled between 0 and 1).
@@ -31,7 +33,7 @@ def normalize_stat(data, thresholds=None):
 
         Returns:
             pandas.Series: Series of normalized data where each entry in col is mapped between 0 and 1 according to the bounds in thresholds
-    """
+    """  # fmt: skip
 
     # Optional input
     if not thresholds:
@@ -41,13 +43,14 @@ def normalize_stat(data, thresholds=None):
     match type(data):
         case pd.Series:
             # Only one column of data
-            data = _normalize_series(data,thresholds)
+            data = _normalize_series(data, thresholds)
         case pd.DataFrame:
             # Normalize one column at a time
-            data = data.apply(_normalize_series,args=(thresholds,),axis=0)
+            data = data.apply(_normalize_series, args=(thresholds,), axis=0)
         case _:
             # Invalid data type
-            raise TypeError('Invalid Data Type')
+            msg = "Invalid Data Type"
+            raise TypeError(msg)
 
     return data
 
@@ -64,7 +67,7 @@ def unnormalize_stat(data, thresholds=None):
 
         Returns:
             pandas.Series: Series of unnormalized data where each entry in col is scaled up according to the bounds in thresholds
-    """
+    """  # fmt: skip
 
     # Optional input
     if not thresholds:
@@ -74,13 +77,14 @@ def unnormalize_stat(data, thresholds=None):
     match type(data):
         case pd.Series:
             # Only one column of data
-            data = _unnormalize_series(data,thresholds)
+            data = _unnormalize_series(data, thresholds)
         case pd.DataFrame:
             # Normalize one column at a time
-            data = data.apply(_unnormalize_series,args=(thresholds,),axis=0)
+            data = data.apply(_unnormalize_series, args=(thresholds,), axis=0)
         case _:
             # Invalid data type
-            raise TypeError('Invalid Data Type')
+            msg = "Invalid Data Type"
+            raise TypeError(msg)
 
     return data
 
@@ -89,11 +93,11 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm
     """Calculates Fantasy Points corresponding to an input stat line, based on fantasy scoring rules.
 
         Args:
-            stat_line (pandas.Series | pandas.DataFrame | torch.tensor): Stats to use to calculate fantasy points. 
+            stat_line (pandas.Series | pandas.DataFrame | torch.tensor): Stats to use to calculate fantasy points.
                 If 1D data array, each entry is assumed to correspond to a different statistic (e.g. Pass Yds, Pass TD, etc.).
                 If 2D data array, each column is assumed to correspond to a different statistic.
                 Data may be normalized or un-normalized, with input "normalized" set accordingly.
-            stat_indices (str | list, optional): For data without column headers or row indices, used to determine the 
+            stat_indices (str | list, optional): For data without column headers or row indices, used to determine the
                 order of statistics contained in stat_line. Defaults to None. May be passed as string "default" in order to use default_stat_list.
             normalized (bool, optional): Whether stats in stat_line are already normalized (converted such that all values are between 0 and 1)
                 or un-normalized (in standard football stat ranges). Defaults to False.
@@ -105,7 +109,7 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm
         Returns:
             pandas.DataFrame: stat_line, un-normalized and with column headers corresponding to stat indices, with an additional entry for
                 Fantasy Points calculated based on the fantasy scoring rules. Output type is DataFrame regardless of input type.
-    """
+    """  # fmt: skip
 
     # Optional inputs
     if not norm_thresholds:
@@ -114,7 +118,7 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm
         # Scoring rules in fantasy format
         scoring_weights = stats_config.default_scoring_weights
 
-    if stat_indices == 'default':
+    if stat_indices == "default":
         stat_indices = stats_config.default_stat_list
 
     # Convert stat line to data frame if need be
@@ -129,22 +133,25 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm
         try:
             stat_line.columns = stat_indices
         except ValueError as e:
-            raise ValueError('Unable to assign stat_indices to stat_line.') from e
+            msg = "Unable to assign stat_indices to stat_line."
+            raise ValueError(msg) from e
 
     # Un-normalize stats if necessary
     if normalized:
         stat_line = unnormalize_stat(stat_line, thresholds=norm_thresholds)
 
     # Trim scoring weights dictionary to only the stats that have non-zero weight
-    scoring_weights_nonzero = {key:val for (key,val) in scoring_weights.items() if val!=0}
+    scoring_weights_nonzero = {key: val for (key, val) in scoring_weights.items() if val != 0}
 
     # Calculate Fantasy Points from stat line and scoring weights
     try:
-        stat_line['Fantasy Points'] = (stat_line[scoring_weights_nonzero.keys()] * scoring_weights_nonzero).sum(axis=1)
+        stat_line["Fantasy Points"] = (stat_line[scoring_weights_nonzero.keys()] * scoring_weights_nonzero).sum(axis=1)
     except KeyError as e:
-        raise KeyError('Key Error: Missing data in stat_line corresponding to all stats in scoring_weights.') from e
+        msg = "Key Error: Missing data in stat_line corresponding to all stats in scoring_weights."
+        raise KeyError(msg) from e
     except IndexError as e:
-        raise IndexError('Index Error: statistics cannot be matched to weights. stat_indices must be input, or set to "default"') from e
+        msg = "Index Error: statistics cannot be matched to weights. stat_indices must be input, or set to 'default'"
+        raise IndexError(msg) from e
 
     return stat_line
 
@@ -155,34 +162,31 @@ def gen_random_games(id_df, n_random, game_ids=None):
         Args:
             id_df (pandas.DataFrame): DataFrame containing "Player ID", "Week", and "Year" as columns
             n_random (int): Number of random game/player combinations to generate
-            game_ids (list, optional): List of pre-selected (not random) games/players. Defaults to None. 
+            game_ids (list, optional): List of pre-selected (not random) games/players. Defaults to None.
                 Each element in list must be a dict containing the following keys:
                     - "Player ID" : value -> str
                     - "Year" : value -> int
                     - "Week" : value -> int
 
         Returns:
-            list: List of games/players, including any pre-selected as well as randomly-selected games/players. 
+            list: List of games/players, including any pre-selected as well as randomly-selected games/players.
                 Each element in list is a dict containing the following keys:
                     - "Player ID" : value -> str
                     - "Year" : value -> int
                     - "Week" : value -> int
-    """
+    """  # fmt: skip
 
     # Keep only unique games from id_df
     unique_id_df = id_df.copy()
-    unique_id_df = unique_id_df.drop_duplicates(subset=['Player ID','Year','Week'],keep='first')
+    unique_id_df = unique_id_df.drop_duplicates(subset=["Player ID", "Year", "Week"], keep="first")
 
     # Copy or initialize list of game IDs
-    if game_ids:
-        game_ids = game_ids.copy()
-    else:
-        game_ids = []
+    game_ids = game_ids.copy() if game_ids else []
 
     # Check that number of unique games in id_df is greater than number of games requested
     if unique_id_df.shape[0] < len(game_ids) + n_random:
-        logger.warning('More game IDs requested than unique games available. Returning all games.')
-        game_ids = list(unique_id_df.apply(lambda x:{col: x[col] for col in ['Player ID','Week','Year']},axis=1))
+        logger.warning("More game IDs requested than unique games available. Returning all games.")
+        game_ids = list(unique_id_df.apply(lambda x: {col: x[col] for col in ["Player ID", "Week", "Year"]}, axis=1))
         return game_ids
 
     # (Optionally) Add random players/games to plot
@@ -190,8 +194,7 @@ def gen_random_games(id_df, n_random, game_ids=None):
         valid_new_entry = False
         while not valid_new_entry:
             ind = np.random.randint(unique_id_df.shape[0])
-            game_dict = {col: unique_id_df.iloc[ind][col]
-                        for col in ['Player ID', 'Week', 'Year']}
+            game_dict = {col: unique_id_df.iloc[ind][col] for col in ["Player ID", "Week", "Year"]}
             if game_dict not in game_ids:
                 game_ids.append(game_dict)
                 valid_new_entry = True
@@ -201,7 +204,7 @@ def gen_random_games(id_df, n_random, game_ids=None):
 
 def linear_regression(x_data, y_data):
     """Performs Simple Linear Regression on x_data and y_data to determine line of best fit (slope, intercept) and coefficient of determination (r_squared).
-    
+
         Equations taken from:
         https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/images/Regression_and_Correlation.pdf (p. 6)
         https://www.ncl.ac.uk/webtemplate/ask-assets/external/maths-resources/statistics/regression-and-correlation/coefficient-of-determination-r-squared.html
@@ -216,33 +219,34 @@ def linear_regression(x_data, y_data):
             float: slope of regression line
             float: y-intercept of regression line
             float: r_squared (Coefficient of Determination) of regression line against data
-    """
+    """  # fmt: skip
 
     # Convert inputs to array (column vector)
-    x_data = np.array(x_data).reshape([-1,1])
-    y_data = np.array(y_data).reshape([-1,1])
+    x_data = np.array(x_data).reshape([-1, 1])
+    y_data = np.array(y_data).reshape([-1, 1])
 
     # Basic info about x and y
     x_mean = np.nanmean(x_data)
     y_mean = np.nanmean(y_data)
     n = x_data.shape[0]
     # Calculate slope and intercept for line of best fit
-    s_x_y = sum(x_data*y_data)/n - (sum(x_data)*sum(y_data))/n**2
-    s_x_sq = sum(x_data**2)/n - (sum(x_data)/n)**2
-    slope = float(s_x_y/s_x_sq)
+    s_x_y = sum(x_data * y_data) / n - (sum(x_data) * sum(y_data)) / n**2
+    s_x_sq = sum(x_data**2) / n - (sum(x_data) / n) ** 2
+    slope = float(s_x_y / s_x_sq)
     intercept = float(y_mean - (slope * x_mean))
     # Calculate r_value
-    y_predicted = intercept + slope*x_data
+    y_predicted = intercept + slope * x_data
     residuals = y_data - y_predicted
     dists_from_mean = y_data - y_mean
     ssr = sum(residuals**2)
     sst = sum(dists_from_mean**2)
-    r_squared = float(1 - (ssr/sst))
+    r_squared = float(1 - (ssr / sst))
 
     return slope, intercept, r_squared
 
 
 # PRIVATE FUNCTIONS
+
 
 def _normalize_series(col, thresholds):
     # Converts statistics of a single type (one data Series) to normalized values
@@ -251,7 +255,7 @@ def _normalize_series(col, thresholds):
         col = (col - lwr) / (upr - lwr)
         col = col.clip(0, 1)
     else:
-        logger.warning(f'{col.name} not explicitly normalized')
+        logger.warning(f"{col.name} not explicitly normalized")
 
     return col
 
@@ -264,6 +268,6 @@ def _unnormalize_series(col, thresholds):
         [lwr, upr] = thresholds[col.name]
         col = col * (upr - lwr) + lwr
     else:
-        logger.warning(f'Warning: {col.name} not explicitly normalized')
+        logger.warning(f"Warning: {col.name} not explicitly normalized")
 
     return col

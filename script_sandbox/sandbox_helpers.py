@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+
 def get_min_by_layer(tuner, num_hps):
     df = pd.DataFrame(tuner.hyper_tuning_table)
     mins = []
@@ -15,7 +16,7 @@ def get_min_by_layer(tuner, num_hps):
 
 
 def add_artificial_layers(tuner, layer_size=None):
-    
+
     if layer_size is None:
         layer_size = len(tuner.hyper_tuning_table)
 
@@ -23,5 +24,5 @@ def add_artificial_layers(tuner, layer_size=None):
     for i, row in enumerate(tuner.hyper_tuning_table):
         row.append(i//layer_size)
         new_table.append(row)
-        
+
     tuner.hyper_tuning_table = new_table

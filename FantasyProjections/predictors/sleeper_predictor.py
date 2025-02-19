@@ -2,31 +2,32 @@
 
     Classes:
         SleeperPredictor : child of FantasyPredictor. Predicts NFL player stats using the Sleeper Fantasy web app/API.
-    
+
     Functions (Interface points with Sleeper API):
         collect_sleeper_player_list : Pulls a list of all players in Sleeper database, and performs some initial processing of the list.
         collect_sleeper_projections : Pulls player projected stats from the Sleeper API for a set of weeks and adds to a pre-existing dict of projections by week.
 """
 
-from dataclasses import dataclass
 import json
 import logging
+from dataclasses import dataclass
+
 import pandas as pd
 import torch
-from sleeper_wrapper import Stats, Players
-from config import stats_config, data_files_config
+from config import data_files_config, stats_config
 from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.utils.name_matching import find_matching_name_ind
 from misc.stat_utils import stats_to_fantasy_points
 from predictors import FantasyPredictor
+from sleeper_wrapper import Players, Stats
 
 # Set up logger
-logger = logging.getLogger('log')
+logger = logging.getLogger("log")
 
 @dataclass
 class SleeperPredictor(FantasyPredictor):
     """Predictor of NFL players' stats in games, using the Sleeper Fantasy web app/API to generate predictions.
-    
+
         Sub-class of FantasyPredictor.
         Pulls stat predictions from Sleeper Fantasy. How they compute their predictions is unclear.
         Sleeper API documentation: https://github.com/SwapnikKatkoori/sleeper-api-wrapper
@@ -38,13 +39,13 @@ class SleeperPredictor(FantasyPredictor):
                 Defaults to None. If a file is not entered, or the file does not contain all the necessary data, updated information will
                 automatically be requested from Sleeper.
             update_players (bool, optional): whether to request updated information on NFL players/rosters from Sleeper. Defaults to False.
-        
+
         Additional Class Attributes:
-            player_to_sleeper_id (dict): dictionary containing the names of all players in Sleeper's database, 
+            player_to_sleeper_id (dict): dictionary containing the names of all players in Sleeper's database,
                 mapped to their Sleeper ID numbers (used in projections)
             all_proj_dict (dict): dictionary mapping NFL weeks (in "year-week" format) to the pre-game stat predictions from Sleeper for that week.
                 Each set of pre-game stat predictions is a dict mapping a player's Sleeper ID to their predicted stat line.
-        
+
         Public Methods:
             eval_model : Generates predicted stats for an input evaluation dataset, as provided by Sleeper.
             refresh_players : Updates player dictionary (player names to ID numbers) using Sleeper API
@@ -82,11 +83,11 @@ class SleeperPredictor(FantasyPredictor):
                 eval_data (StatsDataset): data to use for Neural Net evaluation (e.g. validation or test data).
 
             Keyword-Args:
-                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor. 
+                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor.
                 See the related documentation for descriptions and valid inputs. All keyword arguments are optional.
 
             Returns:
-                PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
+                PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting,
                     performance assessments, etc.
         """
 
@@ -103,9 +104,9 @@ class SleeperPredictor(FantasyPredictor):
         # sleeper projections dictionary
         stat_predicts = torch.empty(0)
         for _, id_row in eval_data.id_data.iterrows():
-            year_week = id_row['Year-Week']
-            sleeper_id = int(id_row['sleeper_id'])
-            if sleeper_id in self.player_ids['sleeper_id'].dropna().values:
+            year_week = id_row["Year-Week"]
+            sleeper_id = int(id_row["sleeper_id"])
+            if sleeper_id in self.player_ids["sleeper_id"].dropna().values:
                 proj_stats = self.all_proj_dict[year_week][str(sleeper_id)]
                 stat_line = torch.tensor(self.__reformat_sleeper_stats(proj_stats, stat_columns))
             else:
@@ -130,7 +131,7 @@ class SleeperPredictor(FantasyPredictor):
 
     def refresh_player_sleeper_ids(self, player_id_df, save_data=True):
         """Updates master list of player IDs using Sleeper API to fill in missing values for sleeper_id.
-        
+
             It is not guaranteed that all missing IDs can be found, as Sleeper's player list/ID system are not comprehensive.
             Does not add extra players to the list, even if Sleeper has more unique players.
 
@@ -149,11 +150,11 @@ class SleeperPredictor(FantasyPredictor):
 
         # Update master list with the Sleeper ID of any players that are common to both DataFrames
         intersecting_ids = player_id_df.index.intersection(sleeper_player_df.index)
-        player_id_df.loc[intersecting_ids,'sleeper_id'] = sleeper_player_df.loc[intersecting_ids,'sleeper_id']
+        player_id_df.loc[intersecting_ids,"sleeper_id"] = sleeper_player_df.loc[intersecting_ids,"sleeper_id"]
 
         # Add any more IDs that can be found via fuzzy name matching
-        fuzzy_match_inds = player_id_df[player_id_df['sleeper_id'].isna()]['Player Name'].apply(find_matching_name_ind, args=(sleeper_player_df['full_name'],)).dropna()
-        player_id_df['sleeper_id'] = player_id_df.apply(lambda x: fuzzy_match_inds.loc[x.name] if x.name in fuzzy_match_inds.index else x['sleeper_id'], axis=1)
+        fuzzy_match_inds = player_id_df[player_id_df["sleeper_id"].isna()]["Player Name"].apply(find_matching_name_ind, args=(sleeper_player_df["full_name"],)).dropna()
+        player_id_df["sleeper_id"] = player_id_df.apply(lambda x: fuzzy_match_inds.loc[x.name] if x.name in fuzzy_match_inds.index else x["sleeper_id"], axis=1)
 
         # Save data to master list
         if save_data and self.player_id_file is not None:
@@ -171,9 +172,9 @@ class SleeperPredictor(FantasyPredictor):
         # Load Player IDs master list
         try:
             player_id_df = pd.read_csv(self.player_id_file,
-                                    dtype={'sleeper_id': 'Int64'}).set_index(PRIMARY_PLAYER_ID)
+                                    dtype={"sleeper_id": "Int64"}).set_index(PRIMARY_PLAYER_ID)
         except (ValueError, FileNotFoundError):
-            player_id_df = (collect_sleeper_player_list().rename(columns={'full_name':'Player Name'})
+            player_id_df = (collect_sleeper_player_list().rename(columns={"full_name":"Player Name"})
                                                          .set_index(PRIMARY_PLAYER_ID))
 
         # Optionally use the Sleeper API to try and add missing Sleeper IDs to the master list
@@ -190,28 +191,28 @@ class SleeperPredictor(FantasyPredictor):
         # updates all_proj_dict by requesting predictions for the missing weeks from Sleeper.
 
         # Unique year-week combinations in evaluation dataset
-        eval_data.id_data['Year-Week'] = eval_data.id_data[['Year',
-                                                    'Week']].astype(str).agg('-'.join, axis=1)
-        unique_year_weeks = list(eval_data.id_data['Year-Week'].unique())
+        eval_data.id_data["Year-Week"] = eval_data.id_data[["Year",
+                                                    "Week"]].astype(str).agg("-".join, axis=1)
+        unique_year_weeks = list(eval_data.id_data["Year-Week"].unique())
 
         # Gather all stats from Sleeper
         try:
-            with open(self.proj_dict_file, 'r', encoding='utf-8') as file:
+            with open(self.proj_dict_file, encoding="utf-8") as file:
                 all_proj_dict = json.load(file)
         except (FileNotFoundError, TypeError):
-            logger.warning('Sleeper projection dictionary file not found during load process.')
+            logger.warning("Sleeper projection dictionary file not found during load process.")
             all_proj_dict = {}
 
         if not all(year_week in all_proj_dict for year_week in unique_year_weeks):
             # Gather any unsaved stats from Sleeper
             all_proj_dict = collect_sleeper_projections(all_proj_dict, unique_year_weeks)
-            logger.info(f'Adding Year-Weeks to Sleeper projections dictionary: {self.proj_dict_file} \n{unique_year_weeks}')
+            logger.info(f"Adding Year-Weeks to Sleeper projections dictionary: {self.proj_dict_file} \n{unique_year_weeks}")
             # Save projection dictionary to JSON file for use next time
             try:
-                with open(self.proj_dict_file, 'w', encoding='utf-8') as file:
+                with open(self.proj_dict_file, "w", encoding="utf-8") as file:
                     json.dump(all_proj_dict, file)
             except (FileNotFoundError, TypeError):
-                logger.warning('Sleeper projection dictionary file not found during save process.')
+                logger.warning("Sleeper projection dictionary file not found during save process.")
 
         return all_proj_dict
 
@@ -240,13 +241,13 @@ def collect_sleeper_player_list():
     players = Players()
     sleeper_player_dict = players.get_all_players()
     sleeper_player_df = pd.DataFrame(sleeper_player_dict).transpose()
-    sleeper_player_df = sleeper_player_df.sort_index().reset_index(drop=True).rename(columns={'player_id':'sleeper_id'})
+    sleeper_player_df = sleeper_player_df.sort_index().reset_index(drop=True).rename(columns={"player_id":"sleeper_id"})
 
     # Drop non-players from df (non-numeric sleeper IDs)
-    sleeper_player_df = sleeper_player_df[sleeper_player_df['sleeper_id'].str.isnumeric()]
+    sleeper_player_df = sleeper_player_df[sleeper_player_df["sleeper_id"].str.isnumeric()]
 
     # Convert Sleeper ID to integer (helpful in other methods, doesn't have to be this way though)
-    sleeper_player_df['sleeper_id'] = sleeper_player_df['sleeper_id'].astype('Int64')
+    sleeper_player_df["sleeper_id"] = sleeper_player_df["sleeper_id"].astype("Int64")
 
     return sleeper_player_df
 
@@ -268,8 +269,8 @@ def collect_sleeper_projections(all_proj_dict, year_weeks):
     stats = Stats()
     for year_week in year_weeks:
         if year_week not in all_proj_dict:
-            [year, week] = year_week.split('-')
-            week_proj = stats.get_week_projections('regular', int(year), int(week))
+            [year, week] = year_week.split("-")
+            week_proj = stats.get_week_projections("regular", int(year), int(week))
             all_proj_dict[year_week] = week_proj
 
     return all_proj_dict

@@ -2,11 +2,12 @@
 
     Classes:
         NeuralNet : PyTorch-based Neural Network object with a custom network architecture.
-"""
+"""  # fmt: skip
 
 import torch
-from torch import nn
 from config.nn_config import default_nn_shape
+from torch import nn
+
 
 class NeuralNetwork(nn.Module):
     """Neural Network model implemented using PyTorch.nn, tailored to the data structures and needs of fantasy_projections.
@@ -23,59 +24,63 @@ class NeuralNetwork(nn.Module):
 
         Public Methods:
             forward : Defines the feedforward flow of information through the network, including the embedding and linear stack layers.
-    """
+    """  # fmt: skip
 
     # CONSTRUCTOR
-    def __init__(self,shape=None):
+    def __init__(self, shape=None):
         """Initializes a NeuralNetwork with a network architecture defined in FantasyProjections project docs.
 
             Args:
-                shape (dict, optional): number of neurons in each layer of the network, keyed by the names of each layer. 
+                shape (dict, optional): number of neurons in each layer of the network, keyed by the names of each layer.
                 Defaults to dict default_shape.
 
             Raises:
                 ValueError: non-numeric value passed in shape.
-        """
+        """  # fmt: skip
+
         super().__init__()
 
         # Establish shape based on optional inputs
         if not shape:
             shape = default_nn_shape
         else:
-            for (key,val) in default_nn_shape.items():
+            for key, val in default_nn_shape.items():
                 if key not in shape:
                     shape[key] = val
 
         # Ensure all values are of type int
         try:
-            shape = {key:int(val) for key,val in shape.items()}
+            shape = {key: int(val) for key, val in shape.items()}
         except ValueError as e:
-            raise ValueError('Neural Net input with a non-numeric value in shape') from e
+            msg = "Neural Net input with a non-numeric value in shape"
+            raise ValueError(msg) from e
 
         # Indices of input vector that correspond to each "category" (needed bc they are embedded separately)
-        self.stats_inds = range(0, shape['stats_input'])
-        self.players_inds = self.__index_range(self.stats_inds, shape['players_input'])
-        self.teams_inds = self.__index_range(self.players_inds, shape['teams_input'])
-        self.opponents_inds = self.__index_range(self.teams_inds, shape['opps_input'])
+        self.stats_inds = range(shape["stats_input"])
+        self.players_inds = self.__index_range(self.stats_inds, shape["players_input"])
+        self.teams_inds = self.__index_range(self.players_inds, shape["teams_input"])
+        self.opponents_inds = self.__index_range(self.teams_inds, shape["opps_input"])
 
         self.embedding_player = nn.Sequential(
-            nn.Linear(shape['players_input'], shape['embedding_player'], dtype=float),
-            nn.ReLU()
+            nn.Linear(shape["players_input"], shape["embedding_player"], dtype=float),
+            nn.ReLU(),
         )
         self.embedding_team = nn.Sequential(
-            nn.Linear(shape['teams_input'], shape['embedding_team'], dtype=float),
-            nn.ReLU()
+            nn.Linear(shape["teams_input"], shape["embedding_team"], dtype=float),
+            nn.ReLU(),
         )
         self.embedding_opp = nn.Sequential(
-            nn.Linear(shape['opps_input'], shape['embedding_opp'], dtype=float),
-            nn.ReLU()
-        )
-        n_input_to_linear_stack = sum(shape[item] for item in ['stats_input','embedding_player','embedding_team','embedding_opp'])
-        self.linear_stack = nn.Sequential(
-            nn.Linear(n_input_to_linear_stack, shape['linear_stack'], dtype=float),
+            nn.Linear(shape["opps_input"], shape["embedding_opp"], dtype=float),
             nn.ReLU(),
-            nn.Linear(shape['linear_stack'], shape['stats_output'], dtype=float),
-            nn.Sigmoid()
+        )
+        n_input_to_linear_stack = sum(
+            shape[item] for item in ["stats_input", "embedding_player", "embedding_team", "embedding_opp"]
+        )
+        self.linear_stack = nn.Sequential(
+            nn.Linear(n_input_to_linear_stack, shape["linear_stack"], dtype=float),
+            nn.ReLU(),
+            nn.Linear(shape["linear_stack"], shape["stats_output"], dtype=float),
+            nn.Sigmoid(),
         )
 
     # PUBLIC METHODS
@@ -88,19 +93,14 @@ class NeuralNetwork(nn.Module):
 
             Returns:
                 tensor: output vector from Neural Net based on provided input
-        """
+        """  # fmt: skip
 
         player_embedding = self.embedding_player(x[:, self.players_inds])
         team_embedding = self.embedding_team(x[:, self.teams_inds])
         opp_embedding = self.embedding_opp(x[:, self.opponents_inds])
-        x_embedded = torch.cat((x[:,0:max(self.stats_inds) + 1],
-                                player_embedding,
-                                team_embedding,
-                                opp_embedding),
-                               dim=1)
+        x_embedded = torch.cat((x[:, 0 : max(self.stats_inds) + 1], player_embedding, team_embedding, opp_embedding), dim=1)
         logits = self.linear_stack(x_embedded)
         return logits
-
 
     # PRIVATE METHODS
 

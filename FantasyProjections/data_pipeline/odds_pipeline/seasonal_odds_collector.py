@@ -17,12 +17,12 @@ from data_pipeline.utils.data_helper_functions import construct_game_id
 from data_pipeline.utils.time_helper_functions import date_to_nfl_week, week_to_date_range
 
 # Set up logger
-logger = logging.getLogger('log')
+logger = logging.getLogger("log")
 
 
 class SeasonalOddsCollector(SeasonalDataCollector):
     """Collects all player props odds for all games in an NFL season. Automatically pulls data from The Odds API and processes upon initialization.
-    
+
         Args:
             year (int): Year for season (e.g. 2023).
             team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
@@ -43,12 +43,12 @@ class SeasonalOddsCollector(SeasonalDataCollector):
 
         Objects Created:
             List of SingleGameOddsGatherer objects
-        
-        Public Methods: 
+
+        Public Methods:
             generate_games : Creates a SingleGameOddsGatherer object for each unique game included in the SeasonalOddsCollector.
     """  # fmt: skip
 
-    def __init__(self, year, team_names='all', weeks=None, **kwargs):
+    def __init__(self, year, team_names="all", weeks=None, **kwargs):
         """Constructor for SeasonalDataCollector class.
 
             Args:
@@ -74,8 +74,8 @@ class SeasonalOddsCollector(SeasonalDataCollector):
         super().__init__(year=year, team_names=team_names, weeks=weeks, **kwargs)
 
         # Optional keyword arguments
-        player_props = kwargs.get('player_props', None)
-        odds_file = kwargs.get('odds_file', None)
+        player_props = kwargs.get("player_props")
+        odds_file = kwargs.get("odds_file")
 
         # API Key
         self.api_key = get_odds_api_key()
@@ -84,7 +84,7 @@ class SeasonalOddsCollector(SeasonalDataCollector):
         self.games = self.generate_games(odds_file=odds_file, player_props=player_props)
 
         # Gather all stats (midgame and final) from the individual teams
-        self.odds_df, *_ = self.gather_all_game_data(['odds_df'])
+        self.odds_df, *_ = self.gather_all_game_data(["odds_df"])
 
     # PUBLIC METHODS
 
@@ -105,31 +105,31 @@ class SeasonalOddsCollector(SeasonalDataCollector):
         year_start_date = datetime.strftime(year_start_date, DATE_FMT)
         # Get all events in week
         response = requests.get(
-            f'https://api.the-odds-api.com/v4/historical/sports/{SPORT_KEY}/events',
-            params={'api_key': self.api_key, 'date': year_start_date},
+            f"https://api.the-odds-api.com/v4/historical/sports/{SPORT_KEY}/events",
+            params={"api_key": self.api_key, "date": year_start_date},
             timeout=10,
         )
         log_api_usage(response)
-        events_list = json.loads(response.text)['data']
+        events_list = json.loads(response.text)["data"]
 
         # Extract IDs from each event
         event_ids = []
         game_ids = []
         for event in events_list:
-            event_ids.append(event['id'])
-            year, week = date_to_nfl_week(event['commence_time'])
-            home_team = team_abbrs.pbp_abbrevs[event['home_team']]
-            away_team = team_abbrs.pbp_abbrevs[event['away_team']]
-            game_data = {'Year': year, 'Week': week, 'Home Team': home_team, 'Away Team': away_team}
+            event_ids.append(event["id"])
+            year, week = date_to_nfl_week(event["commence_time"])
+            home_team = team_abbrs.pbp_abbrevs[event["home_team"]]
+            away_team = team_abbrs.pbp_abbrevs[event["away_team"]]
+            game_data = {"Year": year, "Week": week, "Home Team": home_team, "Away Team": away_team}
             if week in self.weeks and (home_team in team_abbrevs_to_process or away_team in team_abbrevs_to_process):
                 game_ids.append(construct_game_id(game_data))
 
         # Create objects that process odds for each game of interest
         games = []
         n_games = len(game_ids)
-        logger.info(f'Processing {n_games} games:')
+        logger.info(f"Processing {n_games} games:")
         for i, (event_id, game_id) in enumerate(zip(event_ids, game_ids)):
-            logger.info(f'({i + 1} of {n_games}): {game_id}')
+            logger.info(f"({i + 1} of {n_games}): {game_id}")
             # Process data/stats for single game
             game = SingleGameOddsGatherer(self, event_id, game_id, odds_file=odds_file, player_props=player_props)
             # Add to list of games

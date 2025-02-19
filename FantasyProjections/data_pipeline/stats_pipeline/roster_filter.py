@@ -4,15 +4,19 @@
         generate_roster_filter : Generates a short list of players to focus data collection on, based on highest average Fantasy Points per game.
         apply_roster_filter : Trims previously-generated NFL stats DataFrames (midgame and final stats) to only include players in a filtered list.
         create_filter_plot : Plots bar chart of average Fantasy Points for each player in filtered list (sorted in descending order), colored by position.
-"""
+"""  # fmt: skip
 
 import logging
+
 import matplotlib.pyplot as plt
 from config.player_id_config import PRIMARY_PLAYER_ID
 from misc.stat_utils import stats_to_fantasy_points
 
 # Set up logger
-logger = logging.getLogger('log')
+logger = logging.getLogger("log")
+
+MIN_GAMES_PLAYED = 5
+
 
 def generate_roster_filter(rosters_df, final_stats_df, save_file=None, num_players=300, plot_filter=False):
     """Generates a short list of players to focus data collection on, based on highest average Fantasy Points per game.
@@ -34,66 +38,66 @@ def generate_roster_filter(rosters_df, final_stats_df, save_file=None, num_playe
 
         Returns:
             pandas.DataFrame: List of players to include in the filter, along with some additional data like team, position, average Fantasy Points, etc.
-    """
+    """  # fmt: skip
 
     # Add Fantasy Points to final stats if not already computed
     final_stats_df = stats_to_fantasy_points(final_stats_df.reset_index())
 
     # 1. Active players only
     # Removes 'RET','CUT','DEV', 'TRC' (I think means free agent?)
-    active_statuses = ['ACT', 'INA', 'RES', 'EXE']
-    rosters_df = rosters_df[rosters_df.apply(
-        lambda x: x['status'] in active_statuses, axis=1)]
+    active_statuses = ["ACT", "INA", "RES", "EXE"]
+    rosters_df = rosters_df[rosters_df.apply(lambda x: x["status"] in active_statuses, axis=1)]
     # 1b. Remove tracking of week-by-week status - only one row per player.
     # Take the entry from the last week they've played
-    last_week_played = rosters_df.loc[:, [
-        PRIMARY_PLAYER_ID, 'week']].groupby([PRIMARY_PLAYER_ID]).max()
-    player_list_df = rosters_df[rosters_df.apply(lambda x: (x[PRIMARY_PLAYER_ID] in last_week_played.index.to_list()) & (
-        x['week'] == last_week_played.loc[x[PRIMARY_PLAYER_ID], 'week']), axis=1)]
+    last_week_played = rosters_df.loc[:, [PRIMARY_PLAYER_ID, "week"]].groupby([PRIMARY_PLAYER_ID]).max()
+    player_list_df = rosters_df[
+        rosters_df.apply(
+            lambda x: (x[PRIMARY_PLAYER_ID] in last_week_played.index.to_list())
+            & (x["week"] == last_week_played.loc[x[PRIMARY_PLAYER_ID], "week"]),
+            axis=1,
+        )
+    ]
 
     # 2. Add average fantasy points per game to df
-    fantasy_avgs = final_stats_df.loc[:, [PRIMARY_PLAYER_ID, 'Fantasy Points']].groupby(
-        [PRIMARY_PLAYER_ID]).mean().rename(columns={'Fantasy Points': 'Fantasy Avg'})
-    player_list_df = player_list_df.merge(
-        right=fantasy_avgs,
-        on=PRIMARY_PLAYER_ID)
+    fantasy_avgs = (
+        final_stats_df.loc[:, [PRIMARY_PLAYER_ID, "Fantasy Points"]]
+        .groupby([PRIMARY_PLAYER_ID])
+        .mean()
+        .rename(columns={"Fantasy Points": "Fantasy Avg"})
+    )
+    player_list_df = player_list_df.merge(right=fantasy_avgs, on=PRIMARY_PLAYER_ID)
 
     # 3. Count games played - instances of player name
     game_counts = final_stats_df[PRIMARY_PLAYER_ID].value_counts()
-    player_list_df = player_list_df[player_list_df[PRIMARY_PLAYER_ID].apply(
-        lambda x: game_counts[x] >= 5)]
+    player_list_df = player_list_df[player_list_df[PRIMARY_PLAYER_ID].apply(lambda x: game_counts[x] >= MIN_GAMES_PLAYED)]
 
     # 4a. Sort by max avg fantasy points
-    player_list_df = player_list_df.sort_values(
-        by=['Fantasy Avg'], ascending=False).reset_index(drop=True)
+    player_list_df = player_list_df.sort_values(by=["Fantasy Avg"], ascending=False).reset_index(drop=True)
     # 4b. Take first x (num_players) players
     player_list_df = player_list_df.iloc[0:num_players]
 
     # Clean up df for saving
-    player_list_df = player_list_df[[PRIMARY_PLAYER_ID,
-                                    'full_name',
-                                    'Fantasy Avg',
-                                    'team',
-                                    'position',
-                                    'jersey_number']]
+    player_list_df = player_list_df[[PRIMARY_PLAYER_ID, "full_name", "Fantasy Avg", "team", "position", "jersey_number"]]
     player_list_df = player_list_df.rename(
         columns={
-            'team': 'Team',
-            'position': 'Position',
-            'jersey_number': 'Number',
-            'full_name': 'Name',
-            PRIMARY_PLAYER_ID: 'Player ID'})
+            "team": "Team",
+            "position": "Position",
+            "jersey_number": "Number",
+            "full_name": "Name",
+            PRIMARY_PLAYER_ID: "Player ID",
+        },
+    )
 
     # Save
     if save_file:
         player_list_df.to_csv(save_file)
-        logger.info(f'Saved Roster Filter to {save_file}')
+        logger.info(f"Saved Roster Filter to {save_file}")
 
     # Print data and breakdown by team/position
-    logger.info('Roster Filter Breakdown by Team:')
-    logger.info(f'{player_list_df['Team'].value_counts()}')
-    logger.info('Roster Filter Breakdown by Position:')
-    logger.info(f'{player_list_df['Position'].value_counts()}')
+    logger.info("Roster Filter Breakdown by Team:")
+    logger.info(f"{player_list_df['Team'].value_counts()}")
+    logger.info("Roster Filter Breakdown by Position:")
+    logger.info(f"{player_list_df['Position'].value_counts()}")
 
     if plot_filter:
         create_filter_plot(player_list_df, num_players)
@@ -112,11 +116,11 @@ def apply_roster_filter(midgame_df, final_stats_df, filter_df):
         Returns:
             pandas.DataFrame: midgame_df, trimmed to only include the players in filter_df.
             pandas.DataFrame: final_stats_df, trimmed to only include the players in filter_df.
-    """
+    """  # fmt: skip
 
-    filter_ids = filter_df['Player ID'].to_list()
+    filter_ids = filter_df["Player ID"].to_list()
     midgame_df = midgame_df[midgame_df[PRIMARY_PLAYER_ID].apply(lambda x: x in filter_ids)]
-    final_stats_df = final_stats_df[final_stats_df.apply(lambda x: x.name in filter_ids,axis=1)]
+    final_stats_df = final_stats_df[final_stats_df.apply(lambda x: x.name in filter_ids, axis=1)]
 
     return midgame_df, final_stats_df
 
@@ -127,25 +131,20 @@ def create_filter_plot(player_list_df, num_players):
         Args:
             player_list_df (pandas.DataFrame): List of players included in the filter, along with some additional data like team, position, average Fantasy Points, etc.
             num_players (int): Number of players to include in list.
-    """
+    """  # fmt: skip
 
     # Plot bar chart of points by rank, colored by position
-    position_colors = {
-        'QB': 'tab:blue',
-        'RB': 'tab:orange',
-        'WR': 'tab:green',
-        'TE': 'tab:purple',
-        'Other': 'tab:brown'}
-    plot_colors = player_list_df['Position'].apply(
-        lambda x: position_colors[x] if x in position_colors else position_colors['Other'])
-    if position_colors['Other'] not in plot_colors:
-        del position_colors['Other']
+    position_colors = {"QB": "tab:blue", "RB": "tab:orange", "WR": "tab:green", "TE": "tab:purple", "Other": "tab:brown"}
+    plot_colors = player_list_df["Position"].apply(
+        lambda x: position_colors[x] if x in position_colors else position_colors["Other"],
+    )
+    if position_colors["Other"] not in plot_colors:
+        del position_colors["Other"]
     ax = plt.subplots(1, 1)[1]
-    ax.bar(range(1, num_players + 1), player_list_df['Fantasy Avg'].to_list(),
-        width=1, color=plot_colors, linewidth=0)
-    plt.xlabel('Rank')
-    plt.ylabel('Avg. Fantasy Score')
-    plt.title('Fantasy Performance of Filtered Player List')
+    ax.bar(range(1, num_players + 1), player_list_df["Fantasy Avg"].to_list(), width=1, color=plot_colors, linewidth=0)
+    plt.xlabel("Rank")
+    plt.ylabel("Avg. Fantasy Score")
+    plt.title("Fantasy Performance of Filtered Player List")
 
     def lp(i):
         return ax.plot([], color=position_colors[i], label=i)[0]

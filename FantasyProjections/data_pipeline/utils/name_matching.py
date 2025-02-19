@@ -4,13 +4,14 @@
         find_matching_name_ind : Finds the index in a list of names that exactly, or approximately, matches the given name.
         fuzzy_match : Returns whether two names are roughly identical to each other, based on common name variations.
         drop_name_frills : Modifies an input name to just the "base" name with no modifiers included.
-"""
+"""  # fmt: skip
 
 import logging
+
 import numpy as np
 
 # Set up logger
-logger = logging.getLogger('log')
+logger = logging.getLogger("log")
 
 
 def find_matching_name_ind(name, others):
@@ -22,32 +23,34 @@ def find_matching_name_ind(name, others):
 
         Returns:
             int | np.nan: Index in others of the exact or apprximate match to name. np.nan if no match was found.
-    """
+    """  # fmt: skip
 
     # Handle only one name input for others
     if isinstance(others, str):
         others = [others]
 
     # Look for an exact match first
-    exact_matches = [name==other for other in others]
+    exact_matches = [name == other for other in others]
     try:
         index = exact_matches.index(True)
-        return index
     except ValueError:
         pass
+    else:
+        return index
 
     # Look for a "fuzzy match" next
     fuzzy_matches = [fuzzy_match(name, other) for other in others]
     try:
         index = fuzzy_matches.index(True)
-        return index
     except ValueError:
         return np.nan
+    else:
+        return index
 
 
 def fuzzy_match(name1, name2, log=True):
     """Returns whether two names are roughly identical to each other, based on common name variations.
-    
+
         The variations checked are set within the function "drop_name_frills".
 
         Args:
@@ -57,7 +60,7 @@ def fuzzy_match(name1, name2, log=True):
 
         Returns:
             bool: True if the names are exactly or approximately identical; else, False.
-    """
+    """  # fmt: skip
 
     # Check for exact match first
     if name1 == name2:
@@ -67,7 +70,7 @@ def fuzzy_match(name1, name2, log=True):
     if drop_name_frills(name1) == drop_name_frills(name2):
         # Optionally log that a fuzzy match was found
         if log:
-            logger.debug(f'Fuzzy Name Match: {name1} == {name2}')
+            logger.debug(f"Fuzzy Name Match: {name1} == {name2}")
         return True
 
     return False
@@ -75,7 +78,7 @@ def fuzzy_match(name1, name2, log=True):
 
 def drop_name_frills(name, expand_nicknames=True, lowercase=True):
     """Modifies an input name to just the "base" name with no modifiers included.
-    
+
         Modifiers that can be removed include:
         - Nicknames (e.g. replace "Mike" with "Michael")
         - Special characters/punctuation (e.g. "B.J." becomes "BJ")
@@ -90,22 +93,23 @@ def drop_name_frills(name, expand_nicknames=True, lowercase=True):
 
         Returns:
             str: Name in "cleaned" format with modifiers removed (useful for fuzzy name matching).
-    """
+    """  # fmt: skip
 
     # Changes to be made
-    special_chars = ['.','-',"'"]
-    unicode_quirks = {'Ã©':'é'}
-    suffixes = ['Sr', 'Jr', 'III', 'II']
-    nicknames_to_full_names = {'Mike ': 'Michael ',
-                               'Rob ': 'Robert ',
-                               'Tim ': 'Timothy ',
-                               'Josh ': 'Joshua ',
-                               'Chig ': 'Chigoziem ',
-                               }
+    special_chars = [".", "-", "'"]
+    unicode_quirks = {"Ã©": "é"}
+    suffixes = ["Sr", "Jr", "III", "II"]
+    nicknames_to_full_names = {
+        "Mike ": "Michael ",
+        "Rob ": "Robert ",
+        "Tim ": "Timothy ",
+        "Josh ": "Joshua ",
+        "Chig ": "Chigoziem ",
+    }
 
     # Remove special characters
     for char in special_chars:
-        name = name.replace(char, '')
+        name = name.replace(char, "")
 
     # Replace unicode encoding errors with the correct unicode characters
     for quirk, correct in unicode_quirks.items():

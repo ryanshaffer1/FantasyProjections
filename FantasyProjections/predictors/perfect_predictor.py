@@ -5,12 +5,14 @@
 """
 
 from dataclasses import dataclass
+
 from predictors import FantasyPredictor
+
 
 @dataclass
 class PerfectPredictor(FantasyPredictor):
     """Predictor of NFL players' stats in games, using the true NFL stats, giving perfect predictions.
-    
+
         Sub-class of FantasyPredictor.
 
         Args:
@@ -32,11 +34,11 @@ class PerfectPredictor(FantasyPredictor):
                 eval_data (StatsDataset): data to use for Predictor evaluation (e.g. validation or test data).
 
             Keyword-Args:
-                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor. 
+                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor.
                 See the related documentation for descriptions and valid inputs. All keyword arguments are optional.
 
             Returns:
-                PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting, 
+                PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting,
                     performance assessments, etc.
         """
 

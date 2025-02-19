@@ -6,15 +6,17 @@
 """
 
 from dataclasses import dataclass
+
 import numpy as np
 from config.hp_config import hp_defaults
 
+
 @dataclass
-class HyperParameter():
+class HyperParameter:
     """Class handling the value and variations of a Neural Net Hyper-Parameter.
-    
+
         Hyper-Parameter = Variable within ML equations which is not learned by the model during training, and must be set before training.
-    
+
         Args:
             name (str): name of the hyper-parameter. Used within training logic and must match a set list of valid hyper-parameters:
                 - learning_rate
@@ -30,7 +32,7 @@ class HyperParameter():
                 - "linear"
                 - "log"
                 - "selection"
-        
+
         Additional Class Attributes:
             values (list): Sequence of values to use as the value attribute over successive tuning iterations. Determined by a HyperParameterTuner.
                 Unique values may repeat.
@@ -46,7 +48,7 @@ class HyperParameter():
     optimizable: bool = False
     value: int = None
     val_range: list = None
-    val_scale: str = 'none'
+    val_scale: str = "none"
     values: list = None
 
     def __post_init__(self):
@@ -54,14 +56,14 @@ class HyperParameter():
         # Generates attributes that are not simple data copies of inputs.
 
         if self.value is None:
-            self.value = hp_defaults.get(self.name, {}).get('value',0)
+            self.value = hp_defaults.get(self.name, {}).get("value",0)
 
         if self.values is None:
             self.values = [self.value] # This may be overwritten later, if optimizing hyper-parameters
 
         if not self.val_range or not self.optimizable:
             self.val_range = [self.value]
-            self.val_scale = 'none'
+            self.val_scale = "none"
 
 
     # PUBLIC METHODS
@@ -92,14 +94,14 @@ class HyperParameter():
 
         if isinstance(self.val_range,list):
             match self.val_scale:
-                case 'linear':
+                case "linear":
                     values = np.random.uniform(self.val_range[0], self.val_range[1], n_values).tolist()
-                case 'log':
+                case "log":
                     uniform_vals = np.random.uniform(np.log10(self.val_range[0]), np.log10(self.val_range[1]), n_values)
                     values = (10**uniform_vals).tolist()
-                case 'none':
+                case "none":
                     values = [self.value]*n_values
-                case 'selection':
+                case "selection":
                     values = np.random.choice(self.val_range, n_values)
                 case _:
                     values = [self.value]*n_values
@@ -116,7 +118,7 @@ class HyperParameter():
             Args:
                 center_point (int | float | other): Value to center new range on.
                 scale_factor (int, optional): Multiplier to adjust size of the val_range. Defaults to 1.
-                exceed_boundary (bool, optional): Whether to allow the new range to exceed the boundaries of the old range. 
+                exceed_boundary (bool, optional): Whether to allow the new range to exceed the boundaries of the old range.
                     Defaults to False.
 
             Returns:
@@ -125,7 +127,7 @@ class HyperParameter():
 
         new_val_range = None
         match self.val_scale:
-            case 'linear':
+            case "linear":
                 # Re-scale
                 og_range_size = self.val_range[1]-self.val_range[0]
                 new_range_size = og_range_size * scale_factor
@@ -141,7 +143,7 @@ class HyperParameter():
                     # Range is re-centered and scaled
                     new_val_range = [center_point - new_range_size/2, center_point + new_range_size/2]
 
-            case 'log':
+            case "log":
                 log_center_point = np.log10(center_point)
                 log_val_range = np.log10(self.val_range)
                 # Re-scale

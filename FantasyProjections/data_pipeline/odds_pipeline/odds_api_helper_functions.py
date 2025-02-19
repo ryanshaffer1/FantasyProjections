@@ -6,15 +6,16 @@
 """
 
 import logging
+
 from config import data_files_config
 
 # Set up logger
-logger = logging.getLogger('log')
+logger = logging.getLogger("log")
 
 # Constant variables used for The Odds API
-SPORT_KEY = 'americanfootball_nfl'
-DATE_FMT = '%Y-%m-%dT%H:%M:%SZ'
-BOOKMAKER = 'fanduel'
+SPORT_KEY = "americanfootball_nfl"
+DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
+BOOKMAKER = "fanduel"
 
 def get_odds_api_key(filename=None):
     """Reads API key for The Odds API from a local file. API key must be obtained manually and saved to this file by the user.
@@ -32,7 +33,7 @@ def get_odds_api_key(filename=None):
     if filename is None:
         filename = data_files_config.ODDS_API_KEY_FILE
 
-    with open(filename, encoding='utf-8') as file:
+    with open(filename, encoding="utf-8") as file:
         api_key = file.readline()
 
     return api_key
@@ -45,4 +46,4 @@ def log_api_usage(response):
             response (requests.models.Response): Response from The Odds API, containing metadata on the number of requests made/available.
     """
     # Check your usage
-    logger.info(f'{response.headers['x-requests-remaining']} requests left ({response.headers['x-requests-used']} used)')
+    logger.info(f"{response.headers['x-requests-remaining']} requests left ({response.headers['x-requests-used']} used)")

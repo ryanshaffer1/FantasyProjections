@@ -130,16 +130,16 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **self.settings)
 
         self.assertFalse(
-            tuner.param_set.equals(self.hp_set)
+            tuner.param_set.equals(self.hp_set),
         )  # Not equal because values in param_set are modified by the tuner during init
         self.assertEqual(tuner.save_file, self.save_file)
         self.assertEqual(tuner.optimize_hypers, self.settings["optimize_hypers"])
         self.assertEqual(
-            tuner.plot_tuning_results, self.settings["plot_tuning_results"]
+            tuner.plot_tuning_results, self.settings["plot_tuning_results"],
         )
         self.assertEqual(tuner.hyper_tuner_layers, self.settings["hyper_tuner_layers"])
         self.assertEqual(
-            tuner.hyper_tuner_steps_per_dim, self.settings["hyper_tuner_steps_per_dim"]
+            tuner.hyper_tuner_steps_per_dim, self.settings["hyper_tuner_steps_per_dim"],
         )
         self.assertEqual(tuner.perf_list, [])
         self.assertEqual(tuner.hyper_tuning_table, [])
@@ -149,16 +149,16 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **self.settings)
 
         self.assertFalse(
-            tuner.param_set.equals(self.hp_set)
+            tuner.param_set.equals(self.hp_set),
         )  # Not equal because values in param_set are modified by the tuner during init
         self.assertEqual(tuner.save_file, self.save_file)
         self.assertEqual(tuner.optimize_hypers, self.settings["optimize_hypers"])
         self.assertEqual(
-            tuner.plot_tuning_results, self.settings["plot_tuning_results"]
+            tuner.plot_tuning_results, self.settings["plot_tuning_results"],
         )
         self.assertEqual(tuner.hyper_tuner_layers, 1)
         self.assertEqual(
-            tuner.hyper_tuner_steps_per_dim, self.settings["hyper_tuner_steps_per_dim"]
+            tuner.hyper_tuner_steps_per_dim, self.settings["hyper_tuner_steps_per_dim"],
         )
         self.assertEqual(tuner.perf_list, [])
         self.assertEqual(tuner.hyper_tuning_table, [])
@@ -175,13 +175,13 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         tuner = GridSearchTuner(self.hp_set, save_file=self.save_file, **settings)
 
         num_opt_hps = sum(
-            [1 if hp.optimizable else 0 for hp in self.hp_set.hyper_parameters]
+            [1 if hp.optimizable else 0 for hp in self.hp_set.hyper_parameters],
         )
         expected_combinations = settings["hyper_tuner_steps_per_dim"] ** (num_opt_hps)
 
         self.assertEqual(tuner.n_value_combinations, expected_combinations)
         for hp, hp_name in zip(
-            tuner.param_set.hyper_parameters, self.expected_gridpoints
+            tuner.param_set.hyper_parameters, self.expected_gridpoints,
         ):
             self.assertEqual(hp.gridpoints, self.expected_gridpoints[hp_name])
             self.assertEqual(hp.values, self.expected_values[hp_name])
@@ -295,7 +295,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
         self,
     ):
         hp3 = HyperParameter(
-            name="hp3", optimizable=True, value=5, val_range=[1, 10], val_scale=["xyz"]
+            name="hp3", optimizable=True, value=5, val_range=[1, 10], val_scale=["xyz"],
         )
         hp_set = HyperParameterSet(hp_set=(self.hp1, self.hp2, hp3))
         settings = {
@@ -323,7 +323,7 @@ class TestConstructor_GridSearchTuner(unittest.TestCase):
 
     def test_gridpoints_and_value_combos_hyperparameter_with_invalid_val_range(self):
         hp3 = HyperParameter(
-            name="hp3", optimizable=True, value=5, val_range=5, val_scale="linear"
+            name="hp3", optimizable=True, value=5, val_range=5, val_scale="linear",
         )
         hp_set = HyperParameterSet(hp_set=(self.hp1, self.hp2, hp3))
         settings = {
@@ -384,7 +384,7 @@ class TestTuneHyperParameters_GridSearchTuner(unittest.TestCase):
         }
 
         self.tuner = GridSearchTuner(
-            self.hp_set, save_file=self.save_file, **self.settings
+            self.hp_set, save_file=self.save_file, **self.settings,
         )
 
         self.eval_function = (
@@ -464,14 +464,14 @@ class TestTuneHyperParameters_GridSearchTuner(unittest.TestCase):
 
     def test_minimize_returns_correct_value(self):
         min_val = self.tuner.tune_hyper_parameters(
-            eval_function=self.eval_function, maximize=False
+            eval_function=self.eval_function, maximize=False,
         )
 
         self.assertEqual(min_val, self.min_val)
 
     def test_maximize_returns_correct_value(self):
         max_val = self.tuner.tune_hyper_parameters(
-            eval_function=self.eval_function, maximize=True
+            eval_function=self.eval_function, maximize=True,
         )
 
         self.assertEqual(max_val, self.max_val)
@@ -492,7 +492,7 @@ class TestTuneHyperParameters_GridSearchTuner(unittest.TestCase):
         )
 
         self.assertEqual(
-            global_a, 2
+            global_a, 2,
         )  # For given eval function, save should be called twice
         self.assertEqual(global_b, 1)
 
@@ -587,7 +587,7 @@ class TestRefineGrid_GridSearchTuner(unittest.TestCase):
         }
 
         self.tuner = GridSearchTuner(
-            self.hp_set, save_file=self.save_file, **self.settings
+            self.hp_set, save_file=self.save_file, **self.settings,
         )
 
         self.eval_function = (
@@ -613,7 +613,7 @@ class TestRefineGrid_GridSearchTuner(unittest.TestCase):
         }
 
         for hp, hp_name in zip(
-            self.tuner.param_set.hyper_parameters, expected_gridpoints
+            self.tuner.param_set.hyper_parameters, expected_gridpoints,
         ):
             self.assertEqual(hp.gridpoints, expected_gridpoints[hp_name])
             self.assertEqual(hp.values, expected_values[hp_name])
@@ -665,7 +665,7 @@ class TestRefineGrid_GridSearchTuner(unittest.TestCase):
         }
 
         for hp, hp_name in zip(
-            self.tuner.param_set.hyper_parameters, expected_gridpoints
+            self.tuner.param_set.hyper_parameters, expected_gridpoints,
         ):
             self.assertEqual(hp.gridpoints, expected_gridpoints[hp_name])
             self.assertEqual(hp.values, expected_values[hp_name])
