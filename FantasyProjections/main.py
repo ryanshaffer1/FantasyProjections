@@ -70,8 +70,8 @@ for dataset in (training_data, validation_data, test_data):
 param_set = HyperParameterSet(hp_dict=hp_config.hp_defaults)
 
 # Initialize and train neural net
-neural_net = NeuralNetPredictor(name="Neural Net", load_folder=LOAD_FOLDER, **nn_config.nn_train_settings)
-# neural_net = NeuralNetPredictor(name='Neural Net', save_folder=save_folder, **nn_config.nn_train_settings)
+# neural_net = NeuralNetPredictor(name="Neural Net", load_folder=LOAD_FOLDER, **nn_config.nn_train_settings)
+neural_net = NeuralNetPredictor(name="Neural Net", save_folder=save_folder, **nn_config.nn_train_settings)
 
 if hp_config.hp_tuner_settings["optimize_hypers"]:
     # Tuning algorithm for Neural Net Hyper-Parameters
