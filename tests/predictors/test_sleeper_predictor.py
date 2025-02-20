@@ -2,7 +2,6 @@ import contextlib
 import logging
 import logging.config
 import os
-import shutil
 import unittest
 
 import pandas.testing as pdtest
@@ -31,11 +30,8 @@ class TestConstructor_SleeperPredictor(unittest.TestCase):
     # Set Up
     def setUp(self):
         # Sleeper data files
-        self.sleeper_player_id_file = "data/misc/player_ids.csv"
-        self.sleeper_proj_dict_file = "data/misc/sleeper_projections_dict.json"
-        # Make a copy of the player ID list (it gets overwritten during a test)
-        self.player_id_copy_file = "tests/_test_files/player_ids.csv"
-        shutil.copyfile(self.sleeper_player_id_file, self.player_id_copy_file)
+        self.sleeper_player_id_file = "tests/_test_files/player_ids.csv"
+        self.sleeper_proj_dict_file = "tests/_test_files/sleeper_projections_dict.json"
 
     def test_basic_attributes_no_optional_inputs(self):
         name = "test"
@@ -64,12 +60,12 @@ class TestConstructor_SleeperPredictor(unittest.TestCase):
         name = "test"
         predictor = SleeperPredictor(
             name=name,
-            player_id_file=self.player_id_copy_file,
+            player_id_file=self.sleeper_player_id_file,
             proj_dict_file=self.sleeper_proj_dict_file,
             update_players=False,
         )
         self.assertEqual(predictor.name, name)
-        self.assertEqual(predictor.player_id_file, self.player_id_copy_file)
+        self.assertEqual(predictor.player_id_file, self.sleeper_player_id_file)
         self.assertEqual(predictor.proj_dict_file, self.sleeper_proj_dict_file)
         self.assertEqual(predictor.update_players, False)
         self.assertEqual(predictor.all_proj_dict, {})
@@ -79,15 +75,14 @@ class TestConstructor_SleeperPredictor(unittest.TestCase):
         # Should provide a regression test before making any changes!
         SleeperPredictor(
             name="test",
-            player_id_file=self.player_id_copy_file,
+            player_id_file=self.sleeper_player_id_file,
             proj_dict_file=self.sleeper_proj_dict_file,
             update_players=True,
         )
 
     # Tear Down
     def tearDown(self):
-        # Delete copy of player dictionary
-        os.remove(self.player_id_copy_file)
+        pass
 
 
 @unittest.skipIf(
@@ -97,11 +92,8 @@ class TestConstructor_SleeperPredictor(unittest.TestCase):
 class TestEvalModel_SleeperPredictor(unittest.TestCase):
     def setUp(self):
         # Sleeper data files
-        self.sleeper_player_id_file = "data/misc/player_ids.csv"
-        self.sleeper_proj_dict_file = "data/misc/sleeper_projections_dict.json"
-        # Make a copy of the projection dictionary (it gets overwritten during a test)
-        self.proj_dict_copy_file = "tests/_test_files/sleeper_projections_dict.json"
-        shutil.copyfile(self.sleeper_proj_dict_file, self.proj_dict_copy_file)
+        self.sleeper_player_id_file = "tests/_test_files/player_ids.csv"
+        self.sleeper_proj_dict_file = "tests/_test_files/sleeper_projections_dict.json"
         # Dummy non-existent files to use in a test
         self.nonexistent_file_1 = "tests/_test_files/empty/nonexistent_file1.json"
         self.nonexistent_file_2 = "tests/_test_files/empty/nonexistent_file2.json"
@@ -123,7 +115,7 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
         self.predictor = SleeperPredictor(
             name="test",
             player_id_file=self.sleeper_player_id_file,
-            proj_dict_file=self.proj_dict_copy_file,
+            proj_dict_file=self.sleeper_proj_dict_file,
             update_players=False,
         )
 
@@ -183,8 +175,6 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
         pdtest.assert_frame_equal(result.predicts, expected_predicts_normalized_true, check_dtype=False)
 
     def tearDown(self):
-        # Delete copy of projections dictionary
-        os.remove(self.proj_dict_copy_file)
         # Delete dummy nonexistent files
         with contextlib.suppress(FileNotFoundError):
             os.remove(self.nonexistent_file_1)
