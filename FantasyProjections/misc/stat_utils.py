@@ -232,7 +232,7 @@ def linear_regression(x_data, y_data):
     # Calculate slope and intercept for line of best fit
     s_x_y = sum(x_data * y_data) / n - (sum(x_data) * sum(y_data)) / n**2
     s_x_sq = sum(x_data**2) / n - (sum(x_data) / n) ** 2
-    slope = float(s_x_y / s_x_sq)
+    slope = float(s_x_y[0] / s_x_sq[0])
     intercept = float(y_mean - (slope * x_mean))
     # Calculate r_value
     y_predicted = intercept + slope * x_data
@@ -240,7 +240,7 @@ def linear_regression(x_data, y_data):
     dists_from_mean = y_data - y_mean
     ssr = sum(residuals**2)
     sst = sum(dists_from_mean**2)
-    r_squared = float(1 - (ssr / sst))
+    r_squared = float(1 - (ssr[0] / sst[0]))
 
     return slope, intercept, r_squared
 
