@@ -4,6 +4,7 @@ numpy==2.1.2
 pandas==2.2.3
 torch==2.4.1
 pyarrow==18.1
+pyyaml
 sleeper-api-wrapper==1.1.0
 austin-dist==3.7.0
 ruff

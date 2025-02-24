@@ -16,6 +16,7 @@ from misc.stat_utils import stats_to_fantasy_points
 from neural_net import HyperParameterSet, NeuralNetwork
 from neural_net.nn_utils import compare_net_sizes
 from predictors import FantasyPredictor
+from torch import nn
 from torch.utils.data import DataLoader
 
 # Set up logger
@@ -66,7 +67,7 @@ class NeuralNetPredictor(FantasyPredictor):
     mini_batch_size: int = hp_defaults["mini_batch_size"]["value"]
     learning_rate: float = hp_defaults["learning_rate"]["value"]
     lmbda: float = hp_defaults["lmbda"]["value"]
-    loss_fn = hp_defaults["loss_fn"]["value"]
+    loss_fn = hp_defaults.get("loss_fn", {}).get("value", nn.MSELoss)
 
     def __post_init__(self):
         # Evaluates as part of the Constructor.
