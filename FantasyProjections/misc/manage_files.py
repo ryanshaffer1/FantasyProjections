@@ -10,11 +10,25 @@
 import logging
 import os
 import shutil
+from datetime import datetime
 
 import pandas as pd
 
 # Set up logger
 logger = logging.getLogger("log")
+
+
+def name_save_folder(save_parameters):
+    if save_parameters["save_folder_timestamp"]:
+        save_folder_name = save_parameters["save_folder_prefix"] + datetime.strftime(
+            datetime.now().astimezone(),
+            "%Y%m%d_%H%M%S",
+        )
+    else:
+        save_folder_name = save_parameters["save_folder_prefix"]
+    save_folder = os.path.join(save_parameters["save_directory"], save_folder_name) + "/"
+
+    return save_folder
 
 
 def create_folders(folders):

@@ -9,7 +9,6 @@ from dataclasses import dataclass
 
 import numpy as np
 import torch
-from config.hp_config import hp_defaults
 from config.nn_config import default_nn_shape, nn_train_settings
 from misc.manage_files import create_folders
 from misc.stat_utils import stats_to_fantasy_points
@@ -64,10 +63,10 @@ class NeuralNetPredictor(FantasyPredictor):
     n_epochs_to_stop: int = nn_train_settings["n_epochs_to_stop"]
     # hyper-parameters
     nn_shape: dict = None
-    mini_batch_size: int = hp_defaults["mini_batch_size"]["value"]
-    learning_rate: float = hp_defaults["learning_rate"]["value"]
-    lmbda: float = hp_defaults["lmbda"]["value"]
-    loss_fn = hp_defaults.get("loss_fn", {}).get("value", nn.MSELoss)
+    mini_batch_size: int = 0  # Will be set to a defined hyper-parameter value later
+    learning_rate: float = 0  # Will be set to a defined hyper-parameter value later
+    lmbda: float = 0  # Will be set to a defined hyper-parameter value later
+    loss_fn = ""  # Will be set to a defined hyper-parameter value later
 
     def __post_init__(self):
         # Evaluates as part of the Constructor.
@@ -421,6 +420,17 @@ class NeuralNetPredictor(FantasyPredictor):
     def __train(self, dataloader, loss_fn, print_losses=True):
         # Implements Stochastic Gradient Descent to train the model
         # against the provided training dataloader. Periodically logs losses from the loss function
+        # Loss function may be a function handle or a subset of valid strings that match function handles
+
+        # Handle optional string loss_fn
+        loss_fn_strings = {"nn.MSELoss()": nn.MSELoss(), "nn.CrossEntropyLoss()": nn.CrossEntropyLoss()}
+        if isinstance(loss_fn, str):
+            try:
+                loss_fn = loss_fn_strings[loss_fn]
+            except KeyError as e:
+                msg = "Invalid loss function string"
+                raise KeyError(msg) from e
+
         size = len(dataloader.dataset)
         num_batches = int(np.ceil(size / dataloader.batch_size))
         self.model.train()
