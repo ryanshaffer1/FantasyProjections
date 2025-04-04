@@ -1,4 +1,4 @@
-# Basic inputs
+# DEFAULT INPUTS
 
 ---
 # Output Files
@@ -12,29 +12,13 @@ save_options:
 
 # Datasets
 datasets:
-  - name: Training
+  - name: default
     config:
-      - years: [2021]
-      - years: [2023]
-        weeks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-  - name: Validation
-    config:
-      - years: [2023]
-        weeks: [12, 13, 14]
-  - name: Test
-    config:
-      - years: [2023]
-        weeks: [15, 16, 17]
-  - name: Test (Pre-Game)
-    config:
-      - years: [2023]
-        weeks: [15, 16, 17]
-        elapsed_time: [0]
-  - name: 2024 (Pre-Game)
-    config:
-      - years: [2024]
-        elapsed_time: [0]
-
+      - years: null
+        weeks: null
+        teams: null
+        players: null
+        elapsed_time: null
 
 # Hyper-Parameters
 hyperparameters:
@@ -45,12 +29,12 @@ hyperparameters:
     val_scale: log
   learning_rate:
     value: 50
-    optimizable: true
+    optimizable: false
     val_range: [0.01, 100]
     val_scale: log
   lmbda:
     value: 0
-    optimizable: true
+    optimizable: false
     val_range: [0.0000001, 0.001]
     val_scale: log
   linear_stack:
@@ -66,12 +50,12 @@ hyperparameters:
 
 # Predictors
 predictors:
-  - name: Neural Net
+  - name: default
     type: NeuralNetPredictor
     save_model: true
     config:
-      load_folder: "models/20241126_120555/"
-      max_epochs: 1
+      load_folder: null
+      max_epochs: 30
       n_epochs_to_stop: 5
       nn_shape:
         players_input: 300
@@ -83,21 +67,21 @@ predictors:
         embedding_opp: 10
         linear_stack: 300
         stats_output: 12
-  - name: Sleeper
+  - name: default
     type: SleeperPredictor
     config:
       proj_dict_file: "data/misc/sleeper_projections_dict.json"
       update_players: false
-  - name: Last 3 Games Predictor
+  - name: default
     type: LastNPredictor
     config:
-      n: 3
-  - name: Perfect Predictor
+      n: 1
+  - name: default
     type: PerfectPredictor
 
 # Tuners
 tuners:
-  - name: Tuner1
+  - name: default
     type: GridSearchTuner
     settings: 
       optimize_hypers: false
@@ -105,10 +89,10 @@ tuners:
       hyper_tuner_steps_per_dim: 2
       plot_tuning_results: true
       save_file: grid_search.csv
-  - name: Tuner2
+  - name: default
     type: RecursiveRandomSearchTuner
     settings:
-      optimize_hypers: true
+      optimize_hypers: false
       max_samples: 200
       r_percentile: 0.1
       v_expect_imp: 0.1
@@ -117,17 +101,14 @@ tuners:
 
 # Processes
 tunings:
-  - hp_tuner: Tuner1
-    predictor: Neural Net
-    eval_function: train_and_validate
-    save_function: save
-    reset_function: load
-    eval_arguments:
-      training_data: Training
-      validation_data: Validation
-    save_arguments:
-    reset_arguments:
-      model_folder: save_folder
+  - hp_tuner: null
+    predictor: null
+    eval_function: null
+    save_function: null
+    reset_function: null
+    eval_arguments: null
+    save_arguments: null
+    reset_arguments: null
     kwargs:
       maximize: false
       plot_variables:
@@ -135,41 +116,26 @@ tunings:
         - lmbda
 
 trainings:
-  - predictor: Neural Net
-    eval_arguments:
-      training_data: Training
-      validation_data: Validation
+  - predictor: null
+    eval_arguments: null
     param_set: hyperparameters
 
 evaluations:
-  - name: NN_Result
-    predictor: Neural Net
-    dataset: Test
-  - name: Sleeper_PG_Result
-    predictor: Sleeper
-    dataset: Test (Pre-Game)
-  - name: Naive_Result
-    predictor: Last 3 Games Predictor
-    dataset: Test (Pre-Game)
-  - name: Perfect_Result
-    predictor: Perfect Predictor
-    dataset: Test
-  - name: NN_2024_PG_Result
-    predictor: Neural Net
-    dataset: 2024 (Pre-Game)
+  - name: default
+    predictor: null
+    dataset: null
 
 # Gamblers
 gamblers:
-  - name: Gambler1
+  - name: default
     type: BasicGambler
-    evaluation: NN_2024_PG_Result
+    evaluation: null
     plot_earnings: true
 
 # Plots
 plot_groups:
   - results:
-      - NN_Result
-      - Perfect_Result
+      - default
     plots:
       - type: error_dist
         settings:
@@ -177,7 +143,7 @@ plot_groups:
           absolute: true
       - type: single_games
         settings:
-          n_random: 0
+          n_random: 3
       - type: scatters
         settings:
           all_plot_settings:

@@ -2,34 +2,24 @@
 
 ---
 # Output Files
-save_options:
-  save_directory: models/
-  save_folder_timestamp: true
-  save_folder_prefix: ""
-  save_log: true
-  save_plots: true
-  save_input_file: true
+file_save_directory: models/
+save_folder_timestamp: true
+save_folder_prefix: ""
+save_log: true
+save_plots: true
+save_input_file: true
 
 # Datasets
 datasets:
   - name: Training
     config:
-      - years: [2021]
+      - years: [2021, 2022]
       - years: [2023]
-        weeks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        weeks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
   - name: Validation
     config:
       - years: [2023]
-        weeks: [12, 13, 14]
-  - name: Test
-    config:
-      - years: [2023]
         weeks: [15, 16, 17]
-  - name: Test (Pre-Game)
-    config:
-      - years: [2023]
-        weeks: [15, 16, 17]
-        elapsed_time: [0]
   - name: 2024 (Pre-Game)
     config:
       - years: [2024]
@@ -39,8 +29,8 @@ datasets:
 # Hyper-Parameters
 hyperparameters:
   mini_batch_size:
-    value: 5000
-    optimizable: false
+    value: 1000
+    optimizable: true
     val_range: [100, 10000]
     val_scale: log
   learning_rate:
@@ -51,11 +41,11 @@ hyperparameters:
   lmbda:
     value: 0
     optimizable: true
-    val_range: [0.0000001, 0.001]
+    val_range: [0.00000001, 0.0001]
     val_scale: log
   linear_stack:
     value: 300
-    optimizable: false
+    optimizable: true
     val_range: [200, 800]
     val_scale: linear
   loss_fn: 
@@ -70,8 +60,7 @@ predictors:
     type: NeuralNetPredictor
     save_model: true
     config:
-      load_folder: "models/20241126_120555/"
-      max_epochs: 1
+      max_epochs: 50
       n_epochs_to_stop: 5
       nn_shape:
         players_input: 300
@@ -83,29 +72,10 @@ predictors:
         embedding_opp: 10
         linear_stack: 300
         stats_output: 12
-  - name: Sleeper
-    type: SleeperPredictor
-    config:
-      proj_dict_file: "data/misc/sleeper_projections_dict.json"
-      update_players: false
-  - name: Last 3 Games Predictor
-    type: LastNPredictor
-    config:
-      n: 3
-  - name: Perfect Predictor
-    type: PerfectPredictor
 
 # Tuners
 tuners:
   - name: Tuner1
-    type: GridSearchTuner
-    settings: 
-      optimize_hypers: false
-      hyper_tuner_layers: 2
-      hyper_tuner_steps_per_dim: 2
-      plot_tuning_results: true
-      save_file: grid_search.csv
-  - name: Tuner2
     type: RecursiveRandomSearchTuner
     settings:
       optimize_hypers: true
@@ -119,9 +89,9 @@ tuners:
 tunings:
   - hp_tuner: Tuner1
     predictor: Neural Net
-    eval_function: train_and_validate
-    save_function: save
-    reset_function: load
+    eval_fn: train_and_validate
+    save_fn: save
+    reset_fn: load
     eval_arguments:
       training_data: Training
       validation_data: Validation
@@ -134,26 +104,10 @@ tunings:
         - learning_rate
         - lmbda
 
-trainings:
-  - predictor: Neural Net
-    eval_arguments:
-      training_data: Training
-      validation_data: Validation
-    param_set: hyperparameters
-
 evaluations:
-  - name: NN_Result
+  - name: NN_Validation_Result
     predictor: Neural Net
-    dataset: Test
-  - name: Sleeper_PG_Result
-    predictor: Sleeper
-    dataset: Test (Pre-Game)
-  - name: Naive_Result
-    predictor: Last 3 Games Predictor
-    dataset: Test (Pre-Game)
-  - name: Perfect_Result
-    predictor: Perfect Predictor
-    dataset: Test
+    dataset: Validation
   - name: NN_2024_PG_Result
     predictor: Neural Net
     dataset: 2024 (Pre-Game)
@@ -168,8 +122,8 @@ gamblers:
 # Plots
 plot_groups:
   - results:
-      - NN_Result
-      - Perfect_Result
+      - NN_Validation_Result
+      - NN_2024_PG_Result
     plots:
       - type: error_dist
         settings:
@@ -177,7 +131,7 @@ plot_groups:
           absolute: true
       - type: single_games
         settings:
-          n_random: 0
+          n_random: 5
       - type: scatters
         settings:
           all_plot_settings:
@@ -189,7 +143,7 @@ plot_groups:
           - columns: [Pass Att, Pass Cmp, Pass Yds, Pass TD]
             legend_slice:
               Position:
-                - QB
+                - [QB]
                 - [RB, WR, TE]
             subtitle: Passing Stats
           - columns: [Rush Att, Rush Yds, Rush TD, Fmb]
@@ -199,7 +153,7 @@ plot_groups:
             legend_slice:
               Position:
                 - [RB, WR, TE]
-                - QB
+                - [QB]
             subtitle: Receiving Stats
           - columns: [Fantasy Points]
             subtitle: Fantasy Points

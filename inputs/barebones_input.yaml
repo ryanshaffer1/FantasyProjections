@@ -1,0 +1,99 @@
+# Basic inputs
+
+---
+# Output Files
+
+# Datasets
+datasets:
+  - name: Training
+  - name: Validation
+    config:
+      - years: [2023]
+        weeks: [12, 13, 14]
+  - name: Test
+    config:
+      - years: [2023]
+        weeks: [15, 16, 17]
+  - name: Test (Pre-Game)
+    config:
+      - years: [2023]
+        weeks: [15, 16, 17]
+        elapsed_time: [0]
+  - name: 2024 (Pre-Game)
+    config:
+      - years: [2024]
+        elapsed_time: [0]
+
+# Hyper-Parameters
+
+# Predictors
+predictors:
+  - name: Neural Net
+    type: NeuralNetPredictor
+  - name: Sleeper
+    type: SleeperPredictor
+  - name: Last 3 Games Predictor
+    type: LastNPredictor
+  - name: Perfect Predictor
+    type: PerfectPredictor
+
+# Tuners
+tuners:
+  - name: Tuner1
+    type: GridSearchTuner
+  - name: Tuner2
+    type: RecursiveRandomSearchTuner
+
+# Processes
+tunings:
+  - hp_tuner: Tuner1
+    predictor: Neural Net
+    eval_function: train_and_validate
+    save_function: save
+    reset_function: load
+    eval_arguments:
+      training_data: Training
+      validation_data: Validation
+    reset_arguments:
+      model_folder: save_folder
+
+trainings:
+  - predictor: Neural Net
+    eval_arguments:
+      training_data: Training
+      validation_data: Validation
+
+evaluations:
+  - name: NN_Result
+    predictor: Neural Net
+    dataset: Test
+  - name: Sleeper_PG_Result
+    predictor: Sleeper
+    dataset: Test (Pre-Game)
+  - name: Naive_Result
+    predictor: Last 3 Games Predictor
+    dataset: Test (Pre-Game)
+  - name: Perfect_Result
+    predictor: Perfect Predictor
+    dataset: Test
+  - name: NN_2024_PG_Result
+    predictor: Neural Net
+    dataset: 2024 (Pre-Game)
+
+# Gamblers
+gamblers:
+  - name: Gambler1
+    type: BasicGambler
+    evaluation: NN_2024_PG_Result
+
+# Plots
+plot_groups:
+  - results:
+      - NN_Result
+      - Perfect_Result
+    plots:
+      - type: error_dist
+      - type: single_games
+      - type: scatters
+
+...

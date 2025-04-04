@@ -12,10 +12,14 @@ import numpy as np
 import pandas as pd
 import pandas.testing as pdtest
 import torch
-from torch.utils.data import Dataset
+from config.log_config import LOGGING_CONFIG
+
+# Set up logger
+logging.config.dictConfig(LOGGING_CONFIG)
+logger = logging.getLogger("log")
 
 
-class StatsDataset(Dataset):
+class StatsDataset(torch.utils.data.Dataset):
     """Dataset holding input data, output data, and ID data relating to statlines for a set of NFL games
 
         Child of class torch.utils.data.Dataset
@@ -231,7 +235,7 @@ class StatsDataset(Dataset):
         try:
             row_nums = self.id_data.reset_index().query(df_query).index.values
         except ValueError:
-            logging.warning("Invalid criteria (or no criteria) passed to method slice_by_criteria. No slicing will be performed.")
+            logger.warning("Invalid criteria (or no criteria) passed to method slice_by_criteria. No slicing will be performed.")
             row_nums = self.id_data.reset_index().index.values
 
         if inplace:

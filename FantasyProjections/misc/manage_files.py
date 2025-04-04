@@ -12,6 +12,7 @@ import os
 import shutil
 from datetime import datetime
 
+import matplotlib.pyplot as plt
 import pandas as pd
 
 # Set up logger
@@ -162,3 +163,41 @@ def move_logfile(curr_filepath, new_folder):
     filename = curr_filepath.split("/")[-1]
     new_filepath = new_folder + filename
     shutil.move(curr_filepath, new_filepath)
+
+
+def save_plots(save_folder):
+    if os.path.basename(save_folder) != "plots":
+        save_folder = os.path.join(save_folder, "plots")
+        create_folders(save_folder)
+
+    for i in plt.get_fignums():
+        fig = plt.figure(i)
+        title = get_figure_title_to_save(fig, i + 1)
+        plt.savefig(f"{os.path.join(save_folder, title)}.png")
+        plt.close(i)
+
+
+def get_figure_title_to_save(fig, default_num=0):
+    """Gets the title of a figure and formats it properly to be saved to a file.
+
+        Args:
+            fig (matplotllib.figure.Figure): Current figure
+            default_num (int, optional): If figure cannot be found, use this num to create a generic but unique name.
+                Defaults to 0 (all unfound titles will be "figure_0").
+
+        Returns:
+            str: Figure title, formatted to be saved.
+    """  # fmt: skip
+    # Try to get overall figure title
+    title = fig.get_suptitle()
+    # If figure title is empty, get axis title
+    if title == "":
+        title = fig.axes[0].get_title()
+    # Default figure name if no title was found
+    if title == "":
+        return f"figure_{default_num}"
+
+    # Format for filename
+    title = title.lower().replace("\n", ", ").replace(":", "")
+
+    return title
