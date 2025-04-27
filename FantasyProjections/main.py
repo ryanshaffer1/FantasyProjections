@@ -1,9 +1,8 @@
-"""Creates multiple Fantasy Football stat predictors (using various prediction algorithms), evaluates their predictions for a user-configurable
+"""Executes a simulation of Fantasy Football player stat prediction (including model training/tuning) and evaluates the results.
+
+	Creates multiple Fantasy Football stat predictors (using various prediction algorithms), evaluates their predictions for a user-configurable
 	set of past NFL games, and logs/visualizes the results in multiple user-configurable plots.
 	Contains many user settings for the Neural Network Predictor, which is the most custom (and most important) type of predictor in the project.
-
-	This module is a script to be run alone. Before running, the packages in requirements.txt must be installed. Use the following terminal command:
-	> pip install -u requirements.txt
 """  # fmt: skip
 
 import argparse

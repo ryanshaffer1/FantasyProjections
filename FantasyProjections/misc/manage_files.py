@@ -42,8 +42,8 @@ def create_folders(folders):
                 If a folder does exist, this function will not modify it. If a function does not exist,
                 this function will create it.
                 If a file is input, tries to get the parent folder.
-    """  # fmt: skip
 
+    """  # fmt: skip
     # Handle case of single folder being passed
     if isinstance(folders, str):
         folders = [folders]
@@ -71,8 +71,8 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
         Returns:
             list | tuple: if a single year is input, returns a tuple of DataFrame objects corresponding to each input file type (e.g. 'pbp','roster').
                 if multiple years are input, returns a list of tuples of DataFrame objects where each tuple corresponds to a year.
-    """  # fmt: skip
 
+    """  # fmt: skip
     # Handle single year being input
     if not hasattr(years, "__iter__"):
         years = [years]
@@ -130,8 +130,8 @@ def collect_roster_filter(filter_roster, update_filter, roster_filter_file):
             [pandas.DataFrame | None]: If file was loaded successfully, returns a DataFrame with the roster filter (player list). If file was
                 not loaded successfully (either failed to load, or was not attempted), returns None.
             bool: True if file load was successful, False if not.
-    """  # fmt: skip
 
+    """  # fmt: skip
     if filter_roster and not update_filter:
         try:
             filter_df = pd.read_csv(roster_filter_file)
@@ -152,8 +152,8 @@ def move_logfile(curr_filepath, new_folder):
         Args:
             curr_filepath (str): filepath where the logfile has been temporarily stored (MUST INCLUDE FILE NAME)
             new_folder (str): folder to move the logfile to (MUST NOT INCLUDE FILE NAME)
-    """  # fmt: skip
 
+    """  # fmt: skip
     # Create folder if it does not exist
     create_folders(new_folder)
 
@@ -187,6 +187,7 @@ def get_figure_title_to_save(fig, default_num=0):
 
         Returns:
             str: Figure title, formatted to be saved.
+
     """  # fmt: skip
     # Try to get overall figure title
     title = fig.get_suptitle()

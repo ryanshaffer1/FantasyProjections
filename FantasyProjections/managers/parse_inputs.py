@@ -2,6 +2,7 @@ import logging
 import os
 
 import yaml
+
 from misc.manage_files import create_folders, name_save_folder
 
 default_filename = "FantasyProjections/config/default_inputs.yaml"
@@ -73,6 +74,7 @@ class InputParameters:
 # ruff: noqa: PLR0912
 def recursive_dict_merge(input_struct, defaults, add_if_empty=True):
     """Fills in any missing values in input_struct based on the values in defaults.
+
         Calls recursively so that nested dicts/lists/tuples are also filled with default values.
         Note that list/tuple inputs are only used to search for nested dicts - all the "base data" is assumed to be in dicts.
 
@@ -85,8 +87,8 @@ def recursive_dict_merge(input_struct, defaults, add_if_empty=True):
 
         Returns:
             dict | list | tuple: input_struct, with any missing fields filled in with the corresponding values in defaults.
-    """  # fmt: skip
 
+    """  # fmt: skip
     # Do nothing if the input_struct is empty and add_if_empty is False
     if len(input_struct) == 0 and not add_if_empty:
         return input_struct
