@@ -2,7 +2,7 @@
 
     Classes:
         PerfectPredictor : child of FantasyPredictor. Predicts NFL player stats using the true NFL stats, giving perfect predictions.
-"""
+"""  # fmt:skip
 
 from dataclasses import dataclass
 
@@ -20,7 +20,8 @@ class PerfectPredictor(FantasyPredictor):
 
         Public Methods:
             eval_model : Generates predicted stats for an input evaluation dataset, using the true stats for the same dataset.
-    """
+
+    """  # fmt:skip
 
     # CONSTRUCTOR
     # N/A - Fully constructed by parent __init__()
@@ -32,15 +33,15 @@ class PerfectPredictor(FantasyPredictor):
 
             Args:
                 eval_data (StatsDataset): data to use for Predictor evaluation (e.g. validation or test data).
-
-            Keyword-Args:
-                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor.
-                See the related documentation for descriptions and valid inputs. All keyword arguments are optional.
+                kwargs:
+                    All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor.
+                    See the related documentation for descriptions and valid inputs. All keyword arguments are optional.
 
             Returns:
                 PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting,
                     performance assessments, etc.
-        """
+
+        """  # fmt:skip
 
         # True stats from eval data
         stat_truths = self.eval_truth(eval_data, **kwargs)

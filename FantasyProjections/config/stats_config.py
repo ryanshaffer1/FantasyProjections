@@ -9,7 +9,7 @@
         labels_df_to_sleeper (dict): Maps stats names used throughout the project to corresponding stats names used in the Sleeper API.
         labels_df_to_pfr (dict): Maps stats names used throughout the project to corresponding stats names used on pro-football-reference.com (PFR).
         labels_df_to_odds (dict): Maps stats names used throughout the project to corresponding stat names used by The Odds.
-"""
+"""  # fmt: skip
 
 default_stat_list = [
     "Pass Att",
@@ -24,7 +24,7 @@ default_stat_list = [
     "Rec Yds",
     "Rec TD",
     "Fmb",
-                     ]
+]
 
 
 default_norm_thresholds = {
@@ -57,18 +57,18 @@ default_norm_thresholds = {
 
 
 default_scoring_weights = {
-    "Pass Att"  : 0,
-    "Pass Cmp"  : 0,
-    "Pass Yds"  : 0.04,
-    "Pass TD"   : 4,
-    "Int"       : -2,
-    "Rush Att"  : 0,
-    "Rush Yds"  : 0.1,
-    "Rush TD"   : 6,
-    "Rec"       : 1,
-    "Rec Yds"   : 0.1,
-    "Rec TD"    : 6,
-    "Fmb"       : -2,
+    "Pass Att": 0,
+    "Pass Cmp": 0,
+    "Pass Yds": 0.04,
+    "Pass TD": 4,
+    "Int": -2,
+    "Rush Att": 0,
+    "Rush Yds": 0.1,
+    "Rush TD": 6,
+    "Rec": 1,
+    "Rec Yds": 0.1,
+    "Rec TD": 6,
+    "Fmb": -2,
 }
 
 labels_df_to_sleeper = {

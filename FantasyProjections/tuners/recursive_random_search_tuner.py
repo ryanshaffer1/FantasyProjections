@@ -53,22 +53,24 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
 
         Public Methods:
             tune_hyper_parameters : Performs iterative evaluation of a function that depends on HyperParameters to find an optimal combination of HyperParameters.
+
     """  # fmt: skip
 
     def __init__(self, *args, **kwargs):
         """Constructor for RecursiveRandomSearchTuner objects.
 
             Args:
-                param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
-                save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
-                optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
-                    Defaults to False.
-                plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
-                n_value_combinations (int, optional): Number of random samples to take. Defaults to 1.
-                max_samples (int, optional): Limit to the number of allowable random samples before terminating the tuning process.
-                    Defaults to 10 times the number of initial random samples.
-
-            Optional Algorithm-Specific Keyword-Args:
+                args:
+                    param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
+                kwargs:
+                    save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
+                    optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
+                        Defaults to False.
+                    plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
+                    n_value_combinations (int, optional): Number of random samples to take. Defaults to 1.
+                    max_samples (int, optional): Limit to the number of allowable random samples before terminating the tuning process.
+                        Defaults to 10 times the number of initial random samples.
+                Optional Algorithm-Specific Keyword-Args:
                 See the linked file above for technical description of each of the following parameters:
                     p_conf (float, optional): Defaults to 0.99.
                     r_percentile (float, optional): Defaults to None (calculated using n_explore_samples).
@@ -82,6 +84,7 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
             Adds Public Attributes to Other Classes:
                 HyperParameter objects within param_set:
                     values (list): Array of sampled values to use in random search HyperParameter optimization.
+
         """  # fmt: skip
 
         super().__init__(*args, **kwargs)
@@ -147,14 +150,14 @@ class RecursiveRandomSearchTuner(HyperParamTuner):
                 eval_kwargs (dict, optional): Keyword-Arguments to pass to the evaluation function. Defaults to None.
                 save_kwargs (dict, optional): Keyword-Arguments to pass to the save function. Defaults to None.
                 reset_kwargs (dict, optional): Keyword-Arguments to pass to the reset function. Defaults to None.
-
-            Keyword-Arguments:
-                maximize (bool, optional): whether to maximize (True) or minimize (False) the values returned from eval_function. Defaults to False (minimize).
-                plot_variables (tuple | list, optional): names of 2 hyper-parameters to use as the x and y axes of the plot optionally generated after tuning
-                    (if self.plot_tuning_results == True). Defaults to None - default behavior described in plot_tuning_results.
+                kwargs:
+                    maximize (bool, optional): whether to maximize (True) or minimize (False) the values returned from eval_function. Defaults to False (minimize).
+                    plot_variables (tuple | list, optional): names of 2 hyper-parameters to use as the x and y axes of the plot optionally generated after tuning
+                        (if self.plot_tuning_results == True). Defaults to None - default behavior described in plot_tuning_results.
 
             Returns:
                 float: Optimal performance across all function evaluations.
+
         """  # fmt: skip
 
         # Handle keyword arguments for each called function

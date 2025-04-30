@@ -3,7 +3,7 @@
     Functions:
         get_odds_api_key : Reads API key for The Odds API from a local file. API key must be obtained manually and saved to this file by the user.
         log_api_usage : Logs the number of API requests fulfilled by The Odds with the current API key, and how many requests are remaining on the key.
-"""
+"""  # fmt: skip
 
 import logging
 
@@ -17,6 +17,7 @@ SPORT_KEY = "americanfootball_nfl"
 DATE_FMT = "%Y-%m-%dT%H:%M:%SZ"
 BOOKMAKER = "fanduel"
 
+
 def get_odds_api_key(filename=None):
     """Reads API key for The Odds API from a local file. API key must be obtained manually and saved to this file by the user.
 
@@ -27,7 +28,8 @@ def get_odds_api_key(filename=None):
 
         Returns:
             str: The Odds API key read from the file.
-    """
+
+    """  # fmt: skip
 
     # Handle default for optional input
     if filename is None:
@@ -44,6 +46,8 @@ def log_api_usage(response):
 
         Args:
             response (requests.models.Response): Response from The Odds API, containing metadata on the number of requests made/available.
-    """
+
+    """  # fmt: skip
+
     # Check your usage
     logger.info(f"{response.headers['x-requests-remaining']} requests left ({response.headers['x-requests-used']} used)")

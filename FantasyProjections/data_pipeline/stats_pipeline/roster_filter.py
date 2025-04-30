@@ -9,6 +9,7 @@
 import logging
 
 import matplotlib.pyplot as plt
+
 from config.player_id_config import PRIMARY_PLAYER_ID
 from misc.stat_utils import stats_to_fantasy_points
 
@@ -38,6 +39,7 @@ def generate_roster_filter(rosters_df, final_stats_df, save_file=None, num_playe
 
         Returns:
             pandas.DataFrame: List of players to include in the filter, along with some additional data like team, position, average Fantasy Points, etc.
+
     """  # fmt: skip
 
     # Add Fantasy Points to final stats if not already computed
@@ -77,7 +79,9 @@ def generate_roster_filter(rosters_df, final_stats_df, save_file=None, num_playe
     player_list_df = player_list_df.iloc[0:num_players]
 
     # Clean up df for saving
-    player_list_df = player_list_df[[PRIMARY_PLAYER_ID, "full_name", "Fantasy Avg", "team", "position", "jersey_number"]]
+    player_list_df = player_list_df[
+        [PRIMARY_PLAYER_ID, "full_name", "Fantasy Avg", "team", "position", "jersey_number", "draft_number"]
+    ]
     player_list_df = player_list_df.rename(
         columns={
             "team": "Team",
@@ -116,6 +120,7 @@ def apply_roster_filter(midgame_df, final_stats_df, filter_df):
         Returns:
             pandas.DataFrame: midgame_df, trimmed to only include the players in filter_df.
             pandas.DataFrame: final_stats_df, trimmed to only include the players in filter_df.
+
     """  # fmt: skip
 
     filter_ids = filter_df["Player ID"].to_list()
@@ -131,6 +136,7 @@ def create_filter_plot(player_list_df, num_players):
         Args:
             player_list_df (pandas.DataFrame): List of players included in the filter, along with some additional data like team, position, average Fantasy Points, etc.
             num_players (int): Number of players to include in list.
+
     """  # fmt: skip
 
     # Plot bar chart of points by rank, colored by position

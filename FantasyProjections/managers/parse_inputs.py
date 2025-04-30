@@ -1,3 +1,14 @@
+"""Functions and classes used to manipulate user inputs into the FantasyProjections scenario.
+
+    Functions:
+        parse_inputs : Reads input YAML file into InputParameters object, normalizes, and optionally saves.
+        recursive_dict_merge : Fills in any missing values in input_struct based on the values in defaults.
+
+    Classes:
+        InputParameters : Data structure used to store and manipulate all inputs passed into the scenario.
+
+"""  # fmt:skip
+
 import logging
 import os
 
@@ -13,6 +24,18 @@ logger = logging.getLogger("log")
 
 
 def parse_inputs(input_filename):
+    """Reads input YAML file into InputParameters object, normalizes, and optionally saves.
+
+        Normalization: replacing any missing, required inputs with inputs from the default input file.
+
+        Args:
+            input_filename (str): YAML input file for current scenario
+
+        Returns:
+            InputParameters: Parsed and normalized inputs.
+
+    """  # fmt: skip
+
     with open(input_filename) as stream:
         inputs = InputParameters(yaml.safe_load(stream))
 
@@ -32,19 +55,68 @@ def parse_inputs(input_filename):
 
 
 class InputParameters:
+    """Data structure used to store and manipulate all inputs passed into the scenario.
+
+        Class Attributes:
+            save_options (dict): flags and settings for saving various scenario outputs (models, plots, etc.) to file.
+            datasets (list[dict]): inputs for all StatsDataset objects to generate, including names and configurations.
+            hyperparameters (dict): names and configurations of all model hyper-parameter controlled by tuners.
+            predictors (list[dict]): inputs for all FantasyPredictor objects to generate, including names, types, and configurations.
+            tuners (list[dict]): inputs for all HyperParamTuner objects to generate, including names, types, and configurations.
+            tunings (list[dict]): inputs for all hyper-parameter tuning processes to perform, including tuners/predictors involved.
+            trainings (list[dict]): inputs for all predictor training processes to perform, including predictors/datasets involved.
+            evaluations (list[dict]): inputs for all predictor evaluation processes to perform, including predictors/datasets involved.
+            gamblers (list[dict]): inputs for all Gambler objects to generate, including name, type, and evaluation to use.
+            plot_groups (list[dict]): inputs for all plot groups to generate, including results to show and plot settings.
+
+        Public Methods:
+            normalize : Replace any missing, required inputs in the InputParameters with matching inputs from the default InputParameters.
+            save : Generates YAML file from the InputParameters object.
+
+
+    """  # fmt: skip
+
     def __init__(self, input_dict):
+        """Constructor for InputParameters.
+
+            Args:
+                input_dict (dict): Dictionary parsed from an input YAML file. May contain the following fields:
+                    save_options (dict): flags and settings for saving various scenario outputs (models, plots, etc.) to file.
+                    datasets (list[dict]): inputs for all StatsDataset objects to generate, including names and configurations.
+                    hyperparameters (dict): names and configurations of all model hyper-parameter controlled by tuners.
+                    predictors (list[dict]): inputs for all FantasyPredictor objects to generate, including names, types, and configurations.
+                    tuners (list[dict]): inputs for all HyperParamTuner objects to generate, including names, types, and configurations.
+                    tunings (list[dict]): inputs for all hyper-parameter tuning processes to perform, including tuners/predictors involved.
+                    trainings (list[dict]): inputs for all predictor training processes to perform, including predictors/datasets involved.
+                    evaluations (list[dict]): inputs for all predictor evaluation processes to perform, including predictors/datasets involved.
+                    gamblers (list[dict]): inputs for all Gambler objects to generate, including name, type, and evaluation to use.
+                    plot_groups (list[dict]): inputs for all plot groups to generate, including results to show and plot settings.
+
+            Class Attributes:
+                All fields in the input_dict are converted to attributes of the InputParameters object.
+                Any omitted fields are initialized as an empty dict or empty list, depending on the input type.
+
+        """  # fmt: skip
+
         self.save_options = input_dict.get("save_options", {})
-        self.datasets = input_dict.get("datasets", {})
+        self.datasets = input_dict.get("datasets", [])
         self.hyperparameters = input_dict.get("hyperparameters", {})
-        self.predictors = input_dict.get("predictors", {})
-        self.tuners = input_dict.get("tuners", {})
-        self.tunings = input_dict.get("tunings", {})
-        self.trainings = input_dict.get("trainings", {})
-        self.evaluations = input_dict.get("evaluations", {})
-        self.gamblers = input_dict.get("gamblers", {})
-        self.plot_groups = input_dict.get("plot_groups", {})
+        self.predictors = input_dict.get("predictors", [])
+        self.tuners = input_dict.get("tuners", [])
+        self.tunings = input_dict.get("tunings", [])
+        self.trainings = input_dict.get("trainings", [])
+        self.evaluations = input_dict.get("evaluations", [])
+        self.gamblers = input_dict.get("gamblers", [])
+        self.plot_groups = input_dict.get("plot_groups", [])
 
     def normalize(self, default_inputs):
+        """Replace any missing, required inputs in the InputParameters with matching inputs from the default InputParameters.
+
+            Args:
+                default_inputs (InputParameters): data structure parsed from the default input YAML file.
+
+        """  # fmt: skip
+
         # Merge dictionaries, with self taking precedence over default_inputs in the case of matching keys
         # Note that though the recursive_dict_merge returns a value, it does not need to be assigned due to the memory persistence of dicts
         recursive_dict_merge(self.save_options, default_inputs.save_options, add_if_empty=True)
@@ -59,6 +131,14 @@ class InputParameters:
         recursive_dict_merge(self.plot_groups, default_inputs.plot_groups, add_if_empty=False)
 
     def save(self, save_file=None):
+        """Generates YAML file from the InputParameters object.
+
+            Args:
+                save_file (str, optional): Filename (including path) to save YAML.
+                    Defaults to filename "inputs_normalized.yaml" in the folder identified by the "save_directory" input.
+
+        """  # fmt: skip
+
         # If no save file provided, generate default
         if save_file is None:
             save_file = os.path.join(self.save_options["save_directory"], "inputs_normalized.yaml")

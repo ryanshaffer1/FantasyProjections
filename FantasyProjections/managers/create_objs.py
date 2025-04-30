@@ -1,3 +1,13 @@
+"""Set of functions used to build/initialize various objects used in the prediction of Fantasy Football stats.
+
+    Functions:
+        create_datasets : Generates datasets using a subset of all available data, based on the parameters specified for each dataset.
+        create_predictors : Generates all FantasyPredictor objects used in the scenario, based on input parameters.
+        create_tuners : Generates all HyperParamTuner objects used in the scenario, based on input parameters.
+        create_gamblers : Generates all Gambler objects used in the scenario, based on input parameters.
+        create_plots : Generates all plots of evaluation results, based on input parameters.
+"""  # fmt:skip
+
 import logging
 
 from gamblers import BasicGambler
@@ -10,6 +20,17 @@ logger = logging.getLogger("log")
 
 
 def create_datasets(dataset_params, all_data):
+    """Generates datasets using a subset of all available data, based on the parameters specified for each dataset.
+
+        Args:
+            dataset_params (list[dict]): List where each element specifies the StatsDataset to create, including name and configuration parameters (e.g. criteria to slice data on).
+            all_data (StatsDataset): StatsDataset containing all available data points.
+
+        Returns:
+            dict: Maps name of each dataset to the corresponding StatsDataset object.
+
+    """  # fmt:skip
+
     # Initialize dict of datasets
     datasets = {}
 
@@ -31,6 +52,17 @@ def create_datasets(dataset_params, all_data):
 
 
 def create_predictors(predictor_params, save_folder):
+    """Generates all FantasyPredictor objects used in the scenario, based on input parameters.
+
+        Args:
+            predictor_params (list[dict]): List where each element specifies the FantasyPredictor to create, including name, type, and configuration parameters.
+            save_folder (str): Directory to save any models which are updated over the course of the scenario (such as NeuralNetPredictors).
+
+        Returns:
+            dict: Maps name of each predictor to the corresponding FantasyPredictor object.
+
+    """  # fmt:skip
+
     # Valid types that may be entered as strings and used as FantasyPredictor classes
     type_map = {
         "NeuralNetPredictor": NeuralNetPredictor,
@@ -63,6 +95,18 @@ def create_predictors(predictor_params, save_folder):
 
 
 def create_tuners(tuner_params, save_folder, param_set):
+    """Generates all HyperParamTuner objects used in the scenario, based on input parameters.
+
+        Args:
+            tuner_params (list[dict]): List where each element specifies the HyperParamTuner to create, including name, type, and settings.
+            save_folder (str): Directory to save any tuning results or models which are updated over the course of the scenario.
+            param_set (HyperParameterSet): Hyper-parameters controllable by each tuner.
+
+        Returns:
+            dict: Maps name of each tuner to the corresponding HyperParamTuner object.
+
+    """  # fmt:skip
+
     # Valid types that may be entered as strings and used as FantasyPredictor classes
     type_map = {
         "GridSearchTuner": GridSearchTuner,
@@ -94,6 +138,14 @@ def create_tuners(tuner_params, save_folder, param_set):
 
 
 def create_gamblers(gambler_params, eval_results):
+    """Generates all Gambler objects used in the scenario, based on input parameters.
+
+        Args:
+            gambler_params (list[dict]): List where each element specifies the Gambler to create, including name, type, and settings.
+            eval_results (dict): Maps names of prediction evaluations to PredictionResult objects (containing the stats predictions over a dataset).
+
+    """  # fmt:skip
+
     # Valid types that may be entered as strings and used as Gambler classes
     type_map = {"BasicGambler": BasicGambler}
 
@@ -116,6 +168,14 @@ def create_gamblers(gambler_params, eval_results):
 
 
 def create_plots(plot_group_params, eval_results):
+    """Generates all plots of evaluation results, based on input parameters.
+
+        Args:
+            plot_group_params (list[dict]): List where each element specifies the plot group to create, including PredictionResults to include and plot types/settings.
+            eval_results (dict): Maps names of prediction evaluations to PredictionResult objects (containing the stats predictions over a dataset).
+
+    """  # fmt:skip
+
     # Valid options that may be entered as strings and used as plot functions
     type_map = {
         "error_dist": PredictionResult.plot_error_dist,

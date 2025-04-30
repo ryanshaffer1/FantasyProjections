@@ -37,6 +37,7 @@ def week_to_date_range(year, week):
 
         Returns:
             list: List of two datetime objects, corresponding to the start and end dates of the week.
+
     """  # fmt: skip
 
     week_1_date = WEEK_1_DATES[year]
@@ -59,6 +60,7 @@ def date_to_nfl_week(date):
         Returns:
             int: NFL season (year)
             int: NFL week
+
     """  # fmt: skip
 
     with contextlib.suppress(TypeError):  # Assume date is already a datetime
@@ -74,7 +76,7 @@ def date_to_nfl_week(date):
 
 
 def find_prev_time_index(time, other_times_series):
-    """Finds the most recent time before a given time in a series of times (i.e. the nearest time in the past.)
+    """Finds the most recent time before a given time in a series of times (i.e. the nearest time in the past).
 
         Args:
             time (float | int | str): Float/int representing an elapsed time (like since a game starting),
@@ -85,6 +87,7 @@ def find_prev_time_index(time, other_times_series):
 
         Returns:
             int: Index of other_times_series that is the most recent time before the input time.
+
     """  # fmt: skip
 
     # Time input as an elapsed time float

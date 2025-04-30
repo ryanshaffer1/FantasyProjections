@@ -12,7 +12,7 @@ select = ["ALL"]
 #   - Line 4: rules/linters that are turned off for now, but should eventually be enforced
 ignore = ["ANN", "PT", "FBT", "PTH", 
           "G004", "RET504","E501", "NPY002", "PD011", "T201", "TRY003",
-          "D206", "D208", "D214", "D401",
+          "D105", "D202", "D206", "D208", "D214", "D401",
           "PLR0913", "PLR0911", "C901", "PLW2901", "PD013"]
 extend-safe-fixes = ["W291","W293"]
 

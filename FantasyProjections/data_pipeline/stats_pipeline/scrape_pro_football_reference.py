@@ -13,6 +13,7 @@ from time import sleep
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+
 from config import stats_config
 from config.data_files_config import PFR_PLAYER_URL_INTRO
 from data_pipeline.utils.name_matching import drop_name_frills, fuzzy_match
@@ -35,6 +36,7 @@ def scrape_box_score(stats_html, team_abbrevs, last_req_time):
         Returns:
             pandas.DataFrame: Final stats for each player on the team who played in the game.
             datetime.datetime: Timestamp of the HTTP request made during the function call.
+
     """  # fmt: skip
 
     # Handle optional non-iterable type for team_abbrevs
@@ -53,9 +55,11 @@ def scrape_box_score(stats_html, team_abbrevs, last_req_time):
     except requests.exceptions.ReadTimeout:
         logger.warning(f"Read Timeout on {stats_html}. No data obtained.")
         last_req_time = datetime.now().astimezone()  # Keep track of last time a GET request was made
-        return box_score_df, last_req_time
+        success = False
+        return box_score_df, last_req_time, success
 
     last_req_time = datetime.now().astimezone()  # Keep track of last time a GET request was made
+    success = True
 
     soup = BeautifulSoup(r.content, "html.parser")
     stats_table = soup.find("table", {"id": "player_offense"})
@@ -79,7 +83,7 @@ def scrape_box_score(stats_html, team_abbrevs, last_req_time):
     # Format output df and add Fantasy Points
     box_score_df = box_score_df.transpose().reset_index(drop=True)
 
-    return box_score_df, last_req_time
+    return box_score_df, last_req_time, success
 
 
 def search_for_missing_pfr_id(player_name, max_attempts=20, continue_on_404=False):
@@ -97,6 +101,7 @@ def search_for_missing_pfr_id(player_name, max_attempts=20, continue_on_404=Fals
         Returns:
             str | None: Player ID in PFR format, if a match was found. If no matching player name was found, returns None.
             dict: Dictionary mapping player names to player IDs in PFR format for all the pairs checked during the search.
+
     """  # fmt: skip
 
     last_req_time = datetime.now().astimezone()  # Keep track of last time a GET request was made
@@ -147,6 +152,7 @@ def scrape_player_page_for_name(player_url, last_req_time):
         Returns:
             str | None: Player name, if found. If HTTPError is raised (like 404 error), return None.
             datetime.datetime: Timestamp of the HTML request made during the function call.
+
     """  # fmt: skip
 
     sleep_time = max(0, REQ_WAIT_TIME - (datetime.now().astimezone() - last_req_time).total_seconds())

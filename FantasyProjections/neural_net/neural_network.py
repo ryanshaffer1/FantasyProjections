@@ -5,8 +5,9 @@
 """  # fmt: skip
 
 import torch
-from config.nn_config import default_nn_shape
 from torch import nn
+
+from config.nn_config import default_nn_shape
 
 
 class NeuralNetwork(nn.Module):
@@ -24,6 +25,7 @@ class NeuralNetwork(nn.Module):
 
         Public Methods:
             forward : Defines the feedforward flow of information through the network, including the embedding and linear stack layers.
+
     """  # fmt: skip
 
     # CONSTRUCTOR
@@ -36,6 +38,7 @@ class NeuralNetwork(nn.Module):
 
             Raises:
                 ValueError: non-numeric value passed in shape.
+
         """  # fmt: skip
 
         super().__init__()
@@ -93,6 +96,7 @@ class NeuralNetwork(nn.Module):
 
             Returns:
                 tensor: output vector from Neural Net based on provided input
+
         """  # fmt: skip
 
         player_embedding = self.embedding_player(x[:, self.players_inds])

@@ -9,6 +9,7 @@ from datetime import datetime
 
 import matplotlib.pyplot as plt
 import pandas as pd
+
 from config import data_files_config, stats_config
 from config.player_id_config import fill_blank_player_ids
 from data_pipeline.stats_pipeline.scrape_pro_football_reference import scrape_box_score
@@ -31,6 +32,7 @@ def validate_parsed_data(final_stats_df, urls_df, scrape=False, save_data=False)
             urls_df (pandas.DataFrame): Maps game_id to URL to scrape stats from pro-football-reference.com
             scrape (bool, optional): Whether to scrape missing data from pro-football-reference.com. Defaults to False.
             save_data (bool, optional): Whether to save scraped statistics and comparison against parsed statistics to csv files. Defaults to False.
+
     """  # fmt: skip
 
     last_req_time = datetime.now().astimezone()
@@ -69,11 +71,12 @@ def validate_parsed_data(final_stats_df, urls_df, scrape=False, save_data=False)
             )
             game_url = urls_df.loc[game_id, "PFR URL"]
             logger.info(f"({i + 1} of {len(missing_games)}) {game_id} from {game_url}")
-            boxscore, last_req_time = scrape_box_score(game_url, team_abbrevs, last_req_time)
+            boxscore, last_req_time, success = scrape_box_score(game_url, team_abbrevs, last_req_time)
 
-            boxscore[["Year", "Week"]] = row.loc[["Year", "Week"]].to_list()
-            boxscore = boxscore.set_index(["pfr_id", "Year", "Week"])
-            true_df = pd.concat((true_df, boxscore))
+            if success:
+                boxscore[["Year", "Week"]] = row.loc[["Year", "Week"]].to_list()
+                boxscore = boxscore.set_index(["pfr_id", "Year", "Week"])
+                true_df = pd.concat((true_df, boxscore))
 
         # Log number of remaining missing players/games
         _, true_df = __identify_missing_games(final_stats_df, true_df, fill_missing_data=True)

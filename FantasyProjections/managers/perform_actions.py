@@ -1,4 +1,23 @@
+"""Set of functions used to perform various processes/actions involved in the prediction of Fantasy Football stats.
+
+    Functions:
+        perform_tunings : Executes all Hyper-parameter tuning processes called for in the input parameters.
+        perform_trainings : Executes all FantasyPredictor model training processes called for in the input parameters.
+        perform_evaluations : Executes all FantasyPredictor predictions (evaluations) against datasets called for in the input parameters.
+
+"""  # fmt:skip
+
+
 def perform_tunings(tuning_params, scenario, save_folder):
+    """Executes all Hyper-parameter tuning processes called for in the input parameters.
+
+        Args:
+            tuning_params (list[dict]): Input parameters for tunings, including tuners, predictors, and configuration inputs.
+            scenario (ScenarioObjects): manager of data/objects used in the scenario. Here, used to obtain HyperParamTuners and FantasyPredictors.
+            save_folder (str): folder to save results of tuning process.
+
+    """  # fmt: skip
+
     # Unpack the inputs needed from ScenarioObjects collector
     tuners = scenario.tuners
     predictors = scenario.predictors
@@ -40,6 +59,14 @@ def perform_tunings(tuning_params, scenario, save_folder):
 
 
 def perform_trainings(training_params, scenario):
+    """Executes all FantasyPredictor model training processes called for in the input parameters.
+
+        Args:
+            training_params (list[dict]): Input parameters for trainings, including predictors, hyperparameters, and datasets.
+            scenario (ScenarioObjects): manager of data/objects used in the scenario. Here, used to obtain FantasyPredictors, HyperParameterSet, and StatsDatasets.
+
+    """  # fmt: skip
+
     # Unpack the inputs needed from ScenarioObjects collector
     predictors = scenario.predictors
     hyperparameters = scenario.hyperparameters
@@ -62,6 +89,17 @@ def perform_trainings(training_params, scenario):
 
 
 def perform_evaluations(evaluation_params, scenario):
+    """Executes all FantasyPredictor predictions (evaluations) against datasets called for in the input parameters.
+
+        Args:
+            evaluation_params (list[dict]): Input parameters for evaluations, including predictors and datasets.
+            scenario (ScenarioObjects): manager of data/objects used in the scenario. Here, used to obtain FantasyPredictors and StatsDatasets.
+
+        Returns:
+            dict: map of evaluation names to PredictionResult objects.
+
+    """  # fmt: skip
+
     # Unpack the inputs needed from ScenarioObjects collector
     predictors = scenario.predictors
     datasets = scenario.datasets

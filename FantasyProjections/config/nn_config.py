@@ -3,12 +3,10 @@
     Variables:
         nn_train_settings (dict): Settings to use in Neural Network training.
         default_nn_shape (dict): Neural Network layers and number of neurons per layer.
-"""
+"""  # fmt: skip
 
 # Settings to use in neural network training
-nn_train_settings = {
-    "max_epochs": 1,
-    "n_epochs_to_stop": 5}
+nn_train_settings = {"max_epochs": 1, "n_epochs_to_stop": 5}
 
 # Shape of neural network (can be reconfigured during object initialization)
 default_nn_shape = {

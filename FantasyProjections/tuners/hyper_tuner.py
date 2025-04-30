@@ -1,4 +1,5 @@
 """Creates and exports multiple classes that support the handling and manipulation of Neural Network HyperParameters.
+
     Hyper-Parameter = Variable within ML equations which is not learned by the model during training, and must be set before training.
 
     This class cannot optimize HyperParameters on its own, but forms the building blocks and base class to implement optimization according to other algorithms.
@@ -11,6 +12,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+
 from misc.manage_files import create_folders
 
 # Set up logger
@@ -37,21 +39,24 @@ class HyperParamTuner:
 
         Protected Methods (available to sub-classes):
             _randomize_hp_values : Generates list of random values for each HyperParameter to use in a random search HyperParamater optimization.
+
     """  # fmt: skip
 
     def __init__(self, param_set, **kwargs):
-        """Constructor for HyperParamTuner
+        """Constructor for HyperParamTuner.
 
             Args:
                 param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
-                save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
-                optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
-                    Defaults to False.
-                plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
+                kwargs:
+                    save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
+                    optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
+                        Defaults to False.
+                    plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
 
             Additional Class Attributes (generated, not passed as inputs):
                 perf_list (list): Performance of Neural Net (e.g. Validation Error, loss, etc.) after each tuning iteration
                 hyper_tuning_table (list): Table recording HyperParameter values and subsequent Neural Network performance after each tuning iteration
+
         """  # fmt: skip
 
         self.param_set = param_set.copy()
@@ -77,12 +82,12 @@ class HyperParamTuner:
                 save_function (function/method): Function to call whenever the best performance (so far) is achieved to save the model config.
                 eval_kwargs (dict): Keyword-Arguments to pass to the evaluation function.
                 save_kwargs (dict): Keyword-Arguments to pass to the save function.
-
-            Keyword-Arguments:
-                maximize (bool, optional): whether to maximize (True) or minimize (False) the values returned from eval_function. Defaults to False (minimize).
+                kwargs:
+                    maximize (bool, optional): whether to maximize (True) or minimize (False) the values returned from eval_function. Defaults to False (minimize).
 
             Returns:
                 float: Optimal performance across all function evaluations.
+
         """  # fmt: skip
 
         # Keyword arguments for this method

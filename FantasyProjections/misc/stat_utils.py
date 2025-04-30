@@ -12,6 +12,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+
 from config import stats_config
 
 # Set up logger
@@ -33,6 +34,7 @@ def normalize_stat(data, thresholds=None):
 
         Returns:
             pandas.Series: Series of normalized data where each entry in col is mapped between 0 and 1 according to the bounds in thresholds
+
     """  # fmt: skip
 
     # Optional input
@@ -67,6 +69,7 @@ def unnormalize_stat(data, thresholds=None):
 
         Returns:
             pandas.Series: Series of unnormalized data where each entry in col is scaled up according to the bounds in thresholds
+
     """  # fmt: skip
 
     # Optional input
@@ -109,6 +112,7 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm
         Returns:
             pandas.DataFrame: stat_line, un-normalized and with column headers corresponding to stat indices, with an additional entry for
                 Fantasy Points calculated based on the fantasy scoring rules. Output type is DataFrame regardless of input type.
+
     """  # fmt: skip
 
     # Optional inputs
@@ -174,6 +178,7 @@ def gen_random_games(id_df, n_random, game_ids=None):
                     - "Player ID" : value -> str
                     - "Year" : value -> int
                     - "Week" : value -> int
+
     """  # fmt: skip
 
     # Keep only unique games from id_df
@@ -219,6 +224,7 @@ def linear_regression(x_data, y_data):
             float: slope of regression line
             float: y-intercept of regression line
             float: r_squared (Coefficient of Determination) of regression line against data
+
     """  # fmt: skip
 
     # Convert inputs to array (column vector)

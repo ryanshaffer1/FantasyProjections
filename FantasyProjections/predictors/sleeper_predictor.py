@@ -6,7 +6,7 @@
     Functions (Interface points with Sleeper API):
         collect_sleeper_player_list : Pulls a list of all players in Sleeper database, and performs some initial processing of the list.
         collect_sleeper_projections : Pulls player projected stats from the Sleeper API for a set of weeks and adds to a pre-existing dict of projections by week.
-"""
+"""  # fmt:skip
 
 import json
 import logging
@@ -14,15 +14,17 @@ from dataclasses import dataclass
 
 import pandas as pd
 import torch
+from sleeper_wrapper import Players, Stats
+
 from config import data_files_config, stats_config
 from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.utils.name_matching import find_matching_name_ind
 from misc.stat_utils import stats_to_fantasy_points
 from predictors import FantasyPredictor
-from sleeper_wrapper import Players, Stats
 
 # Set up logger
 logger = logging.getLogger("log")
+
 
 @dataclass
 class SleeperPredictor(FantasyPredictor):
@@ -49,7 +51,8 @@ class SleeperPredictor(FantasyPredictor):
         Public Methods:
             eval_model : Generates predicted stats for an input evaluation dataset, as provided by Sleeper.
             refresh_players : Updates player dictionary (player names to ID numbers) using Sleeper API
-    """
+
+    """  # fmt:skip
 
     # CONSTRUCTOR
     player_id_file: str = data_files_config.MASTER_PLAYER_ID_FILE
@@ -70,7 +73,6 @@ class SleeperPredictor(FantasyPredictor):
         # Initialize attributes defined later (dependent on eval data used)
         self.all_proj_dict = {}
 
-
     # PUBLIC METHODS
 
     def eval_model(self, eval_data, **kwargs):
@@ -81,15 +83,15 @@ class SleeperPredictor(FantasyPredictor):
 
             Args:
                 eval_data (StatsDataset): data to use for Neural Net evaluation (e.g. validation or test data).
-
-            Keyword-Args:
-                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor.
-                See the related documentation for descriptions and valid inputs. All keyword arguments are optional.
+                kwargs:
+                    All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor.
+                    See the related documentation for descriptions and valid inputs. All keyword arguments are optional.
 
             Returns:
                 PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting,
                     performance assessments, etc.
-        """
+
+        """  # fmt:skip
 
         # List of stats being used to compute fantasy score
         stat_columns = eval_data.y_data_columns
@@ -113,12 +115,14 @@ class SleeperPredictor(FantasyPredictor):
                 stat_line = torch.zeros([len(stat_columns)])
             stat_predicts = torch.cat((stat_predicts, stat_line))
 
-
         # Compute fantasy points using stat lines (note that this ignores the
         # built-in fantasy points projection in the Sleeper API, which differs
         # from the sum of the stats)
-        stat_predicts = stats_to_fantasy_points(torch.reshape(stat_predicts, [-1, len(stat_columns)]),
-                                                stat_indices=stat_columns, **kwargs)
+        stat_predicts = stats_to_fantasy_points(
+            torch.reshape(stat_predicts, [-1, len(stat_columns)]),
+            stat_indices=stat_columns,
+            **kwargs,
+        )
 
         # True stats from eval data
         stat_truths = self.eval_truth(eval_data, **kwargs)
@@ -127,7 +131,6 @@ class SleeperPredictor(FantasyPredictor):
         result = self._gen_prediction_result(stat_predicts, stat_truths, eval_data, **kwargs)
 
         return result
-
 
     def refresh_player_sleeper_ids(self, player_id_df, save_data=True):
         """Updates master list of player IDs using Sleeper API to fill in missing values for sleeper_id.
@@ -141,7 +144,8 @@ class SleeperPredictor(FantasyPredictor):
 
             Returns:
                 pandas.DataFrame: Input DataFrame modified to fill in whatever missing sleeper_id values can be found.
-        """
+
+        """  # fmt:skip
 
         sleeper_player_df = collect_sleeper_player_list()
 
@@ -150,18 +154,24 @@ class SleeperPredictor(FantasyPredictor):
 
         # Update master list with the Sleeper ID of any players that are common to both DataFrames
         intersecting_ids = player_id_df.index.intersection(sleeper_player_df.index)
-        player_id_df.loc[intersecting_ids,"sleeper_id"] = sleeper_player_df.loc[intersecting_ids,"sleeper_id"]
+        player_id_df.loc[intersecting_ids, "sleeper_id"] = sleeper_player_df.loc[intersecting_ids, "sleeper_id"]
 
         # Add any more IDs that can be found via fuzzy name matching
-        fuzzy_match_inds = player_id_df[player_id_df["sleeper_id"].isna()]["Player Name"].apply(find_matching_name_ind, args=(sleeper_player_df["full_name"],)).dropna()
-        player_id_df["sleeper_id"] = player_id_df.apply(lambda x: fuzzy_match_inds.loc[x.name] if x.name in fuzzy_match_inds.index else x["sleeper_id"], axis=1)
+        fuzzy_match_inds = (
+            player_id_df[player_id_df["sleeper_id"].isna()]["Player Name"]
+            .apply(find_matching_name_ind, args=(sleeper_player_df["full_name"],))
+            .dropna()
+        )
+        player_id_df["sleeper_id"] = player_id_df.apply(
+            lambda x: fuzzy_match_inds.loc[x.name] if x.name in fuzzy_match_inds.index else x["sleeper_id"],
+            axis=1,
+        )
 
         # Save data to master list
         if save_data and self.player_id_file is not None:
             player_id_df.to_csv(self.player_id_file)
 
         return player_id_df
-
 
     # PRIVATE METHODS
 
@@ -171,18 +181,15 @@ class SleeperPredictor(FantasyPredictor):
 
         # Load Player IDs master list
         try:
-            player_id_df = pd.read_csv(self.player_id_file,
-                                    dtype={"sleeper_id": "Int64"}).set_index(PRIMARY_PLAYER_ID)
+            player_id_df = pd.read_csv(self.player_id_file, dtype={"sleeper_id": "Int64"}).set_index(PRIMARY_PLAYER_ID)
         except (ValueError, FileNotFoundError):
-            player_id_df = (collect_sleeper_player_list().rename(columns={"full_name":"Player Name"})
-                                                         .set_index(PRIMARY_PLAYER_ID))
+            player_id_df = collect_sleeper_player_list().rename(columns={"full_name": "Player Name"}).set_index(PRIMARY_PLAYER_ID)
 
         # Optionally use the Sleeper API to try and add missing Sleeper IDs to the master list
         if self.update_players:
             player_id_df = self.refresh_player_sleeper_ids(player_id_df)
 
         return player_id_df
-
 
     def __gather_sleeper_proj(self, eval_data):
         # Loads all_proj_dict from file (filename is an attribute of SleeperPredictor)
@@ -191,8 +198,7 @@ class SleeperPredictor(FantasyPredictor):
         # updates all_proj_dict by requesting predictions for the missing weeks from Sleeper.
 
         # Unique year-week combinations in evaluation dataset
-        eval_data.id_data["Year-Week"] = eval_data.id_data[["Year",
-                                                    "Week"]].astype(str).agg("-".join, axis=1)
+        eval_data.id_data["Year-Week"] = eval_data.id_data[["Year", "Week"]].astype(str).agg("-".join, axis=1)
         unique_year_weeks = list(eval_data.id_data["Year-Week"].unique())
 
         # Gather all stats from Sleeper
@@ -216,7 +222,6 @@ class SleeperPredictor(FantasyPredictor):
 
         return all_proj_dict
 
-
     def __reformat_sleeper_stats(self, stat_dict, stat_columns):
         # Re-names stats from Sleeper's format to the common names used across this project
         # and lists into the common stat line format.
@@ -228,20 +233,23 @@ class SleeperPredictor(FantasyPredictor):
 
         return stat_line
 
+
 # FUNCTIONS
+
 
 def collect_sleeper_player_list():
     """Interfaces with Sleeper API to receive a list of all players in Sleeper database, and performs some initial processing of the list.
 
         Returns:
             pandas.DataFrame: DataFrame containing all players in Sleeper database, with sleeper_id column used to ID them.
-    """
+
+    """  # fmt:skip
 
     # Call Sleeper API for player list and format into a DataFrame
     players = Players()
     sleeper_player_dict = players.get_all_players()
     sleeper_player_df = pd.DataFrame(sleeper_player_dict).transpose()
-    sleeper_player_df = sleeper_player_df.sort_index().reset_index(drop=True).rename(columns={"player_id":"sleeper_id"})
+    sleeper_player_df = sleeper_player_df.sort_index().reset_index(drop=True).rename(columns={"player_id": "sleeper_id"})
 
     # Drop non-players from df (non-numeric sleeper IDs)
     sleeper_player_df = sleeper_player_df[sleeper_player_df["sleeper_id"].str.isnumeric()]
@@ -263,7 +271,8 @@ def collect_sleeper_projections(all_proj_dict, year_weeks):
 
         Returns:
             all_proj_dict (dict): input dictionary, with any missing, requested weeks filled in with projections from the Sleeper API.
-    """
+
+    """  # fmt:skip
 
     # Gather any unsaved stats from Sleeper
     stats = Stats()

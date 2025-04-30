@@ -15,6 +15,7 @@ import logging
 import logging.config
 
 import pandas as pd
+
 from config.log_config import LOGGING_CONFIG
 from data_pipeline.stats_pipeline.scrape_pro_football_reference import search_for_missing_pfr_id
 from data_pipeline.utils.name_matching import find_matching_name_ind
@@ -45,6 +46,7 @@ def fill_blank_player_ids(players_df, master_id_file=None, pfr_id_filename=None,
 
         Returns:
             pandas.DataFrame: Input DataFrame with any alternate player IDs inserted that were missing and have been found in the master list or elsewhere.
+
     """  # fmt: skip
 
     # Reset df index (but hold onto what it was, to be reset later)
@@ -107,6 +109,7 @@ def update_master_player_ids(
 
         Returns:
             pandas.DataFrame: Master Player IDs DataFrame with any new players/IDs added.
+
     """  # fmt: skip
 
     id_df = __setup_master_id_df(master_id_file, addl_players_df)

@@ -129,6 +129,7 @@ def invert(dictionary):
 
         Returns:
             dict: Inverted dictionary: all values within original dict are now keys, and vice versa.
+
     """  # fmt: skip
     return {v: k for k, v in dictionary.items()}
 
@@ -147,6 +148,7 @@ def convert_abbrev(abbrevs, dict1, dict2):
 
         Returns:
             str | list of strs: Abbreviation(s) for the same team(s), formatted according to dict2
+
     """  # fmt: skip
     if isinstance(abbrevs, list):
         team_names = [invert(dict1)[abbrev] for abbrev in abbrevs]
@@ -172,6 +174,7 @@ def adjust_team_names(dictionaries, year):
 
         Returns:
             list of dicts: list of dictionaries where each dict has had keys adjusted for any NFL team name changes.
+
     """  # fmt: skip
 
     # Note: the team name changes must be included below in reverse
@@ -237,6 +240,7 @@ def swap_team_names(year, dictionary, year_threshold, before_name, after_name):
 
         Returns:
             dict: Dictionary with the team name changed if necessary.
+
     """  # fmt: skip
 
     if year < year_threshold:

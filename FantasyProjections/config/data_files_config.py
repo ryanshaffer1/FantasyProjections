@@ -1,5 +1,4 @@
-"""Contains variables defining the file names and folder structures used in obtaining and processing source data.
-"""
+"""Contains variables defining the file names and folder structures used in obtaining and processing source data."""  # fmt: skip
 
 # Folders
 DATA_FOLDER = "data/"
@@ -16,14 +15,16 @@ ROSTER_FILTER_FILE = INPUT_FOLDER + "Filtered Player List.csv"
 
 # Input file locations
 ONLINE_DATA_SOURCE = "https://github.com/nflverse/nflverse-data/releases/download/"
-online_file_paths = {"pbp": ONLINE_DATA_SOURCE + "pbp/play_by_play_{0}.csv",
-                     "roster": ONLINE_DATA_SOURCE + "weekly_rosters/roster_weekly_{0}.csv"}
-local_file_paths = {"pbp":INPUT_FOLDER + "play_by_play/play_by_play_{0}.csv",
-                    "roster": INPUT_FOLDER + "rosters/roster_weekly_{0}.csv"}
+online_file_paths = {
+    "pbp": ONLINE_DATA_SOURCE + "pbp/play_by_play_{0}.csv",
+    "roster": ONLINE_DATA_SOURCE + "weekly_rosters/roster_weekly_{0}.csv",
+}
+local_file_paths = {
+    "pbp": INPUT_FOLDER + "play_by_play/play_by_play_{0}.csv",
+    "roster": INPUT_FOLDER + "rosters/roster_weekly_{0}.csv",
+}
 # Neural Net processed stats files
-NN_STAT_FILES = {"midgame": "midgame_data_to_nn.csv",
-                 "final": "final_stats_to_nn.csv",
-                 "id": "data_ids.csv"}
+NN_STAT_FILES = {"midgame": "midgame_data_to_nn.csv", "final": "final_stats_to_nn.csv", "id": "data_ids.csv"}
 
 # Miscellaneous:
 # Pro-Football-Reference.com URL intros

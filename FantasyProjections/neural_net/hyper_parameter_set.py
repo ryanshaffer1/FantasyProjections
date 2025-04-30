@@ -1,4 +1,5 @@
 """Creates and exports a class that supports the handling and manipulation of Neural Network HyperParameters.
+
     Hyper-Parameter = Variable within ML equations which is not learned by the model during training, and must be set before training.
 
     Classes:
@@ -26,6 +27,7 @@ class HyperParameterSet:
             print_values : Prints all HyperParameter names and values.
             set_values : Sets value of all HyperParameter objects in set to value at a specific index within the list of values.
             to_dict : Converts object data to a dict, where each key is the name of a HyperParameter, and each value is the HyperParameter's current value.
+
     """  # fmt: skip
 
     def __init__(self, hp_set=None, hp_dict=None):
@@ -64,6 +66,7 @@ class HyperParameterSet:
 
             Args:
                 other (HyperParameterSet): Object to compare against self.
+
         """  # fmt: skip
 
         return self.hyper_parameters == other.hyper_parameters
@@ -76,6 +79,7 @@ class HyperParameterSet:
 
             Returns:
                 HyperParameter: (first) object in HyperParameterSet.hyper_parameters with a name matching the input.
+
         """  # fmt: skip
 
         # Returns the hyper-parameter in the set with the provided name.
@@ -87,6 +91,7 @@ class HyperParameterSet:
 
             Args:
                 log (bool, optional): Whether to use builtin print or use the configured logger. Defaults to True (use logger).
+
         """  # fmt: skip
 
         for hp in self.hyper_parameters:
@@ -101,6 +106,7 @@ class HyperParameterSet:
 
             Args:
                 ind (int): Index of object attribute values to use as new self.value.
+
         """  # fmt: skip
 
         for hp in self.hyper_parameters:
@@ -111,6 +117,7 @@ class HyperParameterSet:
 
             Returns:
                 dict: dictionary mapping HyperParameters in the set to their current values.
+
         """  # fmt: skip
 
         hp_dict = {hp.name: hp.value for hp in self.hyper_parameters}

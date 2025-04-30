@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 
 import requests
+
 from data_pipeline.odds_pipeline.odds_api_helper_functions import DATE_FMT, SPORT_KEY, get_odds_api_key, log_api_usage
 from data_pipeline.odds_pipeline.single_game_odds_gatherer import SingleGameOddsGatherer
 from data_pipeline.seasonal_data_collector import SeasonalDataCollector
@@ -27,6 +28,7 @@ class SeasonalOddsCollector(SeasonalDataCollector):
             year (int): Year for season (e.g. 2023).
             team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
             weeks (list, optional): Weeks in the NFL season to collect data for. Defaults to range(1,19).
+
         Keyword Arguments:
             filter_df (pandas.DataFrame): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
                 Not stored as an object attribute.
@@ -46,6 +48,7 @@ class SeasonalOddsCollector(SeasonalDataCollector):
 
         Public Methods:
             generate_games : Creates a SingleGameOddsGatherer object for each unique game included in the SeasonalOddsCollector.
+
     """  # fmt: skip
 
     def __init__(self, year, team_names="all", weeks=None, **kwargs):
@@ -55,11 +58,11 @@ class SeasonalOddsCollector(SeasonalDataCollector):
                 year (int): Year for season (e.g. 2023).
                 team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
                 weeks (list, optional): Weeks in the NFL season to collect data for. Defaults to range(1,19).
-            Keyword Arguments:
-                filter_df (pandas.DataFrame): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
-                    Not stored as an object attribute.
-                player_props (list, optional): List of stats to gather gambling odds for. Defaults to None.
-                odds_file (str, optional): File path to csv containing all previously-obtained player prop odds.
+                kwargs:
+                    filter_df (pandas.DataFrame): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
+                        Not stored as an object attribute.
+                    player_props (list, optional): List of stats to gather gambling odds for. Defaults to None.
+                    odds_file (str, optional): File path to csv containing all previously-obtained player prop odds.
 
             Additional Attributes Created during Initialization:
                 pbp_df (pandas.DataFrame): Play-by-play data for all plays in an NFL season, taken from nfl-verse.
@@ -68,6 +71,7 @@ class SeasonalOddsCollector(SeasonalDataCollector):
                 api_key (str): Key to use in requests to The Odds API.
                 games (list): List of SingleGamePbpParser objects containing data for every game in the NFL season.
                 odds_df (pandas.DataFrame): All collected (including previously-collected) player prop lines for all games in the season.
+
         """  # fmt: skip
 
         # Initialize SeasonalDataCollector
@@ -97,6 +101,7 @@ class SeasonalOddsCollector(SeasonalDataCollector):
 
             Returns:
                 list(SingleGameOddsGatherer): List of SingleGameOddsGatherer objects corresponding to each game included in the SeasonalOddsCollector.
+
         """  # fmt: skip
 
         team_abbrevs_to_process = [team_abbrs.pbp_abbrevs[name] for name in self.team_names]

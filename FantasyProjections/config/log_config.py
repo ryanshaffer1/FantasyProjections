@@ -7,7 +7,7 @@
 
     Variables:
         LOGGING_CONFIG (dict): json-like, configures logging formatters and handlers
-"""
+"""  # fmt: skip
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -25,7 +25,6 @@ LOGGING_CONFIG = {
             "format": "%(asctime)s: [%(module)s] %(levelname)s: %(message)s",
         },
     },
-
     "handlers": {
         "console_handler": {
             "level": "INFO",
@@ -33,17 +32,17 @@ LOGGING_CONFIG = {
             "class": "logging.StreamHandler",
             "stream": "ext://sys.stdout",
         },
-        "file_handler":{
+        "file_handler": {
             "level": "DEBUG",
             "formatter": "heavy_formatter",
             "class": "logging.FileHandler",
             "filename": "logfile.log",
-            "mode":"w",
+            "mode": "w",
         },
     },
     "loggers": {
         "log": {  # root logger
-            "handlers": ["console_handler","file_handler"],
+            "handlers": ["console_handler", "file_handler"],
             "level": "DEBUG",
             "propagate": False,
         },

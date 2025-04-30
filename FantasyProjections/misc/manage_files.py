@@ -3,8 +3,12 @@
     Functions:
         create_folders : Checks if an input list of folders exists, and creates any that do not exist.
         collect_input_dfs : Collects raw NFL stats data from local files, and if insufficient, optionally pulls additional data from online source.
+        get_title_figure_to_save : Gets the title of a figure and formats it properly to be saved to a file.
         collect_roster_filter : Loads a roster filter file, and returns whether the load was successful.
         move_logfile : Moves the logfile generated during program execution from a temporary location to a new folder.
+        name_save_folder : Generates the name of the folder to save scenario outputs, according to the user-input save parameters.
+        save_plots : Save all open matplotlib figures as .png files.
+
 """  # fmt: skip
 
 import logging
@@ -17,19 +21,6 @@ import pandas as pd
 
 # Set up logger
 logger = logging.getLogger("log")
-
-
-def name_save_folder(save_parameters):
-    if save_parameters["save_folder_timestamp"]:
-        save_folder_name = save_parameters["save_folder_prefix"] + datetime.strftime(
-            datetime.now().astimezone(),
-            "%Y%m%d_%H%M%S",
-        )
-    else:
-        save_folder_name = save_parameters["save_folder_prefix"]
-    save_folder = os.path.join(save_parameters["save_directory"], save_folder_name) + "/"
-
-    return save_folder
 
 
 def create_folders(folders):
@@ -146,43 +137,12 @@ def collect_roster_filter(filter_roster, update_filter, roster_filter_file):
     return filter_df, load_success
 
 
-def move_logfile(curr_filepath, new_folder):
-    """Moves the logfile generated during program execution from a temporary location to a new folder.
-
-        Args:
-            curr_filepath (str): filepath where the logfile has been temporarily stored (MUST INCLUDE FILE NAME)
-            new_folder (str): folder to move the logfile to (MUST NOT INCLUDE FILE NAME)
-
-    """  # fmt: skip
-    # Create folder if it does not exist
-    create_folders(new_folder)
-
-    logger.info(f"Saving logfile to {new_folder}")
-
-    # Move file to new path
-    filename = curr_filepath.split("/")[-1]
-    new_filepath = new_folder + filename
-    shutil.move(curr_filepath, new_filepath)
-
-
-def save_plots(save_folder):
-    if os.path.basename(save_folder) != "plots":
-        save_folder = os.path.join(save_folder, "plots")
-        create_folders(save_folder)
-
-    for i in plt.get_fignums():
-        fig = plt.figure(i)
-        title = get_figure_title_to_save(fig, i + 1)
-        plt.savefig(f"{os.path.join(save_folder, title)}.png")
-        plt.close(i)
-
-
 def get_figure_title_to_save(fig, default_num=0):
     """Gets the title of a figure and formats it properly to be saved to a file.
 
         Args:
             fig (matplotllib.figure.Figure): Current figure
-            default_num (int, optional): If figure cannot be found, use this num to create a generic but unique name.
+            default_num (int, optional): If title cannot be found, use this num to create a generic but unique name.
                 Defaults to 0 (all unfound titles will be "figure_0").
 
         Returns:
@@ -202,3 +162,73 @@ def get_figure_title_to_save(fig, default_num=0):
     title = title.lower().replace("\n", ", ").replace(":", "")
 
     return title
+
+
+def move_logfile(curr_filepath, new_folder):
+    """Moves the logfile generated during program execution from a temporary location to a new folder.
+
+        Args:
+            curr_filepath (str): filepath where the logfile has been temporarily stored (MUST INCLUDE FILE NAME)
+            new_folder (str): folder to move the logfile to (MUST NOT INCLUDE FILE NAME)
+
+    """  # fmt: skip
+    # Create folder if it does not exist
+    create_folders(new_folder)
+
+    logger.info(f"Saving logfile to {new_folder}")
+
+    # Move file to new path
+    filename = curr_filepath.split("/")[-1]
+    new_filepath = new_folder + filename
+    shutil.move(curr_filepath, new_filepath)
+
+
+def name_save_folder(save_parameters):
+    """Generates the name of the folder to save scenario outputs, according to the user-input save parameters.
+
+        Args:
+            save_parameters (dict): Contains information on how to save outputs, including directory and folder naming conventions.
+
+        Returns:
+            str: path to the folder to save to (note that the folder may not have been created yet).
+
+    """  # fmt: skip
+
+    if save_parameters["save_folder_timestamp"]:
+        save_folder_name = save_parameters["save_folder_prefix"] + datetime.strftime(
+            datetime.now().astimezone(),
+            "%Y%m%d_%H%M%S",
+        )
+    else:
+        save_folder_name = save_parameters["save_folder_prefix"]
+    save_folder = os.path.join(save_parameters["save_directory"], save_folder_name) + "/"
+
+    return save_folder
+
+
+def save_plots(save_folder):
+    """Save all open matplotlib figures as .png files.
+
+        Args:
+            save_folder (str): path to the folder to save to. Note that the plots will be saved to a "plots" subfolder.
+
+    """  # fmt:skip
+
+    # Use a "plots" subfolder if the input save folder is not already called "plots"
+    if os.path.basename(save_folder) != "plots":
+        save_folder = os.path.join(save_folder, "plots")
+
+    # Create the save folder if it does not already exist
+    create_folders(save_folder)
+
+    # Iterate through all open figures
+    for i in plt.get_fignums():
+        fig = plt.figure(i)
+        # Get figure title
+        title = get_figure_title_to_save(fig, i + 1)
+
+        # Save to .png
+        plt.savefig(f"{os.path.join(save_folder, title)}.png")
+
+        # Close figure
+        plt.close(i)

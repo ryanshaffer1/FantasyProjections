@@ -6,6 +6,7 @@
 
 import numpy as np
 import pandas as pd
+
 from config import data_files_config
 from gamblers.gambling_plots import plot_earnings_by_week
 
@@ -31,6 +32,7 @@ class BasicGambler:
             score_bets : Determines the success and payout from each bet placed on a player prop.
             compute_performance : Outputs basic gambling performance metrics: total earnings, and accuracy percentage.
             plot_earnings : Plots line graph tracking cumulative gambling earnings over each NFL week in the bet results.
+
     """  # fmt: skip
 
     def __init__(self, prediction_result, odds_file=None):
@@ -46,6 +48,7 @@ class BasicGambler:
                 bet_results (pandas.DataFrame): DataFrame containing the results of all bets placed on player props: whether the bet hit, and the earnings (positive or negative).
                 earnings (float): Total gambling earnings (or losses, if negative) over the dataset
                 accuracy (float): Accuracy, as a fraction of correct bets divided by all bets
+
         """  # fmt: skip
 
         # Optional input
@@ -71,6 +74,7 @@ class BasicGambler:
 
             Returns:
                 pandas.DataFrame: DataFrame of odds (player prop) data for each player/game in the dataset being processed.
+
         """  # fmt: skip
 
         # Player/game IDs in dataset
@@ -105,6 +109,7 @@ class BasicGambler:
                 pandas.DataFrame: DataFrame containing all bets placed on player props in the dataset, as well as their payouts for winning and losing.
                     The DataFrame columns are a multiindex, where the first level is the player prop (e.g. "Pass Yds")
                     and the second level contains "Over Units", "Win Earns", and "Loss Earns".
+
         """  # fmt: skip
 
         # Initialize dataframe holding index values from odds (players/games)
@@ -149,6 +154,7 @@ class BasicGambler:
             Returns:
                 pandas.DataFrame: DataFrame containing the results of all bets placed on player props: whether the bet hit, and the earnings (positive or negative).
                     There is one row per bet placed.
+
         """  # fmt: skip
 
         bet_results = self.bets.index.to_frame(index=False)
@@ -186,6 +192,7 @@ class BasicGambler:
             Returns:
                 float: Total gambling earnings (or losses, if negative) over the dataset
                 float: Accuracy, as a fraction of correct bets divided by all bets
+
         """  # fmt: skip
         earnings = self.bet_results["Earnings"].sum()
         accuracy = self.bet_results["Hit"].sum() / self.bet_results.shape[0]

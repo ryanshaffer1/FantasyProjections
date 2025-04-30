@@ -1,4 +1,5 @@
 """Creates and exports a class that supports the handling and manipulation of Neural Network HyperParameters.
+
     Hyper-Parameter = Variable within ML equations which is not learned by the model during training, and must be set before training.
 
     Classes:
@@ -40,6 +41,7 @@ class HyperParameter:
             copy : Returns a copy of the HyperParameterSet object.
             randomize_in_range : Returns n random values (from a uniform distribution) within the HyperParameter's val_range.
             adjust_range : Returns new bounds for HyperParameter values that are centered on a given point and scaled up/down from val_range.
+
     """  # fmt: skip
 
     # CONSTRUCTOR
@@ -67,7 +69,7 @@ class HyperParameter:
     # PUBLIC METHODS
 
     def copy(self):
-        """Returns a copy of the HyperParameter object."""
+        """Returns a copy of the HyperParameter object."""  # fmt: skip
         new_hp = HyperParameter(
             name=self.name,
             optimizable=self.optimizable,
@@ -86,6 +88,7 @@ class HyperParameter:
 
             Returns:
                 list: List of random values.
+
         """  # fmt: skip
 
         values = [self.value] * n_values
@@ -120,6 +123,7 @@ class HyperParameter:
 
             Returns:
                 list: Range of values, centered on the center point, scaled per scale_factor, and following the HP's val scale.
+
         """  # fmt: skip
 
         new_val_range = None
