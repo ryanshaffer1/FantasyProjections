@@ -35,7 +35,7 @@ class ScenarioObjects:
     """  # fmt: skip
 
     # CONSTRUCTOR
-    save_options: dict = None  # Not currently used. TODO: should use this
+    save_options: dict = None  # Not currently used
     datasets: dict = None
     hyperparameters: HyperParameterSet = None
     predictors: dict = None

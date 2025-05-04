@@ -81,7 +81,7 @@ def create_predictors(predictor_params, save_folder):
         # Get all config settings for the predictor from the inputs
         config = predictor_ipts.get("config", {})
 
-        # Special case for a Neural Net setting, should change the NeuralNetPredictor constructor to make this OBE
+        # Special case for a Neural Net setting. TODO: should change the NeuralNetPredictor constructor to make this OBE
         if predictor_ipts.get("type") == "NeuralNetPredictor":
             config["save_folder"] = save_folder if predictor_ipts.get("save_model", False) else None
 

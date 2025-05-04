@@ -40,7 +40,7 @@ class FantasyPredictor:
 
     """  # fmt: skip
 
-    name: str = ""
+    name: str
 
     # PUBLIC METHODS
 

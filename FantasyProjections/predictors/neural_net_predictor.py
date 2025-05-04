@@ -12,7 +12,6 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from config.nn_config import default_nn_shape, nn_train_settings
 from misc.manage_files import create_folders
 from misc.stat_utils import stats_to_fantasy_points
 from neural_net import HyperParameterSet, NeuralNetwork
@@ -31,13 +30,13 @@ class NeuralNetPredictor(FantasyPredictor):
 
         Args:
             name (str): name of the predictor object, used for logging/display purposes.
-            save_folder (str, optional): path to the folder to save model and optimizer settings. Defaults to None.
-            load_folder (str, optional): path to the folder to load model and optimizer settings. Defaults to None.
-            nn_shape (dict, optional): Neural Network layers and number of neurons per layer. Defaults to the default Neural Network shape.
-            max_epochs (int, optional): number of training iterations before stopping training. Defaults to 100
-            n_epochs_to_stop (int, optional): number of training iterations to check for improvement before stopping. Defaults to 5.
+            nn_shape (dict): Neural Network layers and number of neurons per layer.
+            max_epochs (int): number of training iterations before stopping training.
+            n_epochs_to_stop (int): number of training iterations to check for improvement before stopping.
                 ex. if a NeuralNetPredictor's performance has not improved over its last n training epochs,
                 the training process will be terminated.
+            save_folder (str, optional): path to the folder to save model and optimizer settings. Defaults to None.
+            load_folder (str, optional): path to the folder to load model and optimizer settings. Defaults to None.
 
         Additional Class Attributes:
             device (str): name of the device (e.g. cpu, gpu) used for NeuralNetwork processing
@@ -59,12 +58,12 @@ class NeuralNetPredictor(FantasyPredictor):
     """  # fmt: skip
 
     # CONSTRUCTOR
+    nn_shape: dict
+    max_epochs: int
+    n_epochs_to_stop: int
     save_folder: str = None
     load_folder: str = None
-    max_epochs: int = nn_train_settings["max_epochs"]
-    n_epochs_to_stop: int = nn_train_settings["n_epochs_to_stop"]
     # hyper-parameters
-    nn_shape: dict = None
     mini_batch_size: int = 0  # Will be set to a defined hyper-parameter value later
     learning_rate: float = 0  # Will be set to a defined hyper-parameter value later
     lmbda: float = 0  # Will be set to a defined hyper-parameter value later
@@ -73,10 +72,6 @@ class NeuralNetPredictor(FantasyPredictor):
     def __post_init__(self):
         # Evaluates as part of the Constructor.
         # Generates attributes that are not simple data copies of inputs.
-
-        # Assign default neural net shape (if shape not passed)
-        if self.nn_shape is None:
-            self.nn_shape = default_nn_shape
 
         # Assign a device
         self.device = self.__assign_device()

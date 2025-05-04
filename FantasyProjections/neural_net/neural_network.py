@@ -7,8 +7,6 @@
 import torch
 from torch import nn
 
-from config.nn_config import default_nn_shape
-
 
 class NeuralNetwork(nn.Module):
     """Neural Network model implemented using PyTorch.nn, tailored to the data structures and needs of fantasy_projections.
@@ -33,8 +31,7 @@ class NeuralNetwork(nn.Module):
         """Initializes a NeuralNetwork with a network architecture defined in FantasyProjections project docs.
 
             Args:
-                shape (dict, optional): number of neurons in each layer of the network, keyed by the names of each layer.
-                Defaults to dict default_shape.
+                shape (dict): number of neurons in each layer of the network, keyed by the names of each layer.
 
             Raises:
                 ValueError: non-numeric value passed in shape.
@@ -42,14 +39,6 @@ class NeuralNetwork(nn.Module):
         """  # fmt: skip
 
         super().__init__()
-
-        # Establish shape based on optional inputs
-        if not shape:
-            shape = default_nn_shape
-        else:
-            for key, val in default_nn_shape.items():
-                if key not in shape:
-                    shape[key] = val
 
         # Ensure all values are of type int
         try:

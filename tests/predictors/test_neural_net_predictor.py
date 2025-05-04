@@ -5,9 +5,10 @@ import unittest
 
 import pandas.testing as pdtest
 import torch
-from config.hp_config import hp_defaults
+from torch import nn
+from torch.utils.data import DataLoader
+
 from config.log_config import LOGGING_CONFIG
-from config.nn_config import default_nn_shape, nn_train_settings
 from misc.dataset import StatsDataset
 
 # Modules needed for test setup
@@ -16,9 +17,6 @@ from neural_net.nn_utils import compare_net_sizes
 
 # Module under test
 from predictors import NeuralNetPredictor
-from torch import nn
-from torch.utils.data import DataLoader
-
 from tests._utils_for_tests import mock_data_predictors
 
 # Set up same logger as project code
@@ -49,6 +47,20 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
         self.save_folder = "tests/_test_files/"
         self.load_folder = "tests/_test_files/"
 
+        shape_1 = {
+            "players_input": 300,
+            "teams_input": 32,
+            "opps_input": 32,
+            "stats_input": 29,
+            "embedding_player": 50,
+            "embedding_team": 10,
+            "embedding_opp": 10,
+            "linear_stack": 300,
+            "stats_output": 12,
+        }
+
+        self.neural_net_args = {"nn_shape": shape_1, "max_epochs": 100, "n_epochs_to_stop": 5}
+
         self.shape_2 = {
             "players_input": 3,
             "teams_input": 2,
@@ -63,14 +75,14 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
 
     def test_basic_attributes_no_optional_inputs(self):
         name = "test"
-        predictor = NeuralNetPredictor(name=name)
+        predictor = NeuralNetPredictor(name=name, **self.neural_net_args)
 
         self.assertEqual(predictor.name, name)
         self.assertIsNone(predictor.save_folder)
         self.assertIsNone(predictor.load_folder)
-        self.assertEqual(predictor.nn_shape, default_nn_shape)
-        self.assertEqual(predictor.max_epochs, nn_train_settings["max_epochs"])
-        self.assertEqual(predictor.n_epochs_to_stop, nn_train_settings["n_epochs_to_stop"])
+        self.assertEqual(predictor.nn_shape, self.neural_net_args["nn_shape"])
+        self.assertEqual(predictor.max_epochs, self.neural_net_args["max_epochs"])
+        self.assertEqual(predictor.n_epochs_to_stop, self.neural_net_args["n_epochs_to_stop"])
         self.assertTrue(predictor.device in ["cpu", "mpu", "cuda"])
         self.assertTrue(isinstance(predictor.model, NeuralNetwork))
         self.assertTrue(isinstance(predictor.optimizer, torch.optim.SGD))
@@ -79,26 +91,29 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
         name = "test"
         predictor = NeuralNetPredictor(
             name=name,
+            **self.neural_net_args,
             save_folder=self.save_folder,
             load_folder=self.load_folder,
-            nn_shape=default_nn_shape,
-            max_epochs=1,
-            n_epochs_to_stop=2,
         )
 
         self.assertEqual(predictor.name, name)
         self.assertEqual(predictor.save_folder, self.save_folder)
         self.assertEqual(predictor.load_folder, self.load_folder)
-        self.assertEqual(predictor.nn_shape, default_nn_shape)
-        self.assertEqual(predictor.max_epochs, 1)
-        self.assertEqual(predictor.n_epochs_to_stop, 2)
+        self.assertEqual(predictor.nn_shape, self.neural_net_args["nn_shape"])
+        self.assertEqual(predictor.max_epochs, self.neural_net_args["max_epochs"])
+        self.assertEqual(predictor.n_epochs_to_stop, self.neural_net_args["n_epochs_to_stop"])
         self.assertTrue(predictor.device in ["cpu", "mpu", "cuda"])
         self.assertTrue(isinstance(predictor.model, NeuralNetwork))
         self.assertTrue(isinstance(predictor.optimizer, torch.optim.SGD))
 
     def test_non_default_shape_gives_different_model(self):
-        predictor1 = NeuralNetPredictor(name="test")
-        predictor2 = NeuralNetPredictor(name="test_shape", nn_shape=self.shape_2)
+        predictor1 = NeuralNetPredictor(name="test", **self.neural_net_args)
+        predictor2 = NeuralNetPredictor(
+            name="test_shape",
+            nn_shape=self.shape_2,
+            max_epochs=self.neural_net_args["max_epochs"],
+            n_epochs_to_stop=self.neural_net_args["n_epochs_to_stop"],
+        )
         self.assertFalse(compare_net_sizes(predictor1.model, predictor2.model))
 
     # Tear Down
@@ -110,6 +125,20 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
     # Set Up
     def setUp(self):
         self.load_folder = "tests/_test_files/"
+
+        shape_1 = {
+            "players_input": 300,
+            "teams_input": 32,
+            "opps_input": 32,
+            "stats_input": 29,
+            "embedding_player": 50,
+            "embedding_team": 10,
+            "embedding_opp": 10,
+            "linear_stack": 300,
+            "stats_output": 12,
+        }
+
+        self.neural_net_args = {"nn_shape": shape_1, "max_epochs": 100, "n_epochs_to_stop": 5}
 
         self.weird_shape = {
             "players_input": 1,
@@ -123,33 +152,22 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
             "stats_output": 1,
         }
 
-    def test_loaded_model_equals_default(self):
-        predictor = NeuralNetPredictor(name="test", load_folder=self.load_folder)
-        expected_model = NeuralNetwork()
-
-        self.assertTrue(compare_net_sizes(predictor.model, expected_model))
-
     def test_loaded_optimizer_equals_default(self):
-        predictor = NeuralNetPredictor(name="test", load_folder=self.load_folder)
+        predictor = NeuralNetPredictor(name="test", load_folder=self.load_folder, **self.neural_net_args)
         expected_optimizer = torch.optim.SGD(predictor.model.parameters())
 
         self.assertEqual(predictor.optimizer.state_dict(), expected_optimizer.state_dict())
 
-    def test_loaded_nn_shape_equals_default(self):
-        predictor = NeuralNetPredictor(name="test", load_folder=self.load_folder)
-
-        self.assertEqual(predictor.nn_shape, default_nn_shape)
-
     def test_invalid_folder_gives_error(self):
         with self.assertRaises(FileNotFoundError):
-            NeuralNetPredictor(name="test", load_folder="pizza")
+            NeuralNetPredictor(name="test", load_folder="pizza", **self.neural_net_args)
 
     def test_empty_folder_gives_error(self):
         with self.assertRaises(FileNotFoundError):
-            NeuralNetPredictor(name="test", load_folder="tests/_test_files/empty")
+            NeuralNetPredictor(name="test", load_folder="tests/_test_files/empty", **self.neural_net_args)
 
     def test_load_model_outside_of_initializer_overwrites_model(self):
-        predictor = NeuralNetPredictor(name="test")
+        predictor = NeuralNetPredictor(name="test", **self.neural_net_args)
         # Change size of first linear layer in model
         next(iter(predictor.model.children()))[0].in_features = 4
         # Load model
@@ -158,15 +176,26 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
         self.assertNotEqual(next(iter(predictor.model.children()))[0].in_features, 4)
 
     def test_load_model_of_new_shape_overwrites_model(self):
-        predictor = NeuralNetPredictor(name="test", nn_shape=self.weird_shape)
+        predictor = NeuralNetPredictor(
+            name="test",
+            nn_shape=self.weird_shape,
+            max_epochs=self.neural_net_args["max_epochs"],
+            n_epochs_to_stop=self.neural_net_args["n_epochs_to_stop"],
+        )
         predictor.load(self.load_folder)
-        expected_model = NeuralNetPredictor(load_folder=self.load_folder).model
+        expected_model = NeuralNetPredictor(name="exp", load_folder=self.load_folder, **self.neural_net_args).model
 
         self.assertTrue(compare_net_sizes(predictor.model, expected_model))
 
     def test_load_model_of_different_shape_than_input_shape_overwrites_input_shape(self):
-        predictor = NeuralNetPredictor(name="test", nn_shape=self.weird_shape, load_folder=self.load_folder)
-        expected_pred = NeuralNetPredictor(load_folder=self.load_folder)
+        predictor = NeuralNetPredictor(
+            name="test",
+            load_folder=self.load_folder,
+            nn_shape=self.weird_shape,
+            max_epochs=self.neural_net_args["max_epochs"],
+            n_epochs_to_stop=self.neural_net_args["n_epochs_to_stop"],
+        )
+        expected_pred = NeuralNetPredictor(name="exp", load_folder=self.load_folder, **self.neural_net_args)
 
         self.assertTrue(compare_net_sizes(predictor.model, expected_pred.model))
         self.assertEqual(predictor.nn_shape, expected_pred.nn_shape)
@@ -181,17 +210,31 @@ class TestSaveModel_NeuralNetPredictor(unittest.TestCase):
     def setUp(self):
         self.save_folder = "tests/_test_files/empty/"
 
+        shape_1 = {
+            "players_input": 300,
+            "teams_input": 32,
+            "opps_input": 32,
+            "stats_input": 29,
+            "embedding_player": 50,
+            "embedding_team": 10,
+            "embedding_opp": 10,
+            "linear_stack": 300,
+            "stats_output": 12,
+        }
+
+        self.neural_net_args = {"nn_shape": shape_1, "max_epochs": 100, "n_epochs_to_stop": 5}
+
     def test_save_model_can_be_reloaded(self):
-        predictor = NeuralNetPredictor(name="test", save_folder=self.save_folder)
+        predictor = NeuralNetPredictor(name="test", save_folder=self.save_folder, **self.neural_net_args)
         predictor.save()
 
-        predictor2 = NeuralNetPredictor(name="test", load_folder=self.save_folder)
+        predictor2 = NeuralNetPredictor(name="test", load_folder=self.save_folder, **self.neural_net_args)
 
         self.assertTrue(compare_net_sizes(predictor.model, predictor2.model))
         self.assertEqual(predictor.optimizer.state_dict(), predictor2.optimizer.state_dict())
 
     def test_additional_inputs_give_error(self):
-        predictor = NeuralNetPredictor(name="test", save_folder=self.save_folder)
+        predictor = NeuralNetPredictor(name="test", save_folder=self.save_folder, **self.neural_net_args)
         with self.assertRaises(TypeError):
             predictor.save("filename")
 
@@ -244,7 +287,7 @@ class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
         )
 
         # Neural Net Predictor
-        self.predictor = NeuralNetPredictor(name="test", nn_shape=self.mock_shape)
+        self.predictor = NeuralNetPredictor(name="test", nn_shape=self.mock_shape, max_epochs=1, n_epochs_to_stop=1)
 
     def test_eval_model_gives_correct_results(self):
         result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
@@ -335,7 +378,7 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
         }
 
         # Neural Net Predictor
-        self.predictor = NeuralNetPredictor(name="test", nn_shape=self.mock_shape)
+        self.predictor = NeuralNetPredictor(name="test", nn_shape=self.mock_shape, max_epochs=1, n_epochs_to_stop=1)
 
     def test_hyper_parameter_set_with_all_hps_configures_all_correctly(self):
         self.predictor.modify_hyper_parameter_values(param_set=self.hp_set)
@@ -352,18 +395,18 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
 
         self.assertEqual(self.predictor.mini_batch_size, self.hp_set.get("mini_batch_size").value)
         self.assertEqual(self.predictor.learning_rate, self.hp_set.get("learning_rate").value)
-        self.assertEqual(self.predictor.lmbda, hp_defaults["lmbda"]["value"])
-        self.assertEqual(self.predictor.loss_fn, hp_defaults["loss_fn"]["value"])
+        self.assertEqual(self.predictor.lmbda, 0)
+        self.assertEqual(self.predictor.loss_fn, "")
         self.assertEqual(self.predictor.nn_shape["linear_stack"], self.mock_shape["linear_stack"])
 
     def test_empty_hyper_parameter_set_configures_all_correctly(self):
         empty_hp_set = HyperParameterSet([])
         self.predictor.modify_hyper_parameter_values(param_set=empty_hp_set)
 
-        self.assertEqual(self.predictor.mini_batch_size, hp_defaults["mini_batch_size"]["value"])
-        self.assertEqual(self.predictor.learning_rate, hp_defaults["learning_rate"]["value"])
-        self.assertEqual(self.predictor.lmbda, hp_defaults["lmbda"]["value"])
-        self.assertEqual(self.predictor.loss_fn, hp_defaults["loss_fn"]["value"])
+        self.assertEqual(self.predictor.mini_batch_size, 0)
+        self.assertEqual(self.predictor.learning_rate, 0)
+        self.assertEqual(self.predictor.lmbda, 0)
+        self.assertEqual(self.predictor.loss_fn, "")
         self.assertEqual(self.predictor.nn_shape["linear_stack"], self.mock_shape["linear_stack"])
 
     def test_dict_param_set_with_all_hps_configures_all_correctly(self):
@@ -382,17 +425,17 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
 
         self.assertEqual(self.predictor.mini_batch_size, self.hp_set.get("mini_batch_size").value)
         self.assertEqual(self.predictor.learning_rate, self.hp_set.get("learning_rate").value)
-        self.assertEqual(self.predictor.lmbda, hp_defaults["lmbda"]["value"])
+        self.assertEqual(self.predictor.lmbda, 0)
         self.assertEqual(self.predictor.loss_fn, self.hp_set.get("loss_fn").value)
         self.assertEqual(self.predictor.nn_shape["linear_stack"], self.hp_set.get("linear_stack").value)
 
     def test_no_param_set_input_configures_all_correctly(self):
         self.predictor.modify_hyper_parameter_values(param_set=None)
 
-        self.assertEqual(self.predictor.mini_batch_size, hp_defaults["mini_batch_size"]["value"])
-        self.assertEqual(self.predictor.learning_rate, hp_defaults["learning_rate"]["value"])
-        self.assertEqual(self.predictor.lmbda, hp_defaults["lmbda"]["value"])
-        self.assertEqual(self.predictor.loss_fn, hp_defaults["loss_fn"]["value"])
+        self.assertEqual(self.predictor.mini_batch_size, 0)
+        self.assertEqual(self.predictor.learning_rate, 0)
+        self.assertEqual(self.predictor.lmbda, 0)
+        self.assertEqual(self.predictor.loss_fn, "")
         self.assertEqual(self.predictor.nn_shape["linear_stack"], self.mock_shape["linear_stack"])
 
     def test_invalid_param_set_input_raises_error(self):
@@ -447,7 +490,7 @@ class TestConfigureDataloader_NeuralNetPredictor(unittest.TestCase):
         )
 
         # Neural Net Predictor
-        self.predictor = NeuralNetPredictor(name="test", nn_shape=self.mock_shape)
+        self.predictor = NeuralNetPredictor(name="test", nn_shape=self.mock_shape, max_epochs=1, n_epochs_to_stop=1)
         self.predictor.modify_hyper_parameter_values(self.hps)
 
     def test_dataloaders_configured_from_datasets_correctly(self):
@@ -502,7 +545,7 @@ class TestConfigureModelAndOptimizer_NeuralNetPredictor(unittest.TestCase):
         }
 
         # Neural Net Predictor
-        self.predictor = NeuralNetPredictor(name="test", nn_shape=self.mock_shape)
+        self.predictor = NeuralNetPredictor(name="test", nn_shape=self.mock_shape, max_epochs=1, n_epochs_to_stop=1)
 
     def test_updated_hp_values_result_in_correct_model_and_optimizer(self):
         self.predictor.modify_hyper_parameter_values(self.hps)
@@ -566,10 +609,11 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             boxscore_df=mock_data_predictors.bs_df,
         )
         # Hyper-parameters
-        self.loss_fn = nn.MSELoss()
-        self.loss_fn_hp = HyperParameter("loss_fn", optimizable=False, value=self.loss_fn)
-        self.hp_set = HyperParameterSet((self.loss_fn_hp,))
-        self.hp_dict = {"loss_fn": self.loss_fn}
+        self.mini_batch_hp = HyperParameter("mini_batch_size", optimizable=False, value=1000)
+        self.learning_rate_hp = HyperParameter("learning_rate", optimizable=False, value=50)
+        self.loss_fn_hp = HyperParameter("loss_fn", optimizable=False, value=nn.MSELoss())
+        self.hp_set = HyperParameterSet((self.mini_batch_hp, self.learning_rate_hp, self.loss_fn_hp))
+        self.hp_dict = self.hp_set.to_dict()
 
         # Neural Net Predictor
         self.predictor = NeuralNetPredictor(
@@ -579,6 +623,8 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             max_epochs=1,
             n_epochs_to_stop=1,
         )
+
+        self.predictor.modify_hyper_parameter_values(self.hp_set)
 
         self.train_dataloader = self.predictor.configure_dataloader(self.training_data, mini_batch=True, shuffle=True)
         self.eval_dataloader = self.predictor.configure_dataloader(self.validation_data, mini_batch=False, shuffle=False)
@@ -651,7 +697,13 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
         self.predictor.train_and_validate(self.train_dataloader, self.eval_dataloader, scoring_weights=self.scoring_weights)
         post_trained_model = self.predictor.model
         # Load model from before training
-        pre_trained_model = NeuralNetPredictor(name="loaded_copy", load_folder=self.save_folder).model
+        pre_trained_model = NeuralNetPredictor(
+            name="loaded_copy",
+            load_folder=self.save_folder,
+            nn_shape=self.mock_shape,
+            max_epochs=1,
+            n_epochs_to_stop=1,
+        ).model
 
         self.assertTrue(check_all_model_layers_changed(pre_trained_model, post_trained_model))
 
@@ -664,6 +716,7 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             max_epochs=n_epochs,
             n_epochs_to_stop=n_epochs * 2,
         )
+        self.predictor.modify_hyper_parameter_values(self.hp_set)
 
         _, val_perfs = self.predictor.train_and_validate(
             self.train_dataloader,
