@@ -19,6 +19,7 @@ def plot_earnings_by_week(bet_results, individual_stats=True, fig=None):
             bet_results (pandas.DataFrame): Contains results of each bet made on player props in the dataset.
             individual_stats (bool, optional): Whether to include individual stats alongside overall earnings. Defaults to True.
             fig (matplotlib.figure.Figure, optional): handle to the figure to add the plot to. Defaults to None.
+
     """  # fmt: skip
 
     # Track cumulative earnings for each week
@@ -62,6 +63,7 @@ def compute_cum_earnings(bet_results_df, player_prop=None):
 
         Returns:
             pandas.DataFrame: DataFrame containing only each week and the cumulative earnings through that week.
+
     """  # fmt: skip
 
     # Copy input and reset index

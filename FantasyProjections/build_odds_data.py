@@ -1,4 +1,5 @@
 """Gathers data to be used in Fantasy Football stat prediction.
+
     Pulls data from local files where possible, and from online repository when necessary (saving locally for next time). Parses inputs to determine the
     play-by-play performance of all NFL players or a filtered subset (filtered by highest-scoring in Fantasy Football) over all games within a specified
     time-frame. Optionally normalizes/pre-processes the data for use in a Neural Net predictor.
@@ -12,6 +13,7 @@ import logging.config
 from datetime import datetime
 
 import pandas as pd
+
 from config import data_files_config
 from config.log_config import LOGGING_CONFIG
 from data_pipeline.odds_pipeline.seasonal_odds_collector import SeasonalOddsCollector

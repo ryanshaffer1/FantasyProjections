@@ -5,6 +5,7 @@
 """  # fmt: skip
 
 import pandas as pd
+
 from config import stats_config
 from misc.stat_utils import gen_random_games, stats_to_fantasy_points
 
@@ -27,26 +28,27 @@ class PredictionResult:
             plot_error_dist : Generates histogram of (signed or absolute) differences between predicted and true Fantasy Points in dataset
             plot_scatters : Generates scatterplots comparing predicted and true stats, optionally with subsections ("slices) of the dataset
             plot_single_games : Generates a line graph of predicted and true Fantasy Points over the course of a game for a single player (or multiple players)
+
     """  # fmt: skip
 
     # CONSTRUCTOR
     def __init__(self, dataset, predicts, truths, predictor_name=None, **kwargs):
-        """Constructor for PredictionResult
+        """Constructor for PredictionResult.
 
             Args:
                 dataset (StatsDataset): set of NFL games/players evaluated.
                 predicts (pandas.DataFrame): stat lines (with Fantasy Points) predicted for the NFL games/players in dataset
                 truths (pandas.DataFrame): true stat lines (with Fantasy Points) scored in the dataset entries
                 predictor_name (str): name of the predictor which originated the predicted stats. Used for logging/displaying results
-
-            Keyword-Args:
-                All keyword arguments are passed to stats_to_fantasy_points. See that function's documentation for descriptions and valid inputs.
-                Keyword arguments are optional, with defaults set in stats_to_fantasy_points, EXCEPT:
-                - normalized defaults to True in this implementation.
+                kwargs:
+                    All keyword arguments are passed to stats_to_fantasy_points. See that function's documentation for descriptions and valid inputs.
+                    Keyword arguments are optional, with defaults set in stats_to_fantasy_points, EXCEPT:
+                    - normalized defaults to True in this implementation.
 
             Additional Class Attributes (generated, not passed as inputs):
                 id_df (pandas.DataFrame): IDs of the players/games from dataset
                 pbp_df (pandas.DataFrame): DataFrame containing mid-game stats (with Fantasy Points) for all players/games in the dataset
+
         """  # fmt: skip
 
         # Optional input
@@ -74,6 +76,7 @@ class PredictionResult:
 
             Returns:
                 list: list of average Fantasy Point differences (between predict and truth) for all games/players in PredictorResult's dataset
+
         """  # fmt: skip
 
         # Calculate average difference in fantasy points between prediction and truth
@@ -86,18 +89,19 @@ class PredictionResult:
         return fp_diffs
 
     def plot_error_dist(self, absolute=False, fig=None):
-        """Generates histogram of (signed or absolute) differences between predicted and true Fantasy Points in dataset
+        """Generates histogram of (signed or absolute) differences between predicted and true Fantasy Points in dataset.
 
             Args:
                 absolute (bool, optional): whether to compute absolute value of error before computing the average. Defaults to False.
                 fig (matplotlib.figure.Figure, optional): handle to the figure to add the histogram to. Defaults to None.
+
         """  # fmt: skip
 
         # Call plotting function
         plot_error_histogram(self, absolute=absolute, fig=fig)
 
     def plot_scatters(self, all_plot_settings, fig=None):
-        """Generates scatterplots comparing predicted and true stats, optionally with subsections ("slices) of the dataset
+        """Generates scatterplots comparing predicted and true stats, optionally with subsections ("slices) of the dataset.
 
             Args:
                 all_plot_settings (list): list of dicts, where each element of the list specifies a new figure.
@@ -108,6 +112,7 @@ class PredictionResult:
                     - subtitle (str, optional): text to include as a subtitle on the figure.
                     - histograms (bool, optional): whether to include histograms on the axes of each subplot. Defaults to False.
                 fig (matplotlib.figure.Figure, optional): handle to the figure to add the plots to. Defaults to None.
+
         """  # fmt: skip
 
         # Generate all scatter plots
@@ -119,7 +124,7 @@ class PredictionResult:
             gen_scatterplots(self, **plot_settings)
 
     def plot_single_games(self, **kwargs):
-        """Generates a line graph of predicted and true Fantasy Points over the course of a game for a single player (or multiple players)
+        """Generates a line graph of predicted and true Fantasy Points over the course of a game for a single player (or multiple players).
 
             Keyword-Args:
                 game_ids (list, optional): list of pre-determined games/players to visualize. Each element of list is a dict with keys:

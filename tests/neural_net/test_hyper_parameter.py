@@ -6,7 +6,6 @@ import unittest
 import numpy as np
 
 # Modules needed for test setup
-from config import hp_config
 from config.log_config import LOGGING_CONFIG
 
 # Class under test
@@ -31,17 +30,6 @@ class TestConstructor_HyperParameter(unittest.TestCase):
         self.assertEqual(hp.val_range, [0])
         self.assertEqual(hp.val_scale, "none")
         self.assertEqual(hp.values, [0])
-
-    def test_basic_attributes_no_optional_inputs_default_hp(self):
-        defaults = hp_config.hp_defaults
-        first_hp_name = next(iter(defaults.keys()))
-        first_hp_settings = defaults[first_hp_name]
-        first_hp_val = first_hp_settings.get("value", 0)
-
-        hp = HyperParameter(name=first_hp_name)
-
-        self.assertEqual(hp.name, first_hp_name)
-        self.assertEqual(hp.value, first_hp_val)
 
     def test_basic_attributes_all_optional_inputs(self):
         name = "test"

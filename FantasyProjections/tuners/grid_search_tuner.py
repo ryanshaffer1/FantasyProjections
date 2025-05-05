@@ -41,19 +41,23 @@ class GridSearchTuner(HyperParamTuner):
         Public Methods:
             refine_grid : Implements Recursive Grid Search by generating new gridpoints/values for each HyperParameter, "zooming in" closer to the values at the provided index.
             tune_hyper_parameters : Performs iterative evaluation of a function that depends on HyperParameters to find an optimal combination of HyperParameters.
+
     """  # fmt: skip
 
     def __init__(self, *args, hyper_tuner_layers=1, hyper_tuner_steps_per_dim=3, **kwargs):
         """Constructor for GridSearchTuner object.
 
             Args:
-                param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
-                save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
-                optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
-                    Defaults to False.
-                plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
+                args:
+                    param_set (HyperParameterSet): Set of HyperParameters to vary during optimization ("tuning") process.
+                    save_file (str, optional): path to file where any tuning performance logs should be saved. Defaults to None.
+                    optimize_hypers (bool, optional): Whether to vary the values of optimizable HyperParameters ("tune" the HyperParameters), or stick to the initial values provided.
+                        Defaults to False.
+                    plot_tuning_results (bool, optional): Whether to create a plot showing the performance for each iteration of HyperParameter tuning. Defaults to False.
                 hyper_tuner_layers (int, optional): Number of grid search layers to perform (each recursion layer is "zooming in" closer to a local optima.) Defaults to 1 (no zooming in).
                 hyper_tuner_steps_per_dim (int, optional): Number of unique values to use for each optimizable HyperParameter. Defaults to 3.
+                kwargs:
+                    All keyword arguments are passed to HyperParamTuner. See that class's documentation for descriptions and valid inputs.
 
             Additional Class Attributes:
                 n_value_combinations (int): Number of unique combinations of HyperParameter values.
@@ -61,6 +65,7 @@ class GridSearchTuner(HyperParamTuner):
             Adds Public Attributes to Other Classes:
                 HyperParameter objects within param_set:
                     gridpoints (list): Array of unique values (with no repetition) to use in a grid search HyperParameter optimization.
+
         """  # fmt: skip
 
         super().__init__(*args, **kwargs)
@@ -87,6 +92,7 @@ class GridSearchTuner(HyperParamTuner):
                 ind (int): Index of HyperParameter.values attribute to refine grid around
             Modifies:
                 .val_range, .gridpoints, and .values for each HyperParameter object in self.param_set.hyper_parameters
+
         """  # fmt: skip
 
         # "Zoom in" on the area of interest and generate new value ranges closer to the provided index
@@ -127,14 +133,14 @@ class GridSearchTuner(HyperParamTuner):
                 eval_kwargs (dict, optional): Keyword-Arguments to pass to the evaluation function. Defaults to None.
                 save_kwargs (dict, optional): Keyword-Arguments to pass to the save function. Defaults to None.
                 reset_kwargs (dict, optional): Keyword-Arguments to pass to the reset function. Defaults to None.
-
-            Keyword-Arguments:
-                maximize (bool, optional): whether to maximize (True) or minimize (False) the values returned from eval_function. Defaults to False (minimize).
-                plot_variables (tuple | list, optional): names of 2 hyper-parameters to use as the x and y axes of the plot optionally generated after tuning
-                    (if self.plot_tuning_results == True). Defaults to None - default behavior described in plot_tuning_results.
+                kwargs:
+                    maximize (bool, optional): whether to maximize (True) or minimize (False) the values returned from eval_function. Defaults to False (minimize).
+                    plot_variables (tuple | list, optional): names of 2 hyper-parameters to use as the x and y axes of the plot optionally generated after tuning
+                        (if self.plot_tuning_results == True). Defaults to None - default behavior described in plot_tuning_results.
 
             Returns:
                 float: Optimal performance across all function evaluations.
+
         """  # fmt: skip
 
         # Handle keyword arguments for each called function
@@ -206,6 +212,7 @@ class GridSearchTuner(HyperParamTuner):
                 hp:
                     Creates object attribute gridpoints.
                     gridpoints (list): Array of unique values (with no repetition) to use in a grid search HyperParameter optimization.
+
         """  # fmt: skip
 
         if isinstance(hp.val_range, list):

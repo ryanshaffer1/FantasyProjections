@@ -21,6 +21,7 @@ class PredictionResultGroup:
 
         Public Methods:
             plot_all : Evaluates a given plot function on each PredictionResult object, either separately or together
+
     """  # fmt: skip
 
     # CONSTRUCTOR
@@ -34,7 +35,7 @@ class PredictionResultGroup:
     # PUBLIC METHODS
 
     def plot_all(self, plot_func, *args, **kwargs):
-        """Evaluates a given plot function on each PredictionResult object, either separately or together
+        """Evaluates a given plot function on each PredictionResult object, either separately or together.
 
             Args:
                 plot_func (function): Plotting method within PredictionResult class definition
@@ -43,6 +44,7 @@ class PredictionResultGroup:
             Keyword-Args:
                 together (bool, optional): True to plot all PredictionResult objects on same figure, False for separate figures. Defaults to False.
                 **kwargs: Additional keyword arguments to pass onto the plot_func method
+
         """  # fmt: skip
 
         # kwargs consumed by the plot_all wrapper

@@ -1,4 +1,5 @@
 """Gathers data to be used in Fantasy Football stat prediction.
+
 Pulls data from local files where possible, and from online repository when necessary (saving locally for next time). Parses inputs to determine the
 play-by-play performance of all NFL players or a filtered subset (filtered by highest-scoring in Fantasy Football) over all games within a specified
 time-frame. Optionally normalizes/pre-processes the data for use in a Neural Net predictor.
@@ -14,6 +15,7 @@ from datetime import datetime
 
 import matplotlib.pyplot as plt
 import pandas as pd
+
 from config import data_files_config
 from config.log_config import LOGGING_CONFIG
 from data_pipeline.stats_pipeline.preprocess_nn_data import preprocess_nn_data
@@ -27,12 +29,12 @@ from misc.manage_files import collect_roster_filter, create_folders, move_logfil
 SAVE_DATA = True  # Saves data in .csv's (output files specified below)
 PROCESS_TO_NN = True  # After saving human-readable data, creates data formatted for Neural Network usage
 FILTER_ROSTER = True  # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
-UPDATE_FILTER = False  # Forces re-evaluation of filtered list of players
+UPDATE_FILTER = True  # Forces re-evaluation of filtered list of players
 VALIDATE_PARSING = True  # Gathers true box scores from the internet to confirm logic in play-by-play parsing is correct
-SCRAPE_MISSING = True  # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
+SCRAPE_MISSING = False  # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
 # Data Inputs
 TEAM_NAMES = "all"  # All team names
-YEARS = range(2020, 2025)  # All years to process data for
+YEARS = range(2023, 2024)  # All years to process data for
 WEEKS = range(1, 19)  # All weeks to process data for (applies this set to all years in YEARS)
 GAME_TIMES = range(76)  # range(0,76). Alternates: 'all', list of numbers
 

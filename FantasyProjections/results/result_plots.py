@@ -16,6 +16,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 from misc.stat_utils import linear_regression
 
 # Bold text on everything
@@ -31,13 +32,13 @@ def gen_scatterplots(result, **kwargs):
 
         Args:
             result (PredictionResult): object containing predicted and true statistics across a full dataset.
+            kwargs:
+                columns (list, optional): list of the stats (e.g. 'Pass Yds') to plot in the figure. Each element is plotted on a separate subplot. Defaults to None.
+                slice (dict, optional): subset of the evaluated dataset to include in the figure. Keys may be 'Position', 'Team', 'Player Name', or 'Player ID'. Defaults to empty.
+                legend_slice (dict, optional): subsets of the evaluated dataset to split into separate entities in the plot legend. Same keys as slice. Defaults to empty.
+                subtitle (str, optional): text to include as a subtitle on the figure. Defaults to None.
+                histograms (bool, optional): whether to include histograms on the axes of each subplot. Defaults to False.
 
-        Keyword-Args:
-            columns (list, optional): list of the stats (e.g. 'Pass Yds') to plot in the figure. Each element is plotted on a separate subplot. Defaults to None.
-            slice (dict, optional): subset of the evaluated dataset to include in the figure. Keys may be 'Position', 'Team', 'Player Name', or 'Player ID'. Defaults to empty.
-            legend_slice (dict, optional): subsets of the evaluated dataset to split into separate entities in the plot legend. Same keys as slice. Defaults to empty.
-            subtitle (str, optional): text to include as a subtitle on the figure. Defaults to None.
-            histograms (bool, optional): whether to include histograms on the axes of each subplot. Defaults to False.
     """  # fmt: skip
 
     # Handle keyword arguments
@@ -107,6 +108,7 @@ def scatter_hist(truth_dfs, predict_dfs, ax, column, legend_slice, histograms=Tr
         Returns:
             Line2D: handle to the ideal line of best fit (regression line) for the data
             Line2D: handle to the actual line of best fit (regression line) for the data
+
     """  # fmt: skip
 
     if histograms:
@@ -182,6 +184,7 @@ def set_hist_bins(ax, num_bins_per_tick=4):
 
         Returns:
             numpy.ndarray: x- and y- values to use as center of each histogram bin
+
     """  # fmt: skip
 
     # Set bins based on x-axis tickmarks
@@ -203,6 +206,7 @@ def check_df_for_slice(x, key, slice_var, slice_type="dict"):
 
         Returns:
             bool: True if this row of the DataFrame meets the slice criteria (e.g. "Position" matches the subset of positions provided)
+
     """  # fmt: skip
 
     match slice_type:
@@ -227,6 +231,7 @@ def data_slice_to_plot(result, plot_slice, legend_slice, return_lists=True):
         Returns:
             list: list of DataFrames or list of list of DataFrames (depending on value of return_lists) containing the DataFrames from result,
                 filtered to only match the criteria in plot_slice and/or legend_slice.
+
     """  # fmt: skip
 
     # Copy results dataframes so that the result object's attributes are unmodified
@@ -274,6 +279,7 @@ def draw_regression_lines(truth_dfs, predict_dfs, column, lim_vals, ax):
         Returns:
             Line2D: handle to the ideal line of best fit (regression line) for the data
             Line2D: handle to the actual line of best fit (regression line) for the data
+
     """  # fmt: skip
 
     # Trendlines: ideal trendline, and line of best fit
@@ -311,6 +317,7 @@ def plot_game_timeline(result, game_id, fig=None):
                 - "Year" : value -> int
                 - "Week" : value -> int
             fig (matplotlib.figure.Figure, optional): handle to the figure to add the plot to. Defaults to None.
+
     """  # fmt: skip
 
     # Copy dataframes (to preserve original object attributes)
@@ -345,6 +352,7 @@ def plot_error_histogram(result, absolute=False, fig=None):
             result (PredictionResult): object containing predicted and true statistics across a full dataset.
             absolute (bool, optional): whether to compute absolute value of error before computing the average. Defaults to False.
             fig (matplotlib.figure.Figure, optional): handle to the figure to add the plot to. Defaults to None.
+
     """  # fmt: skip
 
     # Generate new figure if not plotting on a pre-existing fig

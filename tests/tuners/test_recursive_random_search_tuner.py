@@ -3,6 +3,7 @@ import logging.config
 import unittest
 
 import numpy as np
+
 from config.log_config import LOGGING_CONFIG
 from neural_net.hyper_parameter import HyperParameter
 

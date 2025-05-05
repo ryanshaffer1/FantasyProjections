@@ -3,6 +3,7 @@ import logging.config
 import unittest
 
 import pandas.testing as pdtest
+
 from config.log_config import LOGGING_CONFIG
 from misc.dataset import StatsDataset
 from misc.stat_utils import stats_to_fantasy_points
@@ -12,7 +13,6 @@ from predictors import FantasyPredictor
 
 # Modules needed for test setup
 from results import PredictionResult
-
 from tests._utils_for_tests import mock_data
 
 # Set up same logger as project code

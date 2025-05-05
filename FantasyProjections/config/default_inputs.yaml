@@ -1,0 +1,174 @@
+# DEFAULT INPUTS
+
+---
+# Output Files
+save_options:
+  save_directory: models/
+  save_folder_timestamp: true
+  save_folder_prefix: ""
+  save_log: true
+  save_plots: true
+  save_input_file: true
+
+# Datasets
+datasets:
+  - name: default
+    config:
+      - years: null
+        weeks: null
+        teams: null
+        players: null
+        elapsed_time: null
+
+# Hyper-Parameters
+hyperparameters:
+  mini_batch_size:
+    value: 5000
+    optimizable: false
+    val_range: [100, 10000]
+    val_scale: log
+  learning_rate:
+    value: 50
+    optimizable: false
+    val_range: [0.01, 100]
+    val_scale: log
+  lmbda:
+    value: 0
+    optimizable: false
+    val_range: [0.0000001, 0.001]
+    val_scale: log
+  linear_stack:
+    value: 300
+    optimizable: false
+    val_range: [200, 800]
+    val_scale: linear
+  loss_fn: 
+    value: nn.MSELoss()
+    optimizable: false
+    val_range: [nn.MSELoss(), nn.CrossEntropyLoss()]
+    val_scale: selection
+
+# Predictors
+predictors:
+  - name: default
+    type: NeuralNetPredictor
+    save_model: true
+    config:
+      load_folder: null
+      max_epochs: 30
+      n_epochs_to_stop: 5
+      nn_shape:
+        players_input: 300
+        teams_input: 32
+        opps_input: 32
+        stats_input: 29
+        embedding_player: 50
+        embedding_team: 10
+        embedding_opp: 10
+        linear_stack: 300
+        stats_output: 12
+  - name: default
+    type: SleeperPredictor
+    config:
+      proj_dict_file: "data/misc/sleeper_projections_dict.json"
+      update_players: false
+  - name: default
+    type: LastNPredictor
+    config:
+      n: 1
+  - name: default
+    type: PerfectPredictor
+
+# Tuners
+tuners:
+  - name: default
+    type: GridSearchTuner
+    settings: 
+      optimize_hypers: false
+      hyper_tuner_layers: 2
+      hyper_tuner_steps_per_dim: 2
+      plot_tuning_results: true
+      save_file: grid_search.csv
+  - name: default
+    type: RecursiveRandomSearchTuner
+    settings:
+      optimize_hypers: false
+      max_samples: 200
+      r_percentile: 0.1
+      v_expect_imp: 0.1
+      plot_tuning_results: true
+      save_file: rr_search.csv
+
+# Processes
+tunings:
+  - hp_tuner: null
+    predictor: null
+    eval_function: null
+    save_function: null
+    reset_function: null
+    eval_arguments: null
+    save_arguments: null
+    reset_arguments: null
+    kwargs:
+      maximize: false
+      plot_variables:
+        - learning_rate
+        - lmbda
+
+trainings:
+  - predictor: null
+    eval_arguments: null
+    param_set: hyperparameters
+
+evaluations:
+  - name: default
+    predictor: null
+    dataset: null
+
+# Gamblers
+gamblers:
+  - name: default
+    type: BasicGambler
+    evaluation: null
+    plot_earnings: true
+
+# Plots
+plot_groups:
+  - results:
+      - default
+    plots:
+      - type: error_dist
+        settings:
+          together: true
+          absolute: true
+      - type: single_games
+        settings:
+          n_random: 3
+      - type: scatters
+        settings:
+          all_plot_settings:
+          - columns: [Pass Att, Pass Cmp, Pass Yds, Pass TD, Int]
+            slice:
+              Position: [QB]
+            subtitle: Passing Stats
+            histograms: true
+          - columns: [Pass Att, Pass Cmp, Pass Yds, Pass TD]
+            legend_slice:
+              Position:
+                - QB
+                - [RB, WR, TE]
+            subtitle: Passing Stats
+          - columns: [Rush Att, Rush Yds, Rush TD, Fmb]
+            subtitle: Rushing Stats
+            histogram: true
+          - columns: [Rec, Rec Yds, Rec TD]
+            legend_slice:
+              Position:
+                - [RB, WR, TE]
+                - QB
+            subtitle: Receiving Stats
+          - columns: [Fantasy Points]
+            subtitle: Fantasy Points
+            histograms: true
+
+...

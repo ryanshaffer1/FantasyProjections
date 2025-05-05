@@ -1,21 +1,23 @@
 [tool.ruff]
 line-length = 130
 extend-exclude = ["script_sandbox", "__init__.py"]
+src = ["FantasyProjections"]
 
 [tool.ruff.lint]
 select = ["ALL"]
 # Ignores:
 #   - Line 1: entire linters turned off (some specific rules may be useful)
 #   - Line 2: specific rules that are turned off and should stay off for this project
-#   - Line 3: rules/linters that are turned off for now, but should eventually be enforced
-ignore = ["D", "ANN", "PT", "FBT", "PTH", 
+#   - Line 3: specific docstring formatting rules that I don't like
+#   - Line 4: rules/linters that are turned off for now, but should eventually be enforced
+ignore = ["ANN", "PT", "FBT", "PTH", 
           "G004", "RET504","E501", "NPY002", "PD011", "T201", "TRY003",
+          "D105", "D202", "D206", "D208", "D214", "D401",
           "PLR0913", "PLR0911", "C901", "PLW2901", "PD013"]
 extend-safe-fixes = ["W291","W293"]
 
 [tool.ruff.lint.extend-per-file-ignores]
-"test_*" = ["S101","N801", "PLW0603", "SLF001"]
-"main.py" = ["ERA001"]
+"test_*" = ["S101","N801", "PLW0603", "SLF001", "D"]
 "*/config/*" = ["ERA001"]
 
 [tool.ruff.format]

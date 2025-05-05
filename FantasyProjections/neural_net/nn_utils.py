@@ -16,6 +16,7 @@ def compare_net_sizes(model1, model2):
 
         Returns:
             bool: Whether the two input networks are the same shape/size
+
     """  # fmt: skip
 
     for child1, child2 in zip(model1.children(), model2.children()):

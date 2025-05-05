@@ -9,14 +9,14 @@ from dataclasses import dataclass
 
 import numpy as np
 import torch
-from config.hp_config import hp_defaults
-from config.nn_config import default_nn_shape, nn_train_settings
+from torch import nn
+from torch.utils.data import DataLoader
+
 from misc.manage_files import create_folders
 from misc.stat_utils import stats_to_fantasy_points
 from neural_net import HyperParameterSet, NeuralNetwork
 from neural_net.nn_utils import compare_net_sizes
 from predictors import FantasyPredictor
-from torch.utils.data import DataLoader
 
 # Set up logger
 logger = logging.getLogger("log")
@@ -30,13 +30,13 @@ class NeuralNetPredictor(FantasyPredictor):
 
         Args:
             name (str): name of the predictor object, used for logging/display purposes.
-            save_folder (str, optional): path to the folder to save model and optimizer settings. Defaults to None.
-            load_folder (str, optional): path to the folder to load model and optimizer settings. Defaults to None.
-            nn_shape (dict, optional): Neural Network layers and number of neurons per layer. Defaults to the default Neural Network shape.
-            max_epochs (int, optional): number of training iterations before stopping training. Defaults to 100
-            n_epochs_to_stop (int, optional): number of training iterations to check for improvement before stopping. Defaults to 5.
+            nn_shape (dict): Neural Network layers and number of neurons per layer.
+            max_epochs (int): number of training iterations before stopping training.
+            n_epochs_to_stop (int): number of training iterations to check for improvement before stopping.
                 ex. if a NeuralNetPredictor's performance has not improved over its last n training epochs,
                 the training process will be terminated.
+            save_folder (str, optional): path to the folder to save model and optimizer settings. Defaults to None.
+            load_folder (str, optional): path to the folder to load model and optimizer settings. Defaults to None.
 
         Additional Class Attributes:
             device (str): name of the device (e.g. cpu, gpu) used for NeuralNetwork processing
@@ -54,27 +54,24 @@ class NeuralNetPredictor(FantasyPredictor):
             print : Displays the NeuralNetwork architecture and parameter size to console or to a logger.
             save : Stores NeuralNetwork and optimizer specifications to file.
             train_and_validate : Carries out the training process and generates predictions for a separate evaluation dataset.
+
     """  # fmt: skip
 
     # CONSTRUCTOR
+    nn_shape: dict
+    max_epochs: int
+    n_epochs_to_stop: int
     save_folder: str = None
     load_folder: str = None
-    max_epochs: int = nn_train_settings["max_epochs"]
-    n_epochs_to_stop: int = nn_train_settings["n_epochs_to_stop"]
     # hyper-parameters
-    nn_shape: dict = None
-    mini_batch_size: int = hp_defaults["mini_batch_size"]["value"]
-    learning_rate: float = hp_defaults["learning_rate"]["value"]
-    lmbda: float = hp_defaults["lmbda"]["value"]
-    loss_fn = hp_defaults["loss_fn"]["value"]
+    mini_batch_size: int = 0  # Will be set to a defined hyper-parameter value later
+    learning_rate: float = 0  # Will be set to a defined hyper-parameter value later
+    lmbda: float = 0  # Will be set to a defined hyper-parameter value later
+    loss_fn = ""  # Will be set to a defined hyper-parameter value later
 
     def __post_init__(self):
         # Evaluates as part of the Constructor.
         # Generates attributes that are not simple data copies of inputs.
-
-        # Assign default neural net shape (if shape not passed)
-        if self.nn_shape is None:
-            self.nn_shape = default_nn_shape
 
         # Assign a device
         self.device = self.__assign_device()
@@ -92,16 +89,16 @@ class NeuralNetPredictor(FantasyPredictor):
 
             Args:
                 dataset (StatsDataset): data to package into Dataloader
-
-            Keyword-Arguments:
-                shuffle (bool, optional): Whether to randomly shuffle the data in the dataset when creating the Dataloader. Defaults to False.
-                mini_batch (bool, optional): Whether to break the dataset into mini "batches" when creating the Dataloader (helpful for Neural Net training data).
-                    If True, the batch size is determined by the mini_batch_size attribute of the NeuralNetPredictor object.
-                    If False, the batch size is equivalent to the dataset size.
-                    Defaults to False.
+                kwargs:
+                    shuffle (bool, optional): Whether to randomly shuffle the data in the dataset when creating the Dataloader. Defaults to False.
+                    mini_batch (bool, optional): Whether to break the dataset into mini "batches" when creating the Dataloader (helpful for Neural Net training data).
+                        If True, the batch size is determined by the mini_batch_size attribute of the NeuralNetPredictor object.
+                        If False, the batch size is equivalent to the dataset size.
+                        Defaults to False.
 
             Returns:
                 DataLoader: Training DataLoader to use in training. Optionally batched/shuffled based on method inputs.
+
         """  # fmt: skip
 
         # Optional keyword arguments
@@ -149,15 +146,15 @@ class NeuralNetPredictor(FantasyPredictor):
             Args:
                 eval_data (StatsDataset, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
                 eval_dataloader (DataLoader, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
-
-            Keyword-Args:
-                All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor.
-                See the related documentation for descriptions and valid inputs.
-                All keyword arguments are optional.
+                kwargs:
+                    All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor.
+                    See the related documentation for descriptions and valid inputs.
+                    All keyword arguments are optional.
 
             Returns:
                 PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting,
                     performance assessments, etc.
+
         """  # fmt: skip
 
         # Raise error if normalized=False in kwargs
@@ -208,6 +205,7 @@ class NeuralNetPredictor(FantasyPredictor):
                 optimizer (torch.optim.SGD): Optimizer for model, implemented via PyTorch.
                     Parameters are determined by the loaded optimizer.pth
                 nn_shape (dict): Neural Network layers and number of neurons per layer.
+
         """  # fmt: skip
 
         model_file = model_folder + "model.pth"
@@ -270,6 +268,7 @@ class NeuralNetPredictor(FantasyPredictor):
                 Each hyper-parameter corresponds to a NeuralNetPredictor attribute with the same name*. If the hyper-parameter is
                 modified in the param_set, this attribute will be modified to match.
                 *The class attribute .nn_shape encompasses many hyper-parameters regarding the shape of the Network.
+
         """  # fmt: skip
 
         # Convert param_set to dictionary
@@ -294,6 +293,7 @@ class NeuralNetPredictor(FantasyPredictor):
                 model (NeuralNetwork): Neural Network implemented via PyTorch.
                 log (bool, optional): True if output should be directed to a logger,
                     False if printed to console. Defaults to False.
+
         """  # fmt: skip
 
         model_parameters = filter(lambda p: p.requires_grad, model.parameters())
@@ -343,19 +343,21 @@ class NeuralNetPredictor(FantasyPredictor):
             Args:
                 train_dataloader (DataLoader): data to use for Neural Net training.
                 validation_dataloader (DataLoader): data to use for Neural Net validation.
+                training_data (StatsDataset): data to use for Neural Net training.
+                validation_data (StatsDataset): data to use for Neural Net validation.
                 param_set (HyperParameterSet | dict, optional): set of hyper-parameters used in Neural Network training.
                     If HyperParameterSet, may include:
                         loss_fn (HyperParameter): handle denoting the loss function to use (e.g. nn.MSELoss)
                     If dict, may include:
                         loss_fn (function): handle denoting the loss function to use (e.g. nn.MSELoss)
-
-            Keyword-Args:
-                All keyword arguments are passed to the eval_model method. See the related documentation for descriptions and valid inputs.
-                All keyword arguments are optional.
+                kwargs:
+                    All keyword arguments are passed to the eval_model method. See the related documentation for descriptions and valid inputs.
+                    All keyword arguments are optional.
 
             Returns:
                 list: accuracy (quantified as average absolute prediction error) of the model's predictions on the
                     validation dataset after each epoch of training.
+
         """  # fmt: skip
 
         # Set hyper-parameter values
@@ -420,6 +422,17 @@ class NeuralNetPredictor(FantasyPredictor):
     def __train(self, dataloader, loss_fn, print_losses=True):
         # Implements Stochastic Gradient Descent to train the model
         # against the provided training dataloader. Periodically logs losses from the loss function
+        # Loss function may be a function handle or a subset of valid strings that match function handles
+
+        # Handle optional string loss_fn
+        loss_fn_strings = {"nn.MSELoss()": nn.MSELoss(), "nn.CrossEntropyLoss()": nn.CrossEntropyLoss()}
+        if isinstance(loss_fn, str):
+            try:
+                loss_fn = loss_fn_strings[loss_fn]
+            except KeyError as e:
+                msg = "Invalid loss function string"
+                raise KeyError(msg) from e
+
         size = len(dataloader.dataset)
         num_batches = int(np.ceil(size / dataloader.batch_size))
         self.model.train()

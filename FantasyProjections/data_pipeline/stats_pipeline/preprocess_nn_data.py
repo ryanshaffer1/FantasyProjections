@@ -7,6 +7,7 @@
 import logging
 
 import pandas as pd
+
 from config import data_files_config, stats_config
 from config.player_id_config import ALT_PLAYER_IDS, PRIMARY_PLAYER_ID
 from misc.manage_files import create_folders
@@ -35,6 +36,7 @@ def preprocess_nn_data(midgame_input, final_stats_input, save_folder=None, save_
             pandas.DataFrame: Midgame input data in Neural Net-readable format
             pandas.DataFrame: Final Stats input data in Neural Net-readable format
             pandas.DataFrame: ID (player/game information) input data in Neural Net-readable format
+
     """  # fmt: skip
 
     # Optional save_filenames input

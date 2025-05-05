@@ -5,7 +5,6 @@
 """  # fmt: skip
 
 import torch
-from config.nn_config import default_nn_shape
 from torch import nn
 
 
@@ -24,6 +23,7 @@ class NeuralNetwork(nn.Module):
 
         Public Methods:
             forward : Defines the feedforward flow of information through the network, including the embedding and linear stack layers.
+
     """  # fmt: skip
 
     # CONSTRUCTOR
@@ -31,22 +31,14 @@ class NeuralNetwork(nn.Module):
         """Initializes a NeuralNetwork with a network architecture defined in FantasyProjections project docs.
 
             Args:
-                shape (dict, optional): number of neurons in each layer of the network, keyed by the names of each layer.
-                Defaults to dict default_shape.
+                shape (dict): number of neurons in each layer of the network, keyed by the names of each layer.
 
             Raises:
                 ValueError: non-numeric value passed in shape.
+
         """  # fmt: skip
 
         super().__init__()
-
-        # Establish shape based on optional inputs
-        if not shape:
-            shape = default_nn_shape
-        else:
-            for key, val in default_nn_shape.items():
-                if key not in shape:
-                    shape[key] = val
 
         # Ensure all values are of type int
         try:
@@ -93,6 +85,7 @@ class NeuralNetwork(nn.Module):
 
             Returns:
                 tensor: output vector from Neural Net based on provided input
+
         """  # fmt: skip
 
         player_embedding = self.embedding_player(x[:, self.players_inds])

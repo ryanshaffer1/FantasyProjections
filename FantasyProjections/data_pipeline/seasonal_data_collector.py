@@ -5,10 +5,10 @@
 """  # fmt: skip
 
 import logging
-import math
 
 import dateutil.parser as dateparse
 import pandas as pd
+
 from config import data_files_config, player_id_config
 from config.player_id_config import fill_blank_player_ids
 from data_pipeline.utils import team_abbreviations as team_abbrs
@@ -28,6 +28,7 @@ class SeasonalDataCollector:
             year (int): Year for season (e.g. 2023).
             team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
             weeks (list, optional): Weeks in the NFL season to collect data for. Defaults to range(1,19).
+
         Keyword Arguments:
             filter_df (pandas.DataFrame, optional): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
                 Not stored as an object attribute.
@@ -45,6 +46,7 @@ class SeasonalDataCollector:
         Public Methods:
             gather_all_game_data : Concatenates all relevant data from individual games in self.games into larger DataFrames for the full season.
             process_rosters : Trims DataFrame of all NFL week-by-week rosters in a given year to include only players of interest and data columns of interest.
+
     """  # fmt: skip
 
     def __init__(self, year, team_names="all", weeks=None, **kwargs):
@@ -54,15 +56,16 @@ class SeasonalDataCollector:
                 year (int): Year for season (e.g. 2023).
                 team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
                 weeks (list, optional): Weeks in the NFL season to collect data for. Defaults to range(1,19).
-            Keyword Arguments:
-                filter_df (pandas.DataFrame, optional): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
-                    Not stored as an object attribute.
+                kwargs:
+                    filter_df (pandas.DataFrame, optional): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
+                        Not stored as an object attribute.
 
             Additional Attributes Created during Initialization:
                 pbp_df (pandas.DataFrame): Play-by-play data for all plays in an NFL season, taken from nfl-verse.
                 raw_rosters_df (pandas.DataFrame): Weekly roster information for all teams in an NFL season, taken from nfl-verse.
                 all_rosters_df (pandas.DataFrame): Filtered roster dataframe to include only players of interest (skill positions, in the optional filter_df, etc.)
                 games (list): List of SingleGameDataWorker (or sub-class) objects containing data for every game in the NFL season.
+
         """  # fmt: skip
 
         # Handle unspecified weeks: all weeks
@@ -102,6 +105,7 @@ class SeasonalDataCollector:
 
             Returns:
                 tuple(pandas.DataFrame): DataFrames of data consolidated across all games, one for each element in df_fields.
+
         """  # fmt: skip
 
         # Handle single field passed as string
@@ -128,6 +132,7 @@ class SeasonalDataCollector:
 
             Attributes Modified:
                 pandas.DataFrame: all_rosters_df filtered to players of interest, several columns removed, and indexed on Team & Week
+
         """  # fmt: skip
 
         # Copy of object attribute
@@ -156,12 +161,12 @@ class SeasonalDataCollector:
 
         # Compute age based on birth date. Assign birth year of 2000 for anyone with missing birth date...
         all_rosters_df["Age"] = all_rosters_df["season"] - all_rosters_df["birth_date"].apply(
-            lambda x: dateparse.parse(x).year if math.isnan(x) else 2000,
+            lambda x: dateparse.parse(x).year if isinstance(x, str) else 2000,
         )
 
         # Trim to just the fields that are useful
         all_rosters_df = all_rosters_df[
-            [*player_id_config.PLAYER_IDS, "team", "week", "position", "jersey_number", "full_name", "Age"]
+            [*player_id_config.PLAYER_IDS, "team", "week", "position", "jersey_number", "full_name", "Age", "draft_number"]
         ]
         # Reformat
         all_rosters_df = (

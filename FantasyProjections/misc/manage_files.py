@@ -3,14 +3,20 @@
     Functions:
         create_folders : Checks if an input list of folders exists, and creates any that do not exist.
         collect_input_dfs : Collects raw NFL stats data from local files, and if insufficient, optionally pulls additional data from online source.
+        get_title_figure_to_save : Gets the title of a figure and formats it properly to be saved to a file.
         collect_roster_filter : Loads a roster filter file, and returns whether the load was successful.
         move_logfile : Moves the logfile generated during program execution from a temporary location to a new folder.
+        name_save_folder : Generates the name of the folder to save scenario outputs, according to the user-input save parameters.
+        save_plots : Save all open matplotlib figures as .png files.
+
 """  # fmt: skip
 
 import logging
 import os
 import shutil
+from datetime import datetime
 
+import matplotlib.pyplot as plt
 import pandas as pd
 
 # Set up logger
@@ -27,8 +33,8 @@ def create_folders(folders):
                 If a folder does exist, this function will not modify it. If a function does not exist,
                 this function will create it.
                 If a file is input, tries to get the parent folder.
-    """  # fmt: skip
 
+    """  # fmt: skip
     # Handle case of single folder being passed
     if isinstance(folders, str):
         folders = [folders]
@@ -56,8 +62,8 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
         Returns:
             list | tuple: if a single year is input, returns a tuple of DataFrame objects corresponding to each input file type (e.g. 'pbp','roster').
                 if multiple years are input, returns a list of tuples of DataFrame objects where each tuple corresponds to a year.
-    """  # fmt: skip
 
+    """  # fmt: skip
     # Handle single year being input
     if not hasattr(years, "__iter__"):
         years = [years]
@@ -115,8 +121,8 @@ def collect_roster_filter(filter_roster, update_filter, roster_filter_file):
             [pandas.DataFrame | None]: If file was loaded successfully, returns a DataFrame with the roster filter (player list). If file was
                 not loaded successfully (either failed to load, or was not attempted), returns None.
             bool: True if file load was successful, False if not.
-    """  # fmt: skip
 
+    """  # fmt: skip
     if filter_roster and not update_filter:
         try:
             filter_df = pd.read_csv(roster_filter_file)
@@ -131,14 +137,41 @@ def collect_roster_filter(filter_roster, update_filter, roster_filter_file):
     return filter_df, load_success
 
 
+def get_figure_title_to_save(fig, default_num=0):
+    """Gets the title of a figure and formats it properly to be saved to a file.
+
+        Args:
+            fig (matplotllib.figure.Figure): Current figure
+            default_num (int, optional): If title cannot be found, use this num to create a generic but unique name.
+                Defaults to 0 (all unfound titles will be "figure_0").
+
+        Returns:
+            str: Figure title, formatted to be saved.
+
+    """  # fmt: skip
+    # Try to get overall figure title
+    title = fig.get_suptitle()
+    # If figure title is empty, get axis title
+    if title == "":
+        title = fig.axes[0].get_title()
+    # Default figure name if no title was found
+    if title == "":
+        return f"figure_{default_num}"
+
+    # Format for filename
+    title = title.lower().replace("\n", ", ").replace(":", "")
+
+    return title
+
+
 def move_logfile(curr_filepath, new_folder):
     """Moves the logfile generated during program execution from a temporary location to a new folder.
 
         Args:
             curr_filepath (str): filepath where the logfile has been temporarily stored (MUST INCLUDE FILE NAME)
             new_folder (str): folder to move the logfile to (MUST NOT INCLUDE FILE NAME)
-    """  # fmt: skip
 
+    """  # fmt: skip
     # Create folder if it does not exist
     create_folders(new_folder)
 
@@ -148,3 +181,54 @@ def move_logfile(curr_filepath, new_folder):
     filename = curr_filepath.split("/")[-1]
     new_filepath = new_folder + filename
     shutil.move(curr_filepath, new_filepath)
+
+
+def name_save_folder(save_parameters):
+    """Generates the name of the folder to save scenario outputs, according to the user-input save parameters.
+
+        Args:
+            save_parameters (dict): Contains information on how to save outputs, including directory and folder naming conventions.
+
+        Returns:
+            str: path to the folder to save to (note that the folder may not have been created yet).
+
+    """  # fmt: skip
+
+    if save_parameters["save_folder_timestamp"]:
+        save_folder_name = save_parameters["save_folder_prefix"] + datetime.strftime(
+            datetime.now().astimezone(),
+            "%Y%m%d_%H%M%S",
+        )
+    else:
+        save_folder_name = save_parameters["save_folder_prefix"]
+    save_folder = os.path.join(save_parameters["save_directory"], save_folder_name) + "/"
+
+    return save_folder
+
+
+def save_plots(save_folder):
+    """Save all open matplotlib figures as .png files.
+
+        Args:
+            save_folder (str): path to the folder to save to. Note that the plots will be saved to a "plots" subfolder.
+
+    """  # fmt:skip
+
+    # Use a "plots" subfolder if the input save folder is not already called "plots"
+    if os.path.basename(save_folder) != "plots":
+        save_folder = os.path.join(save_folder, "plots")
+
+    # Create the save folder if it does not already exist
+    create_folders(save_folder)
+
+    # Iterate through all open figures
+    for i in plt.get_fignums():
+        fig = plt.figure(i)
+        # Get figure title
+        title = get_figure_title_to_save(fig, i + 1)
+
+        # Save to .png
+        plt.savefig(f"{os.path.join(save_folder, title)}.png")
+
+        # Close figure
+        plt.close(i)

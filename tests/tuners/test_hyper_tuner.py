@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 import pandas.testing as pdtest
+
 from config.log_config import LOGGING_CONFIG
 from neural_net.hyper_parameter import HyperParameter
 

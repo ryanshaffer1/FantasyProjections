@@ -2,12 +2,13 @@
 
     Classes:
         SeasonalStatsCollector : Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
-"""
+"""  # fmt: skip
 
 import logging
 
 import dateutil.parser as dateparse
 import pandas as pd
+
 from config import data_files_config
 from data_pipeline.seasonal_data_collector import SeasonalDataCollector
 from data_pipeline.stats_pipeline.single_game_pbp_parser import SingleGamePbpParser
@@ -17,6 +18,7 @@ from data_pipeline.utils.data_helper_functions import compute_team_record
 # Set up logger
 logger = logging.getLogger("log")
 
+
 class SeasonalStatsCollector(SeasonalDataCollector):
     """Collects all player stats for all games in an NFL season. Automatically pulls data from nfl-verse and processes upon initialization.
 
@@ -24,6 +26,7 @@ class SeasonalStatsCollector(SeasonalDataCollector):
             year (int): Year for season (e.g. 2023).
             team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
             weeks (list, optional): Weeks in the NFL season to collect data for. Defaults to range(1,19).
+
         Keyword Arguments:
             game_times (list): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
                 Not stored as an object attribute.
@@ -46,7 +49,8 @@ class SeasonalStatsCollector(SeasonalDataCollector):
         Public Methods:
             generate_games : Creates a SingleGamePbpParser object for each unique game included in the SeasonalDataCollector.
             get_game_info : Generates info on every game for each team in a given year: who is home vs away, and records of each team going into the game.
-    """
+
+    """  # fmt: skip
 
     def __init__(self, year, team_names="all", weeks=None, **kwargs):
         """Constructor for SeasonalDataCollector class.
@@ -55,11 +59,11 @@ class SeasonalStatsCollector(SeasonalDataCollector):
                 year (int): Year for season (e.g. 2023).
                 team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
                 weeks (list, optional): Weeks in the NFL season to collect data for. Defaults to range(1,19).
-            Keyword Arguments:
-                game_times (list | str, optional): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
-                    Not stored as an object attribute.
-                filter_df (pandas.DataFrame, optional): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
-                    Not stored as an object attribute.
+                kwargs:
+                    game_times (list | str, optional): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
+                        Not stored as an object attribute.
+                    filter_df (pandas.DataFrame, optional): Filter for roster, i.e. the list of players to collect data for. Defaults to None (collect data for every player).
+                        Not stored as an object attribute.
 
             Additional Attributes Created during Initialization:
                 pbp_df (pandas.DataFrame): Play-by-play data for all plays in an NFL season, taken from nfl-verse.
@@ -71,7 +75,7 @@ class SeasonalStatsCollector(SeasonalDataCollector):
                     Sampled throughout the game according to optional game_times input.
                 final_stats_df (pandas.DataFrame): All final statistics for each player of interest, in every game of the NFL season.
 
-        """
+        """  # fmt: skip
 
         # Initialize SeasonalDataCollector
         super().__init__(year=year, team_names=team_names, weeks=weeks, **kwargs)
@@ -88,7 +92,6 @@ class SeasonalStatsCollector(SeasonalDataCollector):
         # Gather all stats (midgame and final) from the individual teams
         self.midgame_df, self.final_stats_df, *_ = self.gather_all_game_data(["midgame_df", "final_stats_df"])
 
-
     # PUBLIC METHODS
 
     def generate_games(self, game_times):
@@ -99,7 +102,8 @@ class SeasonalStatsCollector(SeasonalDataCollector):
 
             Returns:
                 list: List of SingleGamePbpParser objects containing data for each game in the SeasonalDataCollector
-        """
+
+        """  # fmt: skip
 
         team_abbrevs_to_process = [team_abbrs.pbp_abbrevs[name] for name in self.team_names]
 
@@ -118,14 +122,13 @@ class SeasonalStatsCollector(SeasonalDataCollector):
         n_games = len(game_ids)
         logger.info(f"Processing {n_games} games:")
         for i, game_id in enumerate(game_ids):
-            logger.info(f"({i+1} of {n_games}): {game_id}")
+            logger.info(f"({i + 1} of {n_games}): {game_id}")
             # Process data/stats for single game
             game = SingleGamePbpParser(self, game_id, game_times=game_times)
             # Add to list of games
             games.append(game)
 
         return games
-
 
     def get_game_info(self):
         """Generates info on every game for each team in a given year: who is home vs away, and records of each team going into the game.
@@ -135,14 +138,15 @@ class SeasonalStatsCollector(SeasonalDataCollector):
 
             Attributes Modified:
                 all_game_info_df: DataFrame containing game info on each unique game in the NFL season being processed (teams, pre-game team records, etc.)
-        """
+        """  # fmt: skip
+
         pbp_df = self.pbp_df.copy()
 
         # Filter df to only the final play of each game
-        pbp_df = pbp_df.drop_duplicates(subset="game_id",keep="last")
+        pbp_df = pbp_df.drop_duplicates(subset="game_id", keep="last")
 
         # Filter to only regular-season games
-        pbp_df = pbp_df[pbp_df["season_type"]=="REG"]
+        pbp_df = pbp_df[pbp_df["season_type"] == "REG"]
 
         # Output data frame
         all_game_info_df = pd.DataFrame()
@@ -150,28 +154,35 @@ class SeasonalStatsCollector(SeasonalDataCollector):
         for team_abbr in team_abbrs.pbp_abbrevs.values():
             # Filter to only games including the team of interest
             scores_df = pbp_df.copy()
-            scores_df = scores_df[(scores_df["home_team"] == team_abbr)
-                                | (scores_df["away_team"] == team_abbr)]
+            scores_df = scores_df[(scores_df["home_team"] == team_abbr) | (scores_df["away_team"] == team_abbr)]
 
             # Track team name and opponent name
             scores_df["Team Abbrev"] = team_abbr
-            scores_df["Opp Abbrev"] = scores_df.apply(lambda x:
-                x["away_team"] if x["home_team"] == x["Team Abbrev"] else x["home_team"],
-                axis=1)
+            scores_df["Opp Abbrev"] = scores_df.apply(
+                lambda x: x["away_team"] if x["home_team"] == x["Team Abbrev"] else x["home_team"],
+                axis=1,
+            )
 
             # Track game site and home/away team
-            scores_df["Site"] = scores_df.apply(
-                lambda x: "Home" if x["home_team"] == x["Team Abbrev"] else "Away", axis=1)
-            scores_df = scores_df.rename(columns={"week":"Week","home_team":"Home Team Abbrev","away_team":"Away Team Abbrev"})
+            scores_df["Site"] = scores_df.apply(lambda x: "Home" if x["home_team"] == x["Team Abbrev"] else "Away", axis=1)
+            scores_df = scores_df.rename(
+                columns={"week": "Week", "home_team": "Home Team Abbrev", "away_team": "Away Team Abbrev"},
+            )
 
             # URL to get stats from
-            scores_df["game_date"] = scores_df.apply(lambda x:
-                dateparse.parse(x["game_date"]).strftime("%Y%m%d"), axis=1)
-            scores_df["PFR URL"] = scores_df.apply(lambda x:
-                data_files_config.PFR_BOXSCORE_URL_INTRO + x["game_date"] + "0" +
-                team_abbrs.convert_abbrev(x["Home Team Abbrev"],
-                team_abbrs.pbp_abbrevs,team_abbrs.roster_website_abbrevs,
-                ) + ".htm", axis=1)
+            scores_df["game_date"] = scores_df.apply(lambda x: dateparse.parse(x["game_date"]).strftime("%Y%m%d"), axis=1)
+            scores_df["PFR URL"] = scores_df.apply(
+                lambda x: data_files_config.PFR_BOXSCORE_URL_INTRO
+                + x["game_date"]
+                + "0"
+                + team_abbrs.convert_abbrev(
+                    x["Home Team Abbrev"],
+                    team_abbrs.pbp_abbrevs,
+                    team_abbrs.roster_website_abbrevs,
+                )
+                + ".htm",
+                axis=1,
+            )
 
             # Track ties, wins, and losses
             scores_df = compute_team_record(scores_df)
@@ -188,7 +199,8 @@ class SeasonalStatsCollector(SeasonalDataCollector):
                 "Away Team Abbrev",
                 "Team Wins",
                 "Team Losses",
-                "Team Ties"]
+                "Team Ties",
+            ]
             scores_df = scores_df[columns_to_keep].set_index(["Week", "Team Abbrev"]).sort_index()
 
             # Append to dataframe of all teams' games
@@ -196,7 +208,8 @@ class SeasonalStatsCollector(SeasonalDataCollector):
 
         # Clean up df for output
         all_game_info_df = all_game_info_df.reset_index().set_index(["game_id"]).sort_index()
-        all_game_info_df["Team Name"] = all_game_info_df["Team Abbrev"].apply(lambda x:
-            team_abbrs.invert(team_abbrs.pbp_abbrevs)[x])
+        all_game_info_df["Team Name"] = all_game_info_df["Team Abbrev"].apply(
+            lambda x: team_abbrs.invert(team_abbrs.pbp_abbrevs)[x],
+        )
 
         return all_game_info_df

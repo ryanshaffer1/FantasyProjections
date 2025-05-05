@@ -6,6 +6,7 @@
 
 import numpy as np
 import pandas as pd
+
 from config import stats_config
 from config.player_id_config import PLAYER_IDS, PRIMARY_PLAYER_ID
 from data_pipeline.single_game_data_worker import SingleGameDataWorker
@@ -38,6 +39,7 @@ class SingleGamePbpParser(SingleGameDataWorker):
 
         Public Methods:
             parse_play_by_play : Calculates midgame and final statistics for all players in a game, using play-by-play data describing passes, rushes, etc.
+
     """  # fmt: skip
 
     def __init__(self, seasonal_data, game_id, **kwargs):
@@ -47,9 +49,9 @@ class SingleGamePbpParser(SingleGameDataWorker):
                 seasonal_data (SeasonalDataCollector): "Parent" object containing data relating to the NFL season.
                     Not stored as an object attribute.
                 game_id (str): Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
-            Keyword Arguments:
-                game_times (list | str, optional): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
-                    Not stored as an object attribute.
+                kwargs:
+                    game_times (list | str, optional): Elapsed time steps to save data for (e.g. every minute of the game, every 5 minutes, etc.). Defaults to "all", meaning every play.
+                        Not stored as an object attribute.
 
             Additional Attributes Created during Initialization:
                 year (int): Year of game being processed
@@ -60,6 +62,7 @@ class SingleGamePbpParser(SingleGameDataWorker):
                 midgame_df (pandas.DataFrame): All midgame statistics for each player of interest over the course of the game.
                     Sampled throughout the game according to optional game_times input.
                 final_stats_df (pandas.DataFrame): All final statistics for each player of interest at the end of the game.
+
         """  # fmt: skip
 
         # Initialize SingleGameDataWorker
@@ -84,6 +87,7 @@ class SingleGamePbpParser(SingleGameDataWorker):
             Returns:
                 pandas.DataFrame: Stats accrued over the course of the game (at time intervals defined by input game_times) for all players in the input roster.
                 pandas.DataFrame: Stats at the end of the game for all players in the input roster.
+
         """  # fmt: skip
 
         # Re-format optional inputs
@@ -135,6 +139,7 @@ class SingleGamePbpParser(SingleGameDataWorker):
 
             Returns:
                 pandas.DataFrame: Player's accumulated stat line at each time in the game. May have an additional (redundant) row for the final stat line.
+
         """  # fmt: skip
 
         # Team sites
@@ -192,6 +197,7 @@ class SingleGamePbpParser(SingleGameDataWorker):
 
             Returns:
                 pandas.DataFrame: Input player_stat_df DataFrame, with additional columns tracking whether the current player earned stats in each play.
+
         """  # fmt: skip
 
         player_id = player_info[PRIMARY_PLAYER_ID]

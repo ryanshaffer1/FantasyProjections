@@ -12,11 +12,16 @@ import numpy as np
 import pandas as pd
 import pandas.testing as pdtest
 import torch
-from torch.utils.data import Dataset
+
+from config.log_config import LOGGING_CONFIG
+
+# Set up logger
+logging.config.dictConfig(LOGGING_CONFIG)
+logger = logging.getLogger("log")
 
 
-class StatsDataset(Dataset):
-    """Dataset holding input data, output data, and ID data relating to statlines for a set of NFL games
+class StatsDataset(torch.utils.data.Dataset):
+    """Dataset holding input data, output data, and ID data relating to statlines for a set of NFL games.
 
         Child of class torch.utils.data.Dataset
 
@@ -39,6 +44,7 @@ class StatsDataset(Dataset):
             remove_game_duplicates : Filters evaluation data to only contain one entry per unique game/player.
             copy : Return a copy of the StatsDataset object. All attributes (e.g. DataFrames) are copies of the originals, not views.
             equals : Compares two StatsDataset objects and returns whether all their data are equal. Optionally can check non-data attributes for equality.
+
     """  # fmt: skip
 
     # CONSTRUCTOR
@@ -55,7 +61,7 @@ class StatsDataset(Dataset):
         y_data_columns=None,
         **kwargs,
     ):
-        """Constructor for StatsDataset
+        """Constructor for StatsDataset.
 
             Args (Required):
                 name (str): name of the StatsDataset object, used for logging/display purposes.
@@ -161,20 +167,21 @@ class StatsDataset(Dataset):
 
             Returns:
                 [None | StatsDataset]: If inplace==True (default), returns None. If inplace==False, returns the concatenated StatsDataset.
+
         """  # fmt: skip
 
         # Check that data labels match each other
         if self.x_data_columns != other.x_data_columns:
             msg = f"x data labels do not match for DataFrames {self.name} and {other.name}"
-            logging.error(f"Error: {msg}")
+            logger.error(f"Error: {msg}")
             raise NameError(msg)
         if self.y_data_columns != other.y_data_columns:
             msg = f"y data labels do not match for DataFrames {self.name} and {other.name}"
-            logging.error(f"Error: {msg}")
+            logger.error(f"Error: {msg}")
             raise NameError(msg)
         if self.id_data.columns.to_list() != other.id_data.columns.to_list():
             msg = f"ID data labels do not match for DataFrames {self.name} and {other.name}"
-            logging.error(f"Error: {msg}")
+            logger.error(f"Error: {msg}")
             raise NameError(msg)
 
         # Concatenate data structures
@@ -206,16 +213,16 @@ class StatsDataset(Dataset):
 
             Args:
                 inplace (bool, optional): If True, self is modified in-place; if False, a new StatsDataset is returned. Defaults to True.
-
-            Keyword-Args:
-                weeks (list, optional): Week numbers from the DataFrames to include in the StatsDataset. If not passed, ignored.
-                years (list, optional): Year numbers from the DataFrames to include in the StatsDataset. If not passed, ignored.
-                teams (list, optional): Team names from the DataFrames to include in the StatsDataset. If not passed, ignored.
-                player_ids (list, optional): Player IDs from the DataFrames to include in the StatsDataset. If not passed, ignored.
-                elapsed_time (list, optional): Game times from the DataFrames to include in the StatsDataset. If not passed, ignored.
+                kwargs:
+                    weeks (list, optional): Week numbers from the DataFrames to include in the StatsDataset. If not passed, ignored.
+                    years (list, optional): Year numbers from the DataFrames to include in the StatsDataset. If not passed, ignored.
+                    teams (list, optional): Team names from the DataFrames to include in the StatsDataset. If not passed, ignored.
+                    player_ids (list, optional): Player IDs from the DataFrames to include in the StatsDataset. If not passed, ignored.
+                    elapsed_time (list, optional): Game times from the DataFrames to include in the StatsDataset. If not passed, ignored.
 
             Returns:
                 [None | StatsDataset]: If inplace==True (default), returns None. If inplace==False, returns the modified StatsDataset.
+
         """  # fmt: skip
 
         criteria_var_to_col = {
@@ -231,7 +238,7 @@ class StatsDataset(Dataset):
         try:
             row_nums = self.id_data.reset_index().query(df_query).index.values
         except ValueError:
-            logging.warning("Invalid criteria (or no criteria) passed to method slice_by_criteria. No slicing will be performed.")
+            logger.warning("Invalid criteria (or no criteria) passed to method slice_by_criteria. No slicing will be performed.")
             row_nums = self.id_data.reset_index().index.values
 
         if inplace:
@@ -262,6 +269,7 @@ class StatsDataset(Dataset):
             Returns:
                 [None | StatsDataset]: If inplace==True (default), returns None.
                     If inplace==False, returns the modified StatsDataset with only one row per unique game/player
+
         """  # fmt: skip
 
         # Obtain indices of duplicated rows to remove
@@ -293,6 +301,7 @@ class StatsDataset(Dataset):
 
             Returns:
                 StatsDataset: Copy of the StatsDataset object invoking this method. All attributes are copies, not views.
+
         """  # fmt: skip
 
         return StatsDataset(
@@ -316,6 +325,7 @@ class StatsDataset(Dataset):
 
             Returns:
                 bool: Whether the StatsDataset objects have identical data (and identical other attributes, if check_non_data_attributes).
+
         """  # fmt: skip
 
         # Compare non-data attributes

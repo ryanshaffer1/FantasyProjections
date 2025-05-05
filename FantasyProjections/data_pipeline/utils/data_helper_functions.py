@@ -13,6 +13,7 @@ import logging
 
 import numpy as np
 import pandas as pd
+
 from config import stats_config
 from config.player_id_config import ALT_PLAYER_IDS, PRIMARY_PLAYER_ID
 from data_pipeline.utils import team_abbreviations as team_abbrs
@@ -30,6 +31,7 @@ def calc_game_time_elapsed(data):
 
         Returns:
             pandas.Series | float: Time elapsed since the start of the game, in minutes. If data is a DataFrame, return a Series; if data is a Series, return a float.
+
     """  # fmt: skip
 
     if isinstance(data, pd.Series):
@@ -66,6 +68,7 @@ def clean_stats_data(midgame_df, final_stats_df, list_of_stats="default"):
         Returns:
             pandas.DataFrame: midgame stats DataFrame, cleaned.
             pandas.DataFrame: final stats DataFrame, cleaned.
+
     """  # fmt: skip
 
     # Default stat list
@@ -95,6 +98,7 @@ def clean_team_names(team_names, year=None):
 
         Returns:
             list: List of full team names.
+
     """  # fmt: skip
 
     # Processing only needed if team_names=='all'
@@ -119,6 +123,7 @@ def compute_team_record(scores_df):
 
         Returns:
             pandas.DataFrame: Input DataFrame, with three columns added: "Team Wins", "Team Losses", "Team Ties". These correspond to the team's record GOING INTO the game.
+
     """  # fmt: skip
 
     # Add columns tracking whether each game is a win, loss, or tie for the team
@@ -152,7 +157,7 @@ def construct_game_id(data):
     """Generates Game ID as used by nfl-verse from a set of game information.
 
         Args:
-            data_series (pandas.Series | dict): Data for a game, including the following fields/keys:
+            data (pandas.Series | dict): Data for a game, including the following fields/keys:
                 - Year
                 - Week
                 - Team (abbreviation)
@@ -161,6 +166,7 @@ def construct_game_id(data):
 
         Returns:
             str: Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{hometeam}", ex: "2021_01_ARI_TEN"
+
     """  # fmt: skip
 
     # Gather/format data from Series
@@ -190,6 +196,7 @@ def subsample_game_time(player_stats_df, game_times):
 
         Returns:
             pandas.DataFrame: Player's accumulated stat line at each designated game time. May have an additional (redundant) row for the final stat line.
+
     """  # fmt: skip
 
     if not isinstance(game_times, str):
@@ -221,6 +228,7 @@ def __shift_val_one_game_back(postgame_vals_by_team_week, games_played_by_team):
 
         Returns:
             list: List of pregame wins OR losses OR ties for all weeks/teams currently being processed
+
     """  # fmt: skip
 
     last_game_played_by_team = [x - 1 for x in games_played_by_team.cumsum().to_list()]

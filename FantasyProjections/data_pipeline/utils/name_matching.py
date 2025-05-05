@@ -23,6 +23,7 @@ def find_matching_name_ind(name, others):
 
         Returns:
             int | np.nan: Index in others of the exact or apprximate match to name. np.nan if no match was found.
+
     """  # fmt: skip
 
     # Handle only one name input for others
@@ -60,6 +61,7 @@ def fuzzy_match(name1, name2, log=True):
 
         Returns:
             bool: True if the names are exactly or approximately identical; else, False.
+
     """  # fmt: skip
 
     # Check for exact match first
@@ -93,6 +95,7 @@ def drop_name_frills(name, expand_nicknames=True, lowercase=True):
 
         Returns:
             str: Name in "cleaned" format with modifiers removed (useful for fuzzy name matching).
+
     """  # fmt: skip
 
     # Changes to be made
