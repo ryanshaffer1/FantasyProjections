@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import pandas.testing as pdtest
 import torch
+
 from config.log_config import LOGGING_CONFIG
 
 # Module under test

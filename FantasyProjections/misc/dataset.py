@@ -173,15 +173,15 @@ class StatsDataset(torch.utils.data.Dataset):
         # Check that data labels match each other
         if self.x_data_columns != other.x_data_columns:
             msg = f"x data labels do not match for DataFrames {self.name} and {other.name}"
-            logging.error(f"Error: {msg}")
+            logger.error(f"Error: {msg}")
             raise NameError(msg)
         if self.y_data_columns != other.y_data_columns:
             msg = f"y data labels do not match for DataFrames {self.name} and {other.name}"
-            logging.error(f"Error: {msg}")
+            logger.error(f"Error: {msg}")
             raise NameError(msg)
         if self.id_data.columns.to_list() != other.id_data.columns.to_list():
             msg = f"ID data labels do not match for DataFrames {self.name} and {other.name}"
-            logging.error(f"Error: {msg}")
+            logger.error(f"Error: {msg}")
             raise NameError(msg)
 
         # Concatenate data structures

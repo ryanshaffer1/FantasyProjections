@@ -9,4 +9,4 @@ sleeper-api-wrapper==1.1.0
 austin-dist==3.7.0
 ruff
 pytest
-coverage
+pytest-cov

@@ -5,6 +5,7 @@ import unittest
 import numpy as np
 import pandas as pd
 import pandas.testing as pdtest
+
 from config.log_config import LOGGING_CONFIG
 from misc.dataset import StatsDataset
 from misc.stat_utils import stats_to_fantasy_points

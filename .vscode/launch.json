@@ -11,7 +11,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/FantasyProjections/main.py",
             "console": "integratedTerminal",
-            "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"}
+            "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"},
+            "args": [
+                "inputs/barebones_input.yaml"
+            ]
         },
         {
             "name": "build_dataset.py: Python Debug",
