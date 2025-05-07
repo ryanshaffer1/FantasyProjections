@@ -81,13 +81,16 @@ class SeasonalDataCollector:
         self.team_names = clean_team_names(team_names, self.year)
 
         # Collect input data
-        self.pbp_df, self.raw_rosters_df, *_ = collect_input_dfs(
+        dfs_dict = collect_input_dfs(
             self.year,
             self.weeks,
             data_files_config.local_file_paths,
             data_files_config.online_file_paths,
             online_avail=True,
         )
+        self.pbp_df = dfs_dict.pop("pbp")
+        self.raw_rosters_df = dfs_dict.pop("roster")
+        self.optional_dfs = dfs_dict
 
         # Gather team roster for all teams, all weeks of input year
         self.all_rosters_df = self.process_rosters(filter_df)

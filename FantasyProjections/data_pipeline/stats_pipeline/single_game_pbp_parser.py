@@ -175,7 +175,9 @@ class SingleGamePbpParser(SingleGameDataWorker):
             player_stats_df[col] = player_stats_df[col].cumsum()
 
         # Add player identifying info
-        player_stats_df.loc[:, ["Player Name", "Position", "Age"]] = player_info[["Player Name", "Position", "Age"]].to_list()
+        player_stats_df.loc[:, ["Player Name", "Position", "Age", "injury_status"]] = player_info[
+            ["Player Name", "Position", "Age", "injury_status"]
+        ].to_list()
         for id_type in PLAYER_IDS:
             player_stats_df[id_type] = player_info[id_type]
 

@@ -70,6 +70,7 @@ def preprocess_nn_data(midgame_input, final_stats_input, save_folder=None, save_
         "Possession",
         "Field Position",
         *stats_config.default_stat_list,
+        "injury_status",
         "Age",
         "Site",
         "Team Wins",
