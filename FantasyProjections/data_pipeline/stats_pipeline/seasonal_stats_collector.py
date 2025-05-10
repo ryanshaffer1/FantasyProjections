@@ -52,7 +52,7 @@ class SeasonalStatsCollector(SeasonalDataCollector):
 
     """  # fmt: skip
 
-    def __init__(self, year, team_names="all", weeks=None, **kwargs):
+    def __init__(self, year, features, team_names="all", weeks=None, **kwargs):
         """Constructor for SeasonalDataCollector class.
 
             Args:
@@ -78,13 +78,16 @@ class SeasonalStatsCollector(SeasonalDataCollector):
         """  # fmt: skip
 
         # Initialize SeasonalDataCollector
-        super().__init__(year=year, team_names=team_names, weeks=weeks, **kwargs)
+        super().__init__(year=year, features=features, team_names=team_names, weeks=weeks, **kwargs)
 
         # Optional keyword arguments
         game_times = kwargs.get("game_times", "all")
+        self.filter_df = kwargs.get("filter_df")
 
         # Add optional data to roster_df
-        self.process_injuries(self.optional_dfs.get("injuries"))
+        for feature in self.features:
+            feature_df = feature.process_weekly_updates(self)
+            self.all_rosters_df = pd.concat([self.all_rosters_df, feature_df], axis=1)
 
         # Process team records, game sites, and other game info for every game of the year, for every team
         self.all_game_info_df = self.get_game_info()
@@ -127,6 +130,10 @@ class SeasonalStatsCollector(SeasonalDataCollector):
         for i, game_id in enumerate(game_ids):
             logger.info(f"({i + 1} of {n_games}): {game_id}")
             # Process data/stats for single game
+
+            for feature in self.features:
+                feature.process_midgame_updates()
+
             game = SingleGamePbpParser(self, game_id, game_times=game_times)
             # Add to list of games
             games.append(game)
@@ -216,35 +223,3 @@ class SeasonalStatsCollector(SeasonalDataCollector):
         )
 
         return all_game_info_df
-
-    def process_injuries(self, injury_df):
-        """Adds injury data to the all_rosters_df attribute.
-
-            Args:
-                injury_df (pandas.DataFrame): Contains weekly injury report for all NFL players.
-
-            Attributes Modified:
-                self.all_rosters_df: Roster dataframe with injury data added.
-
-        """  # fmt: skip
-
-        # Handle no injury data collected
-        if injury_df is None:
-            return
-
-        # Clean up injury data
-        injury_df = injury_df.drop_duplicates(subset=["gsis_id", "week"])
-
-        # Quantified injury status
-        injury_scale = {"Out": 0, "Doubtful": 0.25, "Questionable": 0.5, "Probable": 0.75, "Active": 1}
-
-        # Collect a list of injury status by week/player in all_rosters_df
-        injury_status = self.all_rosters_df.merge(
-            injury_df,
-            left_on=["gsis_id", "Week"],
-            right_on=["gsis_id", "week"],
-            how="left",
-        )["report_status"]
-
-        # Map injury status to numerical value
-        self.all_rosters_df["injury_status"] = list(injury_status.map(injury_scale).fillna(injury_scale["Active"]))

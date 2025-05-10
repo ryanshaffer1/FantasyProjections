@@ -18,12 +18,10 @@ ONLINE_URL_NFLVERSE = "https://github.com/nflverse/nflverse-data/releases/downlo
 online_file_paths = {
     "pbp": ONLINE_URL_NFLVERSE + "pbp/play_by_play_{0}.csv",
     "roster": ONLINE_URL_NFLVERSE + "weekly_rosters/roster_weekly_{0}.csv",
-    "injuries": ONLINE_URL_NFLVERSE + "injuries/injuries_{0}.csv",
 }
 local_file_paths = {
     "pbp": INPUT_FOLDER + "play_by_play/play_by_play_{0}.csv",
     "roster": INPUT_FOLDER + "rosters/roster_weekly_{0}.csv",
-    "injuries": INPUT_FOLDER + "injuries/injuries_{0}.csv",
 }
 # Neural Net processed stats files
 NN_STAT_FILES = {"midgame": "midgame_data_to_nn.csv", "final": "final_stats_to_nn.csv", "id": "data_ids.csv"}

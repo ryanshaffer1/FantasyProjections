@@ -17,7 +17,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from config import data_files_config
+from config.data_files_config import INPUT_FOLDER, ONLINE_URL_NFLVERSE
 from config.log_config import LOGGING_CONFIG
+from data_pipeline.features import InjuryFeatureSet
 from data_pipeline.stats_pipeline.preprocess_nn_data import preprocess_nn_data
 from data_pipeline.stats_pipeline.roster_filter import apply_roster_filter, generate_roster_filter
 from data_pipeline.stats_pipeline.seasonal_stats_collector import SeasonalStatsCollector
@@ -73,18 +75,36 @@ urls_df = pd.DataFrame()
 filter_df, filter_load_success = collect_roster_filter(FILTER_ROSTER, UPDATE_FILTER, ROSTER_FILTER_FILE)
 logger.info(f"Filter Load Success: {filter_load_success}; Filter file: {ROSTER_FILTER_FILE}")
 
+# Create FeatureSet objects
+features = [
+    InjuryFeatureSet(
+        "injuries",
+        sources={
+            "online": ONLINE_URL_NFLVERSE + "injuries/injuries_{0}.csv",
+            "local": INPUT_FOLDER + "injuries/injuries_{0}.csv",
+        },
+        thresholds={
+            "injury_status": [0, 1],
+        },
+    ),
+]
 
 # Process NFL data one year at a time
 for year in YEARS:
     logger.info(f"--------------- {year} ---------------")
+
     # Create SeasonalData object, which automatically processes all data for that year
     seasonal_data = SeasonalStatsCollector(
         year=year,
+        features=features,
         team_names=TEAM_NAMES,
         weeks=WEEKS,
         game_times=GAME_TIMES,
         filter_df=filter_df,
     )
+
+    # Clear data out of feature objects
+
     # Concatenate results from current year to remaining years
     midgame_df = pd.concat((midgame_df, seasonal_data.midgame_df))
     final_stats_df = pd.concat((final_stats_df, seasonal_data.final_stats_df))
@@ -120,7 +140,12 @@ if VALIDATE_PARSING:
 # Generate/save data in a format readable into the Neural Net
 if PROCESS_TO_NN:
     logger.info("Pre-processing data for use in Neural Net.")
-    preprocess_nn_data(midgame_input=midgame_df, final_stats_input=final_stats_df, save_folder=PRE_PROCESS_FOLDER)
+    preprocess_nn_data(
+        midgame_input=midgame_df,
+        final_stats_input=final_stats_df,
+        features=features,
+        save_folder=PRE_PROCESS_FOLDER,
+    )
 
 # Finish up
 logger.info(f"Program complete. Elapsed Time: {(datetime.now().astimezone() - start_time).total_seconds()} seconds")

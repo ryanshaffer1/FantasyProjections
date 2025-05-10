@@ -17,7 +17,7 @@ from misc.stat_utils import normalize_stat
 logger = logging.getLogger("log")
 
 
-def preprocess_nn_data(midgame_input, final_stats_input, save_folder=None, save_filenames=None):
+def preprocess_nn_data(midgame_input, final_stats_input, features, save_folder=None, save_filenames=None):
     """Converts NFL stats data from raw statistics to a Neural Network-readable format.
 
         Main steps:
@@ -70,7 +70,7 @@ def preprocess_nn_data(midgame_input, final_stats_input, save_folder=None, save_
         "Possession",
         "Field Position",
         *stats_config.default_stat_list,
-        "injury_status",
+        *[col for feature in features for col in feature.columns],
         "Age",
         "Site",
         "Team Wins",
@@ -102,6 +102,8 @@ def preprocess_nn_data(midgame_input, final_stats_input, save_folder=None, save_
     # Strip out non-numeric columns, and normalize numeric columns to between 0 and 1
     midgame_input = midgame_input[midgame_numeric_columns]
     midgame_input = normalize_stat(midgame_input)
+    for feature in features:
+        midgame_input = normalize_stat(midgame_input, feature.thresholds)
     final_stats_input = final_stats_input[final_stats_numeric_columns]
     final_stats_input = normalize_stat(final_stats_input)
 

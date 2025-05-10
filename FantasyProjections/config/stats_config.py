@@ -46,7 +46,6 @@ default_norm_thresholds = {
     "Rec TD": [0, 8],
     "Fmb": [0, 8],
     "Age": [0, 60],
-    "injury_status": [0, 1],
     "Site": [0, 1],
     "Team Wins": [0, 18],
     "Team Losses": [0, 18],

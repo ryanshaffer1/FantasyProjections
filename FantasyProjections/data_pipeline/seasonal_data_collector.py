@@ -49,7 +49,7 @@ class SeasonalDataCollector:
 
     """  # fmt: skip
 
-    def __init__(self, year, team_names="all", weeks=None, **kwargs):
+    def __init__(self, year, features, team_names="all", weeks=None, **kwargs):
         """Constructor for SeasonalDataCollector class.
 
             Args:
@@ -79,6 +79,7 @@ class SeasonalDataCollector:
         self.year = year
         self.weeks = weeks
         self.team_names = clean_team_names(team_names, self.year)
+        self.features = features
 
         # Collect input data
         dfs_dict = collect_input_dfs(
@@ -90,7 +91,10 @@ class SeasonalDataCollector:
         )
         self.pbp_df = dfs_dict.pop("pbp")
         self.raw_rosters_df = dfs_dict.pop("roster")
-        self.optional_dfs = dfs_dict
+
+        # Collect input data for all seasonal features
+        for feature in self.features:
+            feature.collect_data(year, weeks)
 
         # Gather team roster for all teams, all weeks of input year
         self.all_rosters_df = self.process_rosters(filter_df)

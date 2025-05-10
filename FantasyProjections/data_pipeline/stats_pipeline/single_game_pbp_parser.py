@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from config import stats_config
-from config.player_id_config import PLAYER_IDS, PRIMARY_PLAYER_ID
+from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.single_game_data_worker import SingleGameDataWorker
 from data_pipeline.utils.data_helper_functions import subsample_game_time
 from misc.stat_utils import stats_to_fantasy_points
@@ -175,11 +175,7 @@ class SingleGamePbpParser(SingleGameDataWorker):
             player_stats_df[col] = player_stats_df[col].cumsum()
 
         # Add player identifying info
-        player_stats_df.loc[:, ["Player Name", "Position", "Age", "injury_status"]] = player_info[
-            ["Player Name", "Position", "Age", "injury_status"]
-        ].to_list()
-        for id_type in PLAYER_IDS:
-            player_stats_df[id_type] = player_info[id_type]
+        player_stats_df.loc[:, player_info.index.tolist()] = player_info.to_list()
 
         # Trim to just the game times of interest
         player_stats_df = subsample_game_time(player_stats_df, game_times)
