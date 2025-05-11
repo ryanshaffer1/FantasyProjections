@@ -79,9 +79,7 @@ def generate_roster_filter(rosters_df, final_stats_df, save_file=None, num_playe
     player_list_df = player_list_df.iloc[0:num_players]
 
     # Clean up df for saving
-    player_list_df = player_list_df[
-        [PRIMARY_PLAYER_ID, "full_name", "Fantasy Avg", "team", "position", "jersey_number", "draft_number"]
-    ]
+    player_list_df = player_list_df[[PRIMARY_PLAYER_ID, "full_name", "Fantasy Avg", "team", "position", "jersey_number"]]
     player_list_df = player_list_df.rename(
         columns={
             "team": "Team",
@@ -124,7 +122,7 @@ def apply_roster_filter(midgame_df, final_stats_df, filter_df):
     """  # fmt: skip
 
     filter_ids = filter_df["Player ID"].to_list()
-    midgame_df = midgame_df[midgame_df[PRIMARY_PLAYER_ID].apply(lambda x: x in filter_ids)]
+    midgame_df = midgame_df[midgame_df.index.to_frame()[PRIMARY_PLAYER_ID].apply(lambda x: x in filter_ids)]
     final_stats_df = final_stats_df[final_stats_df.apply(lambda x: x.name in filter_ids, axis=1)]
 
     return midgame_df, final_stats_df

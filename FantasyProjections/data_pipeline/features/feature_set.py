@@ -17,7 +17,7 @@ class FeatureSet:
             local_file_path = self.sources["local"]
             online_file_path = self.sources["online"]
         else:
-            # If one one source, format it into a dict
+            # If only one source, format it into a dict
             local_file_path = {self.name: self.sources["local"]}
             online_file_path = {self.name: self.sources["online"]}
         self.df_dict = collect_input_dfs(year, weeks, local_file_path, online_file_path, online_avail=True)

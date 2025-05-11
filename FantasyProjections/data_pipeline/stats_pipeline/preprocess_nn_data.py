@@ -65,20 +65,7 @@ def preprocess_nn_data(midgame_input, final_stats_input, features, save_folder=N
     id_columns = [*ids, "Player Name", "Year", "Week", "Team", "Opponent", "Position", "Elapsed Time"]
     midgame_numeric_columns = [
         "Elapsed Time",
-        "Team Score",
-        "Opp Score",
-        "Possession",
-        "Field Position",
-        *stats_config.default_stat_list,
         *[col for feature in features for col in feature.columns],
-        "Age",
-        "Site",
-        "Team Wins",
-        "Team Losses",
-        "Team Ties",
-        "Opp Wins",
-        "Opp Losses",
-        "Opp Ties",
     ]
     final_stats_numeric_columns = stats_config.default_stat_list
 
@@ -99,13 +86,15 @@ def preprocess_nn_data(midgame_input, final_stats_input, features, save_folder=N
     # Keep identifying info in a separate dataframe
     id_df = midgame_input[id_columns]
 
-    # Strip out non-numeric columns, and normalize numeric columns to between 0 and 1
+    # Strip out non-numeric columns
     midgame_input = midgame_input[midgame_numeric_columns]
-    midgame_input = normalize_stat(midgame_input)
+    final_stats_input = final_stats_input[final_stats_numeric_columns]
+
+    # Normalize numeric columns to between 0 and 1
+    midgame_input = normalize_stat(midgame_input, stats_config.baseline_data_thresholds)
     for feature in features:
         midgame_input = normalize_stat(midgame_input, feature.thresholds)
-    final_stats_input = final_stats_input[final_stats_numeric_columns]
-    final_stats_input = normalize_stat(final_stats_input)
+        final_stats_input = normalize_stat(final_stats_input, feature.thresholds)
 
     # One-Hot Encode each non-numeric, relevant pbp field (Player, Team, Position):
     fields = ["Position", "Player ID", "Team", "Opponent"]

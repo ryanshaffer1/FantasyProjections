@@ -26,6 +26,9 @@ default_stat_list = [
     "Fmb",
 ]
 
+baseline_data_thresholds = {
+    "Elapsed Time": [0, 60],
+}
 
 default_norm_thresholds = {
     "Elapsed Time": [0, 60],

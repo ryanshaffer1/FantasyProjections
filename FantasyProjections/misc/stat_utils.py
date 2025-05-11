@@ -39,7 +39,7 @@ def normalize_stat(data, thresholds=None):
 
     # Optional input
     if not thresholds:
-        thresholds = stats_config.default_norm_thresholds
+        thresholds = stats_config.baseline_data_thresholds
 
     # Normalize column-by-column, depending on type of input data
     match type(data):
@@ -260,8 +260,6 @@ def _normalize_series(col, thresholds):
         [lwr, upr] = thresholds[col.name]
         col = (col - lwr) / (upr - lwr)
         col = col.clip(0, 1)
-    else:
-        logger.warning(f"{col.name} not explicitly normalized")
 
     return col
 

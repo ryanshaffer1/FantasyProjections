@@ -10,6 +10,7 @@
 """  # fmt: skip
 
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -201,12 +202,16 @@ def subsample_game_time(player_stats_df, game_times):
 
     if not isinstance(game_times, str):
         player_stats_df["Rounded Time"] = player_stats_df.index.map(lambda x: game_times[abs(game_times - float(x)).argmin()])
-        player_stats_df = pd.concat(
-            (
-                player_stats_df.iloc[1:].drop_duplicates(subset="Rounded Time", keep="first"),
-                player_stats_df.iloc[-1].to_frame().T,
-            ),
-        )
+        # Suppress future warnings about concatenating empty/N/A dataframes
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            player_stats_df = pd.concat(
+                (
+                    player_stats_df.iloc[1:].drop_duplicates(subset="Rounded Time", keep="first"),
+                    player_stats_df.iloc[-1].to_frame().T,
+                ),
+            )
+
         player_stats_df = (
             player_stats_df.reset_index(drop=True).rename(columns={"Rounded Time": "Elapsed Time"}).set_index("Elapsed Time")
         )
