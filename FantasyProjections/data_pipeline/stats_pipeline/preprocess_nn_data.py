@@ -9,7 +9,7 @@ import logging
 import pandas as pd
 
 from config import data_files_config, stats_config
-from config.player_id_config import ALT_PLAYER_IDS, PRIMARY_PLAYER_ID
+from config.player_id_config import PRIMARY_PLAYER_ID
 from misc.manage_files import create_folders
 from misc.stat_utils import normalize_stat
 
@@ -17,7 +17,7 @@ from misc.stat_utils import normalize_stat
 logger = logging.getLogger("log")
 
 
-def preprocess_nn_data(midgame_input, final_stats_input, features, save_folder=None, save_filenames=None):
+def preprocess_nn_data(midgame_input, final_stats_input, feature_sets, save_folder=None, save_filenames=None):
     """Converts NFL stats data from raw statistics to a Neural Network-readable format.
 
         Main steps:
@@ -57,21 +57,10 @@ def preprocess_nn_data(midgame_input, final_stats_input, features, save_folder=N
     with pd.option_context("future.no_silent_downcasting", True):
         midgame_input = midgame_input.fillna(0)  # Fill in blank spaces
         final_stats_input = final_stats_input.fillna(0)  # Fill in blank spaces
-    midgame_input["Site"] = pd.to_numeric(midgame_input["Site"] == "Home")  # Convert Site to 1/0
-    midgame_input["Possession"] = pd.to_numeric(midgame_input["Possession"])  # Convert Possession to 1/0
 
-    # Only keep numeric data (non-numeric columns will be stripped out later in pre-processing)
-    ids = ["Player ID", *ALT_PLAYER_IDS]
-    id_columns = [*ids, "Player Name", "Year", "Week", "Team", "Opponent", "Position", "Elapsed Time"]
-    midgame_numeric_columns = [
-        "Elapsed Time",
-        *[col for feature in features for col in feature.columns],
-    ]
-    final_stats_numeric_columns = stats_config.default_stat_list
-
-    # Sort by year/week/team/player
+    # Sort by year/week/player/time
     midgame_input = midgame_input.sort_values(
-        by=["Year", "Week", "Team", "Player ID"],
+        by=["Year", "Week", "Player ID", "Elapsed Time"],
         ascending=[True, True, True, True],
     )
 
@@ -83,22 +72,37 @@ def preprocess_nn_data(midgame_input, final_stats_input, features, save_folder=N
         .reset_index()
     )
 
-    # Keep identifying info in a separate dataframe
-    id_df = midgame_input[id_columns]
+    # Break out the columns we want to keep for each dataframe
+    id_columns = [
+        *stats_config.baseline_data_outputs["id"],
+        *[feat.name for feat_set in feature_sets for feat in feat_set.features if "id" in feat.outputs],
+    ]
+    midgame_columns = [
+        *stats_config.baseline_data_outputs["midgame"],
+        *[feat.name for feat_set in feature_sets for feat in feat_set.features if "midgame" in feat.outputs],
+    ]
+    final_stats_columns = [
+        *stats_config.baseline_data_outputs["final"],
+        *[feat.name for feat_set in feature_sets for feat in feat_set.features if "final" in feat.outputs],
+    ]
 
-    # Strip out non-numeric columns
-    midgame_input = midgame_input[midgame_numeric_columns]
-    final_stats_input = final_stats_input[final_stats_numeric_columns]
+    # Trim each output to only the columns of interest
+    id_df = midgame_input[id_columns]
+    midgame_input = midgame_input[midgame_columns]
+    final_stats_input = final_stats_input[final_stats_columns]
 
     # Normalize numeric columns to between 0 and 1
     midgame_input = normalize_stat(midgame_input, stats_config.baseline_data_thresholds)
-    for feature in features:
-        midgame_input = normalize_stat(midgame_input, feature.thresholds)
-        final_stats_input = normalize_stat(final_stats_input, feature.thresholds)
+    for feature_set in feature_sets:
+        midgame_input = normalize_stat(midgame_input, feature_set.thresholds)
+        final_stats_input = normalize_stat(final_stats_input, feature_set.thresholds)
 
     # One-Hot Encode each non-numeric, relevant pbp field (Player, Team, Position):
-    fields = ["Position", "Player ID", "Team", "Opponent"]
-    encoded_fields_df = pd.get_dummies(id_df[fields], columns=fields, dtype=int)
+    fields_to_encode = [
+        *stats_config.baseline_one_hot_columns,
+        *[feat.name for feat_set in feature_sets for feat in feat_set.features if feat.one_hot_encode],
+    ]
+    encoded_fields_df = pd.get_dummies(id_df[fields_to_encode], columns=fields_to_encode, dtype=int)
     midgame_input = pd.concat((midgame_input, encoded_fields_df), axis=1)
     logger.info("Data pre-processed for projections")
 

@@ -61,7 +61,7 @@ class SingleGameDataWorker:
         self.game_id = game_id
         self.year = seasonal_data.year
         self.week = int(self.game_id.split("_")[1])
-        self.features = seasonal_data.features
+        self.feature_sets = seasonal_data.feature_sets
 
         # Game info
         self.game_info = seasonal_data.all_game_info_df.loc[game_id]
@@ -85,7 +85,7 @@ class SingleGameDataWorker:
         self.midgame_df = self.build_baseline_df()
 
         # Add feature data to the dataframe
-        for feature in self.features:
+        for feature in self.feature_sets:
             feature_df = feature.process_data(self)
             self.midgame_df = pd.concat([self.midgame_df, feature_df], axis=1)
 

@@ -23,20 +23,20 @@ from data_pipeline.seasonal_data_collector import SeasonalDataCollector
 from data_pipeline.stats_pipeline.preprocess_nn_data import preprocess_nn_data
 from data_pipeline.stats_pipeline.roster_filter import apply_roster_filter, generate_roster_filter
 from data_pipeline.stats_pipeline.validate_parsed_data import validate_parsed_data
-from data_pipeline.utils.data_helper_functions import clean_stats_data
 from misc.manage_files import collect_roster_filter, create_folders, move_logfile
+from misc.stat_utils import save_features_config
 
 # Flags
 SAVE_DATA = True  # Saves data in .csv's (output files specified below)
 PROCESS_TO_NN = True  # After saving human-readable data, creates data formatted for Neural Network usage
-FILTER_ROSTER = True  # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
-UPDATE_FILTER = True  # Forces re-evaluation of filtered list of players
+FILTER_ROSTER = False  # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
+UPDATE_FILTER = False  # Forces re-evaluation of filtered list of players
 VALIDATE_PARSING = True  # Gathers true box scores from the internet to confirm logic in play-by-play parsing is correct
 SCRAPE_MISSING = False  # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
 # Data Inputs
 TEAM_NAMES = "all"  # All team names
 YEARS = range(2023, 2024)  # All years to process data for
-WEEKS = range(1, 7)  # All weeks to process data for (applies this set to all years in YEARS)
+WEEKS = range(1, 3)  # All weeks to process data for (applies this set to all years in YEARS)
 GAME_TIMES = range(76)  # range(0,76). Alternates: 'all', list of numbers
 
 
@@ -75,7 +75,10 @@ filter_df, filter_load_success = collect_roster_filter(FILTER_ROSTER, UPDATE_FIL
 logger.info(f"Filter Load Success: {filter_load_success}; Filter file: {ROSTER_FILTER_FILE}")
 
 # Create FeatureSet objects
-features = features_test.features
+feature_sets = features_test.features
+
+# Save StatsFeatures
+save_features_config(feature_sets)
 
 # Process NFL data one year at a time
 for year in YEARS:
@@ -84,7 +87,7 @@ for year in YEARS:
     # Create SeasonalData object, which automatically processes all data for that year
     seasonal_data = SeasonalDataCollector(
         year=year,
-        features=features,
+        feature_sets=feature_sets,
         team_names=TEAM_NAMES,
         weeks=WEEKS,
         game_times=GAME_TIMES,
@@ -109,9 +112,6 @@ if FILTER_ROSTER and ((not filter_load_success) or UPDATE_FILTER):
     filter_df = generate_roster_filter(seasonal_data.raw_rosters_df, final_stats_df, ROSTER_SAVE_FILE)
     midgame_df, final_stats_df = apply_roster_filter(midgame_df, final_stats_df, filter_df)
 
-# Organize dataframes
-midgame_df, final_stats_df = clean_stats_data(midgame_df, final_stats_df)
-
 # Save raw data
 if SAVE_DATA:
     create_folders(data_files_config.OUTPUT_FOLDER)
@@ -123,7 +123,8 @@ if SAVE_DATA:
 # Optionally validate that parsed statlines match statlines found on the internet
 if VALIDATE_PARSING:
     logger.info("Validating Parsed Data.")
-    validate_parsed_data(final_stats_df, urls_df, scrape=SCRAPE_MISSING, save_data=SAVE_DATA)
+    validated_features = [feat.name for feat_set in feature_sets for feat in feat_set.features if feat.validate]
+    validate_parsed_data(final_stats_df, urls_df, validated_features, scrape=SCRAPE_MISSING, save_data=SAVE_DATA)
 
 # Generate/save data in a format readable into the Neural Net
 if PROCESS_TO_NN:
@@ -131,7 +132,7 @@ if PROCESS_TO_NN:
     preprocess_nn_data(
         midgame_input=midgame_df,
         final_stats_input=final_stats_df,
-        features=features,
+        feature_sets=feature_sets,
         save_folder=PRE_PROCESS_FOLDER,
     )
 

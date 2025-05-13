@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-from config import stats_config
+from config import data_files_config
 from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.odds_pipeline.odds_api_helper_functions import BOOKMAKER, DATE_FMT, SPORT_KEY, log_api_usage
 from data_pipeline.single_game_data_worker import SingleGameDataWorker
@@ -166,7 +166,8 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
                     columns={"description": "Player Name", "name": "Line"},
                 )
                 # Add Player Prop Stat and UTC time from market data
-                single_market_odds_df["Player Prop Stat"] = team_abbrs.invert(stats_config.labels_df_to_odds)[market["key"]]
+                labels_df_to_odds = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["odds"].dropna().to_dict()
+                single_market_odds_df["Player Prop Stat"] = team_abbrs.invert(labels_df_to_odds)[market["key"]]
                 single_market_odds_df["UTC Time"] = market["last_update"]
                 # Format dataframe for output
                 single_market_odds_df = self.reformat_odds_df(single_market_odds_df)
@@ -233,10 +234,11 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
         if odds_df is None:
             odds_df = pd.DataFrame()
         if player_props is None:
-            player_props = stats_config.default_stat_list
+            msg = "No player props provided."
+            raise ValueError(msg)
 
         # Set default list of stats to include (formatted correctly for The Odds)
-        stat_names_dict = stats_config.labels_df_to_odds
+        stat_names_dict = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["odds"].dropna().to_dict()
         self.markets = [stat_names_dict[stat] for stat in list(set(player_props) & set(stat_names_dict))]
 
         # Remove any markets already in odds_df (assumes no updates are needed to that data)

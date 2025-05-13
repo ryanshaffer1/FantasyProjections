@@ -27,6 +27,8 @@ local_file_paths = {
 NN_STAT_FILES = {"midgame": "midgame_data_to_nn.csv", "final": "final_stats_to_nn.csv", "id": "data_ids.csv"}
 
 # Miscellaneous:
+# Feature config file
+FEATURE_CONFIG_FILE = MISC_FOLDER + "stats_config.csv"
 # Pro-Football-Reference.com URL intros
 PFR_BOXSCORE_URL_INTRO = "https://www.pro-football-reference.com/boxscores/"
 PFR_PLAYER_URL_INTRO = "https://www.pro-football-reference.com/players/"

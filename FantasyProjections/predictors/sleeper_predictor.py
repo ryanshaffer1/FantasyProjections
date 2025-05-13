@@ -16,7 +16,7 @@ import pandas as pd
 import torch
 from sleeper_wrapper import Players, Stats
 
-from config import data_files_config, stats_config
+from config import data_files_config
 from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.utils.name_matching import find_matching_name_ind
 from misc.stat_utils import stats_to_fantasy_points
@@ -226,9 +226,11 @@ class SleeperPredictor(FantasyPredictor):
         # Re-names stats from Sleeper's format to the common names used across this project
         # and lists into the common stat line format.
 
+        labels_df_to_sleeper = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["sleeper"].dropna().to_dict()
+
         stat_line = []
         for stat in stat_columns:
-            stat_value = stat_dict.get(stats_config.labels_df_to_sleeper[stat], 0)
+            stat_value = stat_dict.get(labels_df_to_sleeper[stat], 0)
             stat_line.append(stat_value)
 
         return stat_line

@@ -6,7 +6,6 @@
 
 import pandas as pd
 
-from config import stats_config
 from misc.stat_utils import gen_random_games, stats_to_fantasy_points
 
 from .result_plots import gen_scatterplots, plot_error_histogram, plot_game_timeline
@@ -165,13 +164,6 @@ class PredictionResult:
 
         # Extract any necessary keyword argument values
         kwargs["normalized"] = kwargs.get("normalized", True)  # Note this defaults to True instead of the standard False
-        norm_thresholds = kwargs.get("norm_thresholds", stats_config.default_norm_thresholds)
-
-        # Remove any columns that do not need to be unnormalized
-        if kwargs["normalized"]:
-            set_normalizable_columns = frozenset(norm_thresholds)
-            columns = [x for x in pbp_df.columns if x in set_normalizable_columns]
-            pbp_df = pbp_df[columns]
 
         # Compute Fantasy Points
         pbp_df = stats_to_fantasy_points(pbp_df, **kwargs)

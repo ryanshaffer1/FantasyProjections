@@ -1,14 +1,13 @@
 import pandas as pd
 
-from config import stats_config
 from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.features.feature_set import FeatureSet
 from data_pipeline.utils.data_helper_functions import subsample_game_time
 
 
 class BasicFeatureSet(FeatureSet):
-    def __init__(self, name, sources, thresholds):
-        super().__init__(name, sources, thresholds)
+    def __init__(self, features, sources):
+        super().__init__(features, sources)
         self.pbp_df = None
         self.raw_rosters_df = None
 
@@ -40,6 +39,10 @@ class BasicFeatureSet(FeatureSet):
             .loc[stats_df["Opponent"]][["Team Wins", "Team Losses", "Team Ties"]]
             .to_numpy()
         )
+
+        # Convert site and possession to 1/0
+        stats_df["Site"] = pd.to_numeric(stats_df["Site"] == "Home")
+        stats_df["Possession"] = pd.to_numeric(stats_df["Possession"])
 
         # Set common index
         stats_df[["Year", "Week"]] = [game_data_worker.year, game_data_worker.week]
@@ -89,9 +92,7 @@ class BasicFeatureSet(FeatureSet):
         )
 
         # Clean up the player dataframe
-        player_stats_df = player_stats_df[
-            ["Team Score", "Opp Score", "Possession", "Field Position", *stats_config.default_stat_list]
-        ]
+        player_stats_df = player_stats_df.drop(columns=["temp"])
 
         # Perform cumulative sum on all columns besides the list below
         for col in set(player_stats_df.columns) ^ {"Team Score", "Opp Score", "Possession", "Field Position"}:

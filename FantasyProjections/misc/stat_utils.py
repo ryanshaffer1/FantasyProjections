@@ -13,7 +13,8 @@ import logging
 import numpy as np
 import pandas as pd
 
-from config import stats_config
+from config import data_files_config
+from data_pipeline.features.feature import Feature
 
 # Set up logger
 logger = logging.getLogger("log")
@@ -30,7 +31,7 @@ def normalize_stat(data, thresholds=None):
                 If Series: corresponds to a single football stat, with Series name matching a key in the dictionary "thresholds".
                 If DataFrame: corresponds to multiple football stats, with column names all matching a key in the dictionary "thresholds".
             thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
-                lie between 0 and 1. Defaults to dictionary "default_norm_thresholds" defined in configuration files.
+                lie between 0 and 1. Defaults to dictionary "baseline_data_thresholds" defined in configuration files.
 
         Returns:
             pandas.Series: Series of normalized data where each entry in col is mapped between 0 and 1 according to the bounds in thresholds
@@ -39,7 +40,11 @@ def normalize_stat(data, thresholds=None):
 
     # Optional input
     if not thresholds:
-        thresholds = stats_config.baseline_data_thresholds
+        stats_config = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)
+        thresholds = stats_config[["threshold_low", "threshold_high"]].dropna().T.to_dict(orient="list")
+
+    # Remove empty or improperly formatted thresholds
+    thresholds = {k: v for k, v in thresholds.items() if len(v) == 2}  # noqa: PLR2004
 
     # Normalize column-by-column, depending on type of input data
     match type(data):
@@ -65,7 +70,7 @@ def unnormalize_stat(data, thresholds=None):
                 If Series: corresponds to a single normalized football stat, with Series name matching a key in the dictionary "thresholds".
                 If DataFrame: corresponds to multiple normalized football stats, with column names all matching a key in the dictionary "thresholds".
             thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
-                lie between 0 and 1. Defaults to dictionary "default_norm_thresholds" defined in configuration files.
+                lie between 0 and 1. Defaults to dictionary "baseline_data_thresholds" defined in configuration files.
 
         Returns:
             pandas.Series: Series of unnormalized data where each entry in col is scaled up according to the bounds in thresholds
@@ -74,7 +79,11 @@ def unnormalize_stat(data, thresholds=None):
 
     # Optional input
     if not thresholds:
-        thresholds = stats_config.default_norm_thresholds
+        stats_config = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)
+        thresholds = stats_config[["threshold_low", "threshold_high"]].dropna().T.to_dict(orient="list")
+
+    # Remove empty or improperly formatted thresholds
+    thresholds = {k: v for k, v in thresholds.items() if len(v) == 2}  # noqa: PLR2004
 
     # Un-normalize column-by-column, depending on type of input data
     match type(data):
@@ -92,6 +101,23 @@ def unnormalize_stat(data, thresholds=None):
     return data
 
 
+def save_features_config(feature_sets):
+    # Extract all StatFeature objects from feature_sets
+    stat_feature_objects = [feat for feat_set in feature_sets for feat in feat_set.features if isinstance(feat, Feature)]
+    # Convert relevant data from StatFeature into a DataFrame
+    stat_feature_df = pd.DataFrame(stat_feature_objects)[["name", "thresholds", "scoring_weight", "site_labels"]]
+    stat_feature_df[["threshold_low", "threshold_high"]] = pd.DataFrame(
+        stat_feature_df["thresholds"].tolist(),
+        index=stat_feature_df.index,
+    )
+    stat_feature_df = pd.concat((stat_feature_df, pd.json_normalize(stat_feature_df["site_labels"])), axis=1)
+    stat_feature_df = stat_feature_df.drop(columns=["thresholds", "site_labels"])
+    stat_feature_df = stat_feature_df.set_index("name")
+
+    # Save to csv file
+    stat_feature_df.to_csv(data_files_config.FEATURE_CONFIG_FILE)
+
+
 def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm_thresholds=None, scoring_weights=None):
     """Calculates Fantasy Points corresponding to an input stat line, based on fantasy scoring rules.
 
@@ -100,14 +126,14 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm
                 If 1D data array, each entry is assumed to correspond to a different statistic (e.g. Pass Yds, Pass TD, etc.).
                 If 2D data array, each column is assumed to correspond to a different statistic.
                 Data may be normalized or un-normalized, with input "normalized" set accordingly.
-            stat_indices (str | list, optional): For data without column headers or row indices, used to determine the
-                order of statistics contained in stat_line. Defaults to None. May be passed as string "default" in order to use default_stat_list.
+            stat_indices (list, optional): For data without column headers or row indices, used to determine the order of statistics contained
+                in stat_line. Defaults to None.
             normalized (bool, optional): Whether stats in stat_line are already normalized (converted such that all values are between 0 and 1)
                 or un-normalized (in standard football stat ranges). Defaults to False.
             norm_thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
-                lie between 0 and 1. Defaults to dictionary "default_norm_thresholds" defined in configuration files.
+                lie between 0 and 1. Defaults to values saved in stats configuration file.
             scoring_weights (dict, optional): Fantasy points per unit of each statistic (e.g. points per passing yard, points per reception, etc.)
-                Defaults to default_scoring_weights.
+                Defaults to values saved in stats configuration file.
 
         Returns:
             pandas.DataFrame: stat_line, un-normalized and with column headers corresponding to stat indices, with an additional entry for
@@ -116,14 +142,19 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm
     """  # fmt: skip
 
     # Optional inputs
-    if not norm_thresholds:
-        norm_thresholds = stats_config.default_norm_thresholds
-    if not scoring_weights:
-        # Scoring rules in fantasy format
-        scoring_weights = stats_config.default_scoring_weights
+    if not norm_thresholds or not scoring_weights:
+        stats_config = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)
+        if not norm_thresholds:
+            # Normalization thresholds used for each stat
+            norm_thresholds = stats_config[["threshold_low", "threshold_high"]].dropna().T.to_dict(orient="list")
+        if not scoring_weights:
+            # Scoring rules in fantasy format
+            scoring_weights = stats_config["scoring_weight"].dropna().to_dict()
 
-    if stat_indices == "default":
-        stat_indices = stats_config.default_stat_list
+    # Throw error for missing stats indices for data types that need it
+    if stat_indices is None and not isinstance(stat_line, (pd.Series, pd.DataFrame)):
+        msg = "stat_indices must be provided for data types that do not have column headers or row indices."
+        raise ValueError(msg)
 
     # Convert stat line to data frame if need be
     if isinstance(stat_line, pd.Series):

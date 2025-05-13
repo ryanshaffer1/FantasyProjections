@@ -1,7 +1,6 @@
 """Creates and exports helper functions commonly used when gathering Fantasy Projections data.
 
     Functions:
-        clean_stats_data : Performs final cleanup of gathered NFL stats data, including trimming unnecessary columns and setting/sorting indices.
         clean_team_names : Modifies list of team names to process data for. Primarily used to generate a list of team names to replace the "all" placeholder.
         compute_team_record : Computes the record (wins, losses, and ties) of a team GOING INTO each game (i.e. not including the result of the current game).
         construct_game_id : Generates Game ID as used by nfl-verse from a set of game information.
@@ -15,8 +14,6 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from config import stats_config
-from config.player_id_config import ALT_PLAYER_IDS, PRIMARY_PLAYER_ID
 from data_pipeline.utils import team_abbreviations as team_abbrs
 
 # Set up logger
@@ -56,36 +53,6 @@ def calc_game_time_elapsed(data):
     time_elapsed = round((qtr - 1) * 15 + 15 - time_rem_in_qtr, 2)
 
     return time_elapsed
-
-
-def clean_stats_data(midgame_df, final_stats_df, list_of_stats="default"):
-    """Performs final cleanup of gathered NFL stats data, including trimming unnecessary columns and setting/sorting indices.
-
-        Args:
-            midgame_df (pandas.DataFrame): Stats accrued over the course of an NFL game for a set of players/games.
-            final_stats_df (pandas.DataFrame): Stats at the end of an NFL game for a set of players/games.
-            list_of_stats (list | str, optional): List of statistics to include in final stats data. Defaults to 'default'.
-
-        Returns:
-            pandas.DataFrame: midgame stats DataFrame, cleaned.
-            pandas.DataFrame: final stats DataFrame, cleaned.
-
-    """  # fmt: skip
-
-    # Default stat list
-    if list_of_stats == "default":
-        list_of_stats = stats_config.default_stat_list
-
-    # Organize dfs
-    midgame_df = midgame_df.reset_index().set_index(
-        [PRIMARY_PLAYER_ID, "Year", "Week", "Elapsed Time"],
-    )
-    final_stats_df = final_stats_df.reset_index().set_index([PRIMARY_PLAYER_ID, "Year", "Week"]).sort_index()
-    final_stats_df = final_stats_df[
-        ["Player Name", "Team", "Opponent", "Position", "Age", "Site", *ALT_PLAYER_IDS, *list_of_stats]
-    ]
-
-    return midgame_df, final_stats_df
 
 
 def clean_team_names(team_names, year=None):
@@ -177,8 +144,8 @@ def construct_game_id(data):
         home_team = data["Home Team"]
         away_team = data["Away Team"]
     except KeyError:
-        home_team = data["Team"] if data["Site"] == "Home" else data["Opponent"]
-        away_team = data["Team"] if data["Site"] == "Away" else data["Opponent"]
+        home_team = data["Team"] if (data["Site"] == "Home" or data["Site"] is True) else data["Opponent"]
+        away_team = data["Team"] if (data["Site"] == "Away" or data["Site"] is False) else data["Opponent"]
 
     # Construct and return game_id string
     game_id = f"{year}_{week}_{away_team}_{home_team}"

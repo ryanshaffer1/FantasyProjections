@@ -2,13 +2,13 @@ from data_pipeline.features.feature_set import FeatureSet
 
 
 class InjuryFeatureSet(FeatureSet):
-    def __init__(self, name, sources, thresholds):
-        super().__init__(name, sources, thresholds)
+    def __init__(self, features, sources):
+        super().__init__(features, sources)
         self.df = None
 
     def collect_data(self, year, weeks):
         super().collect_data(year, weeks)
-        self.df = self.df_dict[self.name]
+        self.df = next(iter(self.df_dict.values()))
 
         # Clean up injury data
         self.df = self.df.drop_duplicates(subset=["gsis_id", "week"], keep="last")
@@ -40,7 +40,7 @@ class InjuryFeatureSet(FeatureSet):
         )["report_status"]
 
         # Set common index and useful column name
-        injury_status = injury_status.rename("injury_status")
+        injury_status = injury_status.rename(self.features[0].name)
         injury_status.index = game_data_worker.midgame_df.index
 
         # Map injury status to numerical value

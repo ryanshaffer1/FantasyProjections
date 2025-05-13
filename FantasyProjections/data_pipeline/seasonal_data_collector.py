@@ -53,7 +53,7 @@ class SeasonalDataCollector:
 
     """  # fmt: skip
 
-    def __init__(self, year, features, team_names="all", weeks=None, **kwargs):
+    def __init__(self, year, feature_sets, team_names="all", weeks=None, **kwargs):
         """Constructor for SeasonalDataCollector class.
 
             Args:
@@ -84,7 +84,7 @@ class SeasonalDataCollector:
         self.year = year
         self.weeks = weeks
         self.team_names = clean_team_names(team_names, self.year)
-        self.features = features
+        self.feature_sets = feature_sets
 
         # Collect input data
         dfs_dict = collect_input_dfs(
@@ -104,8 +104,8 @@ class SeasonalDataCollector:
         self.all_game_info_df = self.get_game_info()
 
         # Collect input data for all seasonal features
-        for feature in self.features:
-            feature.collect_data(year, weeks)
+        for feature_set in self.feature_sets:
+            feature_set.collect_data(year, weeks)
 
         # List of SingleGameData objects
         self.games = self.generate_games(game_times)
@@ -125,7 +125,7 @@ class SeasonalDataCollector:
         final_stats_df = final_stats_df.reset_index().drop(columns=["Elapsed Time"])
 
         # Index on just Player ID
-        final_stats_df = final_stats_df.set_index(PRIMARY_PLAYER_ID)
+        final_stats_df = final_stats_df.set_index([PRIMARY_PLAYER_ID, "Year", "Week"])
 
         return final_stats_df
 

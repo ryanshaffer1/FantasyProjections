@@ -14,8 +14,7 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from config import stats_config
-from config.data_files_config import PFR_PLAYER_URL_INTRO
+from config import data_files_config
 from data_pipeline.utils.name_matching import drop_name_frills, fuzzy_match
 
 # Set up logger
@@ -75,7 +74,8 @@ def scrape_box_score(stats_html, team_abbrevs, last_req_time):
         box_score["pfr_id"] = row.find("th", {"data-stat": "player"})["data-append-csv"]
         box_score["Team"] = row.find("td", {"data-stat": "team"}).text
         # Collect all stats
-        for key, val in stats_config.labels_df_to_pfr.items():
+        labels_df_to_pfr = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["pfr"].dropna().to_dict()
+        for key, val in labels_df_to_pfr.items():
             box_score[key] = int(row.find("td", {"data-stat": val}).text)
 
         box_score_df = pd.concat([box_score_df, box_score], axis=1)
@@ -117,7 +117,7 @@ def search_for_missing_pfr_id(player_name, max_attempts=20, continue_on_404=Fals
     while i < max_attempts:
         # Construct current attempted player ID and associated URL
         curr_pfr_id = pfr_id_base + str(i).rjust(2, "0")
-        player_url = f"{PFR_PLAYER_URL_INTRO}{curr_pfr_id[0]}/{curr_pfr_id}.htm"
+        player_url = f"{data_files_config.PFR_PLAYER_URL_INTRO}{curr_pfr_id[0]}/{curr_pfr_id}.htm"
 
         # Scrape Pro Football Reference for player name associated with current pfr_id
         scraped_name, last_req_time = scrape_player_page_for_name(player_url, last_req_time)

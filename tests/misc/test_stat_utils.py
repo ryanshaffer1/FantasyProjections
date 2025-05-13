@@ -7,7 +7,7 @@ import pandas as pd
 import pandas.testing as pdtest
 import torch
 
-from config import stats_config
+from config import data_files_config
 from config.log_config import LOGGING_CONFIG
 
 # Module under test
@@ -24,7 +24,11 @@ logger = logging.getLogger("log")
 class TestNormalizeStat_DefaultThresholds(unittest.TestCase):
     # Set Up
     def setUp(self):
-        self.thresholds = stats_config.default_norm_thresholds
+        self.thresholds = (
+            pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)[["threshold_low", "threshold_high"]]
+            .dropna()
+            .T.to_dict(orient="list")
+        )
         self.column_names = list(self.thresholds.keys())
         # Set various bounds on values based on threshold mins and maxes
         self.threshold_mins = [x[0] for x in self.thresholds.values()]
@@ -132,7 +136,11 @@ class TestNormalizeStat_CustomThresholds(unittest.TestCase):
 class TestUnNormalizeStat_DefaultThresholds(unittest.TestCase):
     # Set Up
     def setUp(self):
-        self.thresholds = stats_config.default_norm_thresholds
+        self.thresholds = (
+            pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)[["threshold_low", "threshold_high"]]
+            .dropna()
+            .T.to_dict(orient="list")
+        )
         self.column_names = list(self.thresholds.keys())
         # Set various bounds on values based on threshold mins and maxes
         self.threshold_mins = [x[0] for x in self.thresholds.values()]
@@ -240,8 +248,12 @@ class TestNormalize_to_UnNormalize(unittest.TestCase):
 class TestStatsToFantasyPoints_DefaultWeights(unittest.TestCase):
     # Set Up
     def setUp(self):
-        self.weights = stats_config.default_scoring_weights
-        self.thresholds = stats_config.default_norm_thresholds
+        self.weights = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["scoring_weight"].dropna().to_dict()
+        self.thresholds = (
+            pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)[["threshold_low", "threshold_high"]]
+            .dropna()
+            .T.to_dict(orient="list")
+        )
         self.stat_names = list(self.weights.keys())
         self.sum_of_weights = sum(self.weights.values())
         # Various inputs for test methods
@@ -278,15 +290,8 @@ class TestStatsToFantasyPoints_DefaultWeights(unittest.TestCase):
             check_dtype=False,
         )
 
-    def test_tensor_input_with_stat_index_default_gives_right_result(self):
-        pdtest.assert_frame_equal(
-            proj.stats_to_fantasy_points(self.one_tensor, stat_indices="default"),
-            self.one_result,
-            check_dtype=False,
-        )
-
     def test_tensor_input_without_stat_index_fails(self):
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ValueError):
             proj.stats_to_fantasy_points(self.one_tensor)
 
     def test_unnormalized_stats_with_norm_true_gives_wrong_result(self):
@@ -397,12 +402,8 @@ class TestStatsToFantasyPoints_CustomWeights(unittest.TestCase):
             check_dtype=False,
         )
 
-    def test_tensor_input_with_stat_index_default_gives_error(self):
-        with self.assertRaises(ValueError):
-            proj.stats_to_fantasy_points(self.one_tensor, stat_indices="default", scoring_weights=self.weights)
-
     def test_tensor_input_without_stat_index_fails(self):
-        with self.assertRaises(IndexError):
+        with self.assertRaises(ValueError):
             proj.stats_to_fantasy_points(self.one_tensor, scoring_weights=self.weights)
 
     def test_unnormalized_stats_with_norm_true_gives_wrong_result(self):
