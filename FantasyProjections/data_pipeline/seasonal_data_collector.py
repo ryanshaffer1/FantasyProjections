@@ -4,7 +4,10 @@
         SeasonalDataCollector : Collects data (e.g. player stats) for all games in an NFL season. Automatically processes data upon initialization.
 """  # fmt: skip
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import dateutil.parser as dateparse
 import pandas as pd
@@ -18,6 +21,10 @@ from data_pipeline.utils.data_helper_functions import (
     compute_team_record,
 )
 from misc.manage_files import collect_input_dfs
+
+# Type checking imports
+if TYPE_CHECKING:
+    from data_pipeline.features.feature_set import FeatureSet
 
 # Set up logger
 logger = logging.getLogger("log")
@@ -53,7 +60,14 @@ class SeasonalDataCollector:
 
     """  # fmt: skip
 
-    def __init__(self, year, feature_sets, team_names="all", weeks=None, **kwargs):
+    def __init__(
+        self,
+        year: int,
+        feature_sets: list[FeatureSet],
+        team_names: list[str] | str = "all",
+        weeks: list[int] | range | None = None,
+        **kwargs,
+    ):
         """Constructor for SeasonalDataCollector class.
 
             Args:
@@ -74,7 +88,7 @@ class SeasonalDataCollector:
 
         # Handle unspecified weeks: all weeks
         if weeks is None:
-            weeks = range(1, 19)
+            weeks = list(range(1, 19))
 
         # Optional keyword arguments
         game_times = kwargs.get("game_times", "all")
@@ -87,15 +101,15 @@ class SeasonalDataCollector:
         self.feature_sets = feature_sets
 
         # Collect input data
-        dfs_dict = collect_input_dfs(
+        dfs_dict, df_sources = collect_input_dfs(
             self.year,
             self.weeks,
             data_files_config.local_file_paths,
             data_files_config.online_file_paths,
             online_avail=True,
         )
-        self.pbp_df = dfs_dict.pop("pbp")
-        self.raw_rosters_df = dfs_dict.pop("roster")
+        self.pbp_df = dfs_dict[0].pop("pbp")
+        self.raw_rosters_df = dfs_dict[0].pop("roster")
 
         # Gather team rosters based on input teams and weeks and optional filter
         self.all_rosters_df = self.process_rosters(filter_df)
@@ -105,7 +119,7 @@ class SeasonalDataCollector:
 
         # Collect input data for all seasonal features
         for feature_set in self.feature_sets:
-            feature_set.collect_data(year, weeks)
+            feature_set.collect_data(year, weeks, df_sources)
 
         # List of SingleGameData objects
         self.games = self.generate_games(game_times)
@@ -166,7 +180,7 @@ class SeasonalDataCollector:
 
         return games
 
-    def gather_all_game_data(self, df_fields):
+    def gather_all_game_data(self, df_fields: list[str] | str) -> tuple[pd.DataFrame, ...]:
         """Concatenates all relevant data from individual games in self.games into larger DataFrames for the full season.
 
             Args:
@@ -181,7 +195,7 @@ class SeasonalDataCollector:
         if isinstance(df_fields, str):
             df_fields = [df_fields]
 
-        dfs = [0] * len(df_fields)
+        dfs = [pd.DataFrame()] * len(df_fields)
         for i, df_field in enumerate(df_fields):
             # Initialize empty dataframe
             game_data_df = pd.DataFrame()

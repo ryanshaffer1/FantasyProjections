@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pandas as pd
 
 from config.player_id_config import PRIMARY_PLAYER_ID
@@ -11,8 +13,13 @@ class BasicFeatureSet(FeatureSet):
         self.pbp_df = None
         self.raw_rosters_df = None
 
-    def collect_data(self, year, weeks):
-        super().collect_data(year, weeks)
+    def collect_data(
+        self,
+        year: list[int] | range | int,
+        weeks: list[int] | range,
+        df_sources: dict[str, pd.DataFrame] | None = None,
+    ) -> None:
+        super().collect_data(year, weeks, df_sources)
         self.pbp_df = self.df_dict["pbp"]
         self.raw_rosters_df = self.df_dict["roster"]
 

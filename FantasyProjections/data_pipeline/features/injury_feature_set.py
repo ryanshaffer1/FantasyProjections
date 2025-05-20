@@ -1,4 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from data_pipeline.features.feature_set import FeatureSet
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class InjuryFeatureSet(FeatureSet):
@@ -6,8 +13,13 @@ class InjuryFeatureSet(FeatureSet):
         super().__init__(features, sources)
         self.df = None
 
-    def collect_data(self, year, weeks):
-        super().collect_data(year, weeks)
+    def collect_data(
+        self,
+        year: list[int] | range | int,
+        weeks: list[int] | range,
+        df_sources: dict[str, pd.DataFrame] | None = None,
+    ) -> None:
+        super().collect_data(year, weeks, df_sources)
         self.df = next(iter(self.df_dict.values()))
 
         # Clean up injury data

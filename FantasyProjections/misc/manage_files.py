@@ -11,6 +11,8 @@
 
 """  # fmt: skip
 
+from __future__ import annotations
+
 import logging
 import os
 import shutil
@@ -48,24 +50,30 @@ def create_folders(folders):
             logger.info(f"Created folder {folder}")
 
 
-def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_avail=False):
+def collect_input_dfs(
+    years: list[int] | range | int,
+    weeks: list[int] | range,
+    local_file_paths: dict[str, str],
+    online_file_paths: dict[str, str],
+    online_avail: bool = False,
+) -> tuple[list[dict[str, pd.DataFrame]], dict[str, pd.DataFrame]]:
     """Collects raw NFL stats data from local files, and if insufficient, optionally pulls additional data from online source.
 
         Args:
-            years (list or int): year or list of years to load raw input data from
-            weeks (list): weeks within each year to load raw input data from
-            local_file_paths (dict): dictionary with each type of input (e.g. 'pbp') as keys and filepaths to each type of input as values
-            online_file_paths (dict): dictionary with each type of input (e.g. 'pbp') as keys and filepaths to each type of input as values.
+            years: year or list of years to load raw input data from
+            weeks: weeks within each year to load raw input data from
+            local_file_paths: dictionary with each type of input (e.g. 'pbp') as keys and filepaths to each type of input as values
+            online_file_paths: dictionary with each type of input (e.g. 'pbp') as keys and filepaths to each type of input as values.
                 Keys must match between local_file_paths and online_file_paths.
-            online_avail (bool, optional): toggle whether to allow pulling additional data from online files as necessary. Defaults to False.
+            online_avail (optional): toggle whether to allow pulling additional data from online files as necessary. Defaults to False.
 
         Returns:
-            list | dict: if a single year is input, returns a dict of names mapping to DataFrame objects corresponding to each input file type (e.g. 'pbp','roster').
-                if multiple years are input, returns a list of dicts of names and DataFrame objects, where each dict corresponds to a year.
-
+            tuple:
+            - all_dfs: A list of dicts of names mapping to DataFrame objects corresponding to each input file type (e.g. 'pbp'). Each dict corresponds to a year.
+            - all_loaded_files: A list of dicts of file names mapping to DataFrame objects loaded from the file.
     """  # fmt: skip
     # Handle single year being input
-    if not hasattr(years, "__iter__"):
+    if not isinstance(years, list | range):
         years = [years]
 
     # Create local folders if they do not exist
@@ -74,39 +82,38 @@ def collect_input_dfs(years, weeks, local_file_paths, online_file_paths, online_
 
     # Load files one year at a time
     all_dfs = []
+    all_loaded_files = {}
     for year in years:
         # Load local files
         try:
             yearly_dfs = {name: pd.read_csv(local_file_paths[name].format(year), low_memory=False) for name in local_file_paths}
+        except FileNotFoundError:
+            yearly_dfs = {}
+            weeks_present = [False]
+        else:
             [logger.info(f"Read {name} from {local_file_paths[name].format(year)}") for name in local_file_paths]
             # Check if local files contain all weeks (checks all df's together)
             weeks_present = [all(any(year_df["week"] == week) for year_df in yearly_dfs.values()) for week in weeks]
-        except FileNotFoundError:
-            weeks_present = [False]
 
         # Download files from online and save locally (updates all df's together)
         if not all(weeks_present):
             logger.info(f"Missing weeks in local data files for {year}.")
-            yearly_dfs = {}
             if online_avail:
-                for name in local_file_paths:
+                for name, local_file in local_file_paths.items():
                     # Read from online filepath
                     logger.info(f"Downloading {name} from {online_file_paths[name].format(year)}")
                     year_online_df = pd.read_csv(online_file_paths[name].format(year), low_memory=False)
                     yearly_dfs[name] = year_online_df
                     # Save locally
-                    year_online_df.to_csv(local_file_paths[name].format(year))
-                    logger.info(f"Saved {name} to {local_file_paths[name].format(year)}")
+                    year_online_df.to_csv(local_file.format(year))
+                    logger.info(f"Saved {name} to {local_file.format(year)}")
             else:
                 logger.warning("Warning! Not all weeks are present in the dfs, and could not download from online")
 
         all_dfs.append(yearly_dfs)
+        all_loaded_files.update({local_file_paths[name].format(year): yearly_dfs[name] for name in yearly_dfs})
 
-    # If only one year is input, no need to output a list of dict, just the one dict
-    if len(years) == 1:
-        return all_dfs[0]
-
-    return all_dfs
+    return all_dfs, all_loaded_files
 
 
 def collect_roster_filter(filter_roster, update_filter, roster_filter_file):

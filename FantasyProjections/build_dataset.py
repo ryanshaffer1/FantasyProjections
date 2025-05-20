@@ -55,6 +55,12 @@ logger.debug(
 )
 logger.debug(f"DATA INPUTS: \nTEAM_NAMES={TEAM_NAMES} \nYEARS={YEARS} \nWEEKS={WEEKS} \nGAME_TIMES={GAME_TIMES}")
 
+# Check inputs
+if len(YEARS) == 0:
+    msg = "No years specified. Please specify at least one year to process."
+    logger.error(msg)
+    raise ValueError(msg)
+
 # Files to optionally load
 ROSTER_FILTER_FILE = data_files_config.ROSTER_FILTER_FILE if FILTER_ROSTER else None
 # Files to save

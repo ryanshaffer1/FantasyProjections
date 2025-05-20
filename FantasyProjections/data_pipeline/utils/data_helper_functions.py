@@ -39,9 +39,8 @@ def calc_game_time_elapsed(data):
         qtr = data.loc[:, "qtr"]
         time = data.loc[:, "time"]
     else:
-        logger.warning("Must input data to calc_game_time_elapsed as DataFrame or Series")
-        qtr = None
-        time = None
+        msg = "Must input data to calc_game_time_elapsed as DataFrame or Series"
+        raise TypeError(msg)
 
     if isinstance(time, float):
         minutes = "15"
