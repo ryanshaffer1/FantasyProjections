@@ -110,7 +110,7 @@ def save_features_config(feature_sets):
         stat_feature_df["thresholds"].tolist(),
         index=stat_feature_df.index,
     )
-    stat_feature_df = pd.concat((stat_feature_df, pd.json_normalize(stat_feature_df["site_labels"])), axis=1)
+    stat_feature_df = pd.concat((stat_feature_df, pd.json_normalize(stat_feature_df["site_labels"].to_dict())), axis=1)
     stat_feature_df = stat_feature_df.drop(columns=["thresholds", "site_labels"])
     stat_feature_df = stat_feature_df.set_index("name")
 
@@ -275,9 +275,9 @@ def linear_regression(x_data, y_data):
     y_predicted = intercept + slope * x_data
     residuals = y_data - y_predicted
     dists_from_mean = y_data - y_mean
-    ssr = sum(residuals**2)
-    sst = sum(dists_from_mean**2)
-    r_squared = float(1 - (ssr[0] / sst[0]))
+    ssr = np.sum(residuals**2)
+    sst = np.sum(dists_from_mean**2)
+    r_squared = float(1 - (ssr / sst))
 
     return slope, intercept, r_squared
 

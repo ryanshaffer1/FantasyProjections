@@ -1,0 +1,104 @@
+feature_sets:
+  - !BasicFeatureSet
+    features:
+    - !Feature {name: "Team", thresholds: [], outputs: ["id","midgame"], one_hot_encode: true}
+    - !Feature {name: "Opponent", thresholds: [], outputs: ["id","midgame"], one_hot_encode: true}
+    - !Feature {name: "Position", thresholds: [], outputs: ["id","midgame"], one_hot_encode: true}
+    - !Feature {name: "Team Score", thresholds: [0, 100], outputs: ["midgame"]}
+    - !Feature {name: "Opp Score", thresholds: [0, 100], outputs: ["midgame"]}
+    - !Feature {name: "Possession", thresholds: [0, 1], outputs: ["midgame"]}
+    - !Feature {name: "Field Position", thresholds: [0, 100], outputs: ["midgame"]}
+    - !StatFeature 
+      name: "Pass Att"
+      thresholds: [0, 100]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0
+      site_labels: {"sleeper": "pass_att", "pfr": "pass_att", "odds": "player_pass_attempts"}
+    - !StatFeature
+      name: "Pass Cmp"
+      thresholds: [0, 100]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0
+      site_labels: {"sleeper": "pass_cmp", "pfr": "pass_cmp", "odds": "player_pass_completions"}
+    - !StatFeature
+      name: "Pass Yds"
+      thresholds: [-50, 1000]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0.04
+      site_labels: {"sleeper": "pass_yd", "pfr": "pass_yds", "odds": "player_pass_yds"}
+    - !StatFeature
+      name: "Pass TD"
+      thresholds: [0, 8]
+      outputs: ["midgame", "final"]
+      scoring_weight: 4
+      site_labels: {"sleeper": "pass_td", "pfr": "pass_td", "odds": "player_pass_tds"}
+    - !StatFeature
+      name: "Int"
+      thresholds: [0, 8]
+      outputs: ["midgame", "final"]
+      scoring_weight: -2
+      site_labels: {"sleeper": "pass_int", "pfr": "pass_int", "odds": "player_pass_interceptions"}
+    - !StatFeature
+      name: "Rush Att"
+      thresholds: [0, 100]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0
+      site_labels: {"sleeper": "rush_att", "pfr": "rush_att", "odds": "player_rush_attempts"}
+    - !StatFeature
+      name: "Rush Yds"
+      thresholds: [-50, 1000]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0.1
+      site_labels: {"sleeper": "rush_yd", "pfr": "rush_yds", "odds": "player_rush_yards"}
+    - !StatFeature
+      name: "Rush TD"
+      thresholds: [0, 8]
+      outputs: ["midgame", "final"]
+      scoring_weight: 6
+      site_labels: {"sleeper": "rush_td", "pfr": "rush_td", "odds": "player_rush_tds"}
+    - !StatFeature
+      name: "Rec"
+      thresholds: [0, 100]
+      outputs: ["midgame", "final"]
+      scoring_weight: 1
+      site_labels: {"sleeper": "rec", "pfr": "rec", "odds": "player_receptions"}
+    - !StatFeature
+      name: "Rec Yds"
+      thresholds: [-50, 1000]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0.1
+      site_labels: {"sleeper": "rec_yd", "pfr": "rec_yds", "odds": "player_reception_yds"}
+    - !StatFeature
+      name: "Rec TD"
+      thresholds: [0, 8]
+      outputs: ["midgame", "final"]
+      scoring_weight: 6
+      site_labels: {"sleeper": "rec_td", "pfr": "rec_td", "odds": "player_reception_tds"}
+    - !StatFeature
+      name: "Fmb"
+      thresholds: [0, 8]
+      outputs: ["midgame", "final"]
+      scoring_weight: -2
+      site_labels: {"sleeper": "fum_lost", "pfr": "fumbles_lost"}
+    - !Feature {name: "Age", thresholds: [0, 60], outputs: ["midgame"]}
+    - !Feature {name: "Site", thresholds: [0, 1], outputs: ["midgame"]}
+    - !Feature {name: "Team Wins", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Team Losses", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Team Ties", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Opp Wins", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Opp Losses", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Opp Ties", thresholds: [0, 18], outputs: ["midgame"]}
+    sources:
+      online:
+        pbp: !concat [!config_var ONLINE_URL_NFLVERSE, "pbp/play_by_play_{0}.csv"]
+        roster: !concat [!config_var ONLINE_URL_NFLVERSE, "weekly_rosters/roster_weekly_{0}.csv"]
+      local:
+        pbp: !path [!config_var INPUT_FOLDER, "play_by_play/play_by_play_{0}.csv"]
+        roster: !path [!config_var INPUT_FOLDER, "rosters/roster_weekly_{0}.csv"]
+
+  - !InjuryFeatureSet
+    features:
+      - !Feature {name: "injury_status", thresholds: [0,1], outputs: ["midgame"]}
+    sources:
+      online: !concat [!config_var ONLINE_URL_NFLVERSE, "injuries/injuries_{0}.csv"]
+      local: !path [!config_var INPUT_FOLDER, "injuries/injuries_{0}.csv"]

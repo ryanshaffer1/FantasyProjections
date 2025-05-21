@@ -15,16 +15,17 @@ from datetime import datetime
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import yaml
 
 from config import data_files_config
 from config.log_config import LOGGING_CONFIG
-from data_pipeline.features import features_test
 from data_pipeline.seasonal_data_collector import SeasonalDataCollector
 from data_pipeline.stats_pipeline.preprocess_nn_data import preprocess_nn_data
 from data_pipeline.stats_pipeline.roster_filter import apply_roster_filter, generate_roster_filter
 from data_pipeline.stats_pipeline.validate_parsed_data import validate_parsed_data
 from misc.manage_files import collect_roster_filter, create_folders, move_logfile
 from misc.stat_utils import save_features_config
+from misc.yaml_constructor import add_yaml_constructors
 
 # Flags
 SAVE_DATA = True  # Saves data in .csv's (output files specified below)
@@ -81,8 +82,10 @@ filter_df, filter_load_success = collect_roster_filter(FILTER_ROSTER, UPDATE_FIL
 logger.info(f"Filter Load Success: {filter_load_success}; Filter file: {ROSTER_FILTER_FILE}")
 
 # Create FeatureSet objects
-feature_sets = features_test.features
-
+add_yaml_constructors()
+with open("FantasyProjections/data_pipeline/features.yaml") as file:
+    inputs = yaml.safe_load(file)
+feature_sets = inputs["feature_sets"]
 # Save StatsFeatures
 save_features_config(feature_sets)
 

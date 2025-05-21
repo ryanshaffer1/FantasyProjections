@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 
@@ -6,7 +8,7 @@ class Feature:
     # CONSTRUCTOR
     name: str
     thresholds: list
-    outputs: list = None
+    outputs: list | None = None
     one_hot_encode: bool = False
     validate: bool = False
 
@@ -16,4 +18,4 @@ class StatFeature(Feature):
     # CONSTRUCTOR
     scoring_weight: float = 0.0
     validate: bool = True
-    site_labels: dict = None
+    site_labels: dict | None = None
