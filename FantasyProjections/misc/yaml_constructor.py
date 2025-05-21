@@ -7,7 +7,9 @@ from data_pipeline import features
 
 constructable_classes = {
     "FeatureSet": features.FeatureSet,
-    "BasicFeatureSet": features.BasicFeatureSet,
+    "GameContextFeatureSet": features.GameContextFeatureSet,
+    "StatsFeatureSet": features.StatsFeatureSet,
+    "PlayerInfoFeatureSet": features.PlayerInfoFeatureSet,
     "InjuryFeatureSet": features.InjuryFeatureSet,
     "Feature": features.Feature,
     "StatFeature": features.StatFeature,
@@ -21,11 +23,9 @@ def add_yaml_constructors():
     This allows for custom processing of specific tags when loading YAML files.
     """
     # Custom constructors for FeatureSet and Feature objects
-    yaml.add_constructor("!Feature", constructor, Loader=yaml.SafeLoader)
-    yaml.add_constructor("!StatFeature", constructor, Loader=yaml.SafeLoader)
-    yaml.add_constructor("!BasicFeatureSet", constructor, Loader=yaml.SafeLoader)
-    yaml.add_constructor("!InjuryFeatureSet", constructor, Loader=yaml.SafeLoader)
-    yaml.add_constructor("!FeatureSet", constructor, Loader=yaml.SafeLoader)
+    for class_name in constructable_classes:
+        yaml_tag = f"!{class_name}"
+        yaml.add_constructor(yaml_tag, constructor, Loader=yaml.SafeLoader)
 
     # Custom constructors for YAML utilities
     yaml.add_constructor("!concat", concat_constructor, Loader=yaml.SafeLoader)

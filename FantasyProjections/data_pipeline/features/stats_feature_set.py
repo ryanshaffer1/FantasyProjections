@@ -7,11 +7,10 @@ from data_pipeline.features.feature_set import FeatureSet
 from data_pipeline.utils.data_helper_functions import subsample_game_time
 
 
-class BasicFeatureSet(FeatureSet):
+class StatsFeatureSet(FeatureSet):
     def __init__(self, features, sources):
         super().__init__(features, sources)
         self.pbp_df = None
-        self.raw_rosters_df = None
 
     def collect_data(
         self,
@@ -20,36 +19,16 @@ class BasicFeatureSet(FeatureSet):
         df_sources: dict[str, pd.DataFrame] | None = None,
     ) -> None:
         super().collect_data(year, weeks, df_sources)
-        self.pbp_df = self.df_dict["pbp"]
-        self.raw_rosters_df = self.df_dict["roster"]
+        self.pbp_df = next(iter(self.df_dict.values()))
 
     def process_data(self, game_data_worker):
         # Compute stats for each player on the team in this game
         list_of_player_dfs = game_data_worker.roster_df.reset_index().apply(
-            self.__parse_player_stats,
+            self.midgame_player_stats,
             args=(game_data_worker,),
             axis=1,
         )
         stats_df = pd.concat(list_of_player_dfs.tolist())
-
-        # Add some seasonal/weekly context to the dataframe
-        stats_df["Team"] = game_data_worker.roster_df.loc[(stats_df[PRIMARY_PLAYER_ID], "Team")].tolist()
-        stats_df["Opponent"] = game_data_worker.game_info.set_index("Team Abbrev").loc[stats_df["Team"], "Opp Abbrev"].to_list()
-        stats_df["Site"] = game_data_worker.game_info.set_index("Team Abbrev").loc[stats_df["Team"], "Site"].to_list()
-        stats_df[["Team Wins", "Team Losses", "Team Ties"]] = (
-            game_data_worker.game_info.set_index("Team Abbrev")
-            .loc[stats_df["Team"]][["Team Wins", "Team Losses", "Team Ties"]]
-            .to_numpy()
-        )
-        stats_df[["Opp Wins", "Opp Losses", "Opp Ties"]] = (
-            game_data_worker.game_info.set_index("Team Abbrev")
-            .loc[stats_df["Opponent"]][["Team Wins", "Team Losses", "Team Ties"]]
-            .to_numpy()
-        )
-
-        # Convert site and possession to 1/0
-        stats_df["Site"] = pd.to_numeric(stats_df["Site"] == "Home")
-        stats_df["Possession"] = pd.to_numeric(stats_df["Possession"])
 
         # Set common index
         stats_df[["Year", "Week"]] = [game_data_worker.year, game_data_worker.week]
@@ -57,7 +36,7 @@ class BasicFeatureSet(FeatureSet):
 
         return stats_df
 
-    def __parse_player_stats(self, player_info, game_data_worker):
+    def midgame_player_stats(self, player_info, game_data_worker):
         """Determines the mid-game stats for one player throughout the game.
 
             Args:
@@ -70,25 +49,11 @@ class BasicFeatureSet(FeatureSet):
 
         """  # fmt: skip
 
-        # Team sites
-        game_site = game_data_worker.game_info.set_index("Team Abbrev").loc[player_info["Team"], "Site"].lower()
-        opp_game_site = ["home", "away"][(["home", "away"].index(game_site) + 1) % 2]
-
         # Set up dataframe covering player's contributions each play
         player_stats_df = pd.DataFrame()  # Output array
         # Game time elapsed
         player_stats_df["Elapsed Time"] = game_data_worker.pbp_df.reset_index()["Elapsed Time"]
         player_stats_df = player_stats_df.set_index("Elapsed Time")
-        # Possession
-        player_stats_df["Possession"] = game_data_worker.pbp_df["posteam"] == player_info["Team"]
-        # Field Position
-        player_stats_df["Field Position"] = game_data_worker.pbp_df.apply(
-            lambda x: x["yardline_100"] if (x["posteam"] == player_info["Team"]) else 100 - x["yardline_100"],
-            axis=1,
-        )
-        # Score
-        player_stats_df["Team Score"] = game_data_worker.pbp_df[f"total_{game_site}_score"]
-        player_stats_df["Opp Score"] = game_data_worker.pbp_df[f"total_{opp_game_site}_score"]
 
         # Assign stats to player (e.g. passing yards, rushing TDs, etc.)
         player_stats_df = self.__assign_stats_from_plays(
@@ -102,14 +67,11 @@ class BasicFeatureSet(FeatureSet):
         player_stats_df = player_stats_df.drop(columns=["temp"])
 
         # Perform cumulative sum on all columns besides the list below
-        for col in set(player_stats_df.columns) ^ {"Team Score", "Opp Score", "Possession", "Field Position"}:
+        for col in player_stats_df.columns:
             player_stats_df[col] = player_stats_df[col].cumsum()
 
         # Add some player info
         player_stats_df[PRIMARY_PLAYER_ID] = player_info[PRIMARY_PLAYER_ID]
-        player_stats_df["Position"] = player_info["Position"]
-        player_stats_df["Number"] = player_info["Number"]
-        player_stats_df["Age"] = player_info["Age"]
 
         # Trim to just the game times of interest
         player_stats_df = subsample_game_time(player_stats_df, game_data_worker.game_times)

@@ -1,13 +1,25 @@
 feature_sets:
-  - !BasicFeatureSet
+  - !GameContextFeatureSet
     features:
     - !Feature {name: "Team", thresholds: [], outputs: ["id","midgame"], one_hot_encode: true}
     - !Feature {name: "Opponent", thresholds: [], outputs: ["id","midgame"], one_hot_encode: true}
-    - !Feature {name: "Position", thresholds: [], outputs: ["id","midgame"], one_hot_encode: true}
     - !Feature {name: "Team Score", thresholds: [0, 100], outputs: ["midgame"]}
     - !Feature {name: "Opp Score", thresholds: [0, 100], outputs: ["midgame"]}
     - !Feature {name: "Possession", thresholds: [0, 1], outputs: ["midgame"]}
     - !Feature {name: "Field Position", thresholds: [0, 100], outputs: ["midgame"]}
+    - !Feature {name: "Site", thresholds: [0, 1], outputs: ["midgame"]}
+    - !Feature {name: "Team Wins", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Team Losses", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Team Ties", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Opp Wins", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Opp Losses", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Opp Ties", thresholds: [0, 18], outputs: ["midgame"]}
+    sources:
+      online: !concat [!config_var ONLINE_URL_NFLVERSE, "pbp/play_by_play_{0}.csv"]
+      local: !path [!config_var INPUT_FOLDER, "play_by_play/play_by_play_{0}.csv"]
+
+  - !StatsFeatureSet
+    features:
     - !StatFeature 
       name: "Pass Att"
       thresholds: [0, 100]
@@ -80,21 +92,17 @@ feature_sets:
       outputs: ["midgame", "final"]
       scoring_weight: -2
       site_labels: {"sleeper": "fum_lost", "pfr": "fumbles_lost"}
-    - !Feature {name: "Age", thresholds: [0, 60], outputs: ["midgame"]}
-    - !Feature {name: "Site", thresholds: [0, 1], outputs: ["midgame"]}
-    - !Feature {name: "Team Wins", thresholds: [0, 18], outputs: ["midgame"]}
-    - !Feature {name: "Team Losses", thresholds: [0, 18], outputs: ["midgame"]}
-    - !Feature {name: "Team Ties", thresholds: [0, 18], outputs: ["midgame"]}
-    - !Feature {name: "Opp Wins", thresholds: [0, 18], outputs: ["midgame"]}
-    - !Feature {name: "Opp Losses", thresholds: [0, 18], outputs: ["midgame"]}
-    - !Feature {name: "Opp Ties", thresholds: [0, 18], outputs: ["midgame"]}
     sources:
-      online:
-        pbp: !concat [!config_var ONLINE_URL_NFLVERSE, "pbp/play_by_play_{0}.csv"]
-        roster: !concat [!config_var ONLINE_URL_NFLVERSE, "weekly_rosters/roster_weekly_{0}.csv"]
-      local:
-        pbp: !path [!config_var INPUT_FOLDER, "play_by_play/play_by_play_{0}.csv"]
-        roster: !path [!config_var INPUT_FOLDER, "rosters/roster_weekly_{0}.csv"]
+      online: !concat [!config_var ONLINE_URL_NFLVERSE, "pbp/play_by_play_{0}.csv"]
+      local: !path [!config_var INPUT_FOLDER, "play_by_play/play_by_play_{0}.csv"]
+
+  - !PlayerInfoFeatureSet
+    features:
+    - !Feature {name: "Position", thresholds: [], outputs: ["id","midgame"], one_hot_encode: true}
+    - !Feature {name: "Age", thresholds: [0, 60], outputs: ["midgame"]}
+    sources:
+      online: !concat [!config_var ONLINE_URL_NFLVERSE, "weekly_rosters/roster_weekly_{0}.csv"]
+      local: !path [!config_var INPUT_FOLDER, "rosters/roster_weekly_{0}.csv"]
 
   - !InjuryFeatureSet
     features:
