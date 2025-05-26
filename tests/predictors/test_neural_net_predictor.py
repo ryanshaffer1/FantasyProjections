@@ -48,29 +48,37 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
         self.load_folder = "tests/_test_files/"
 
         shape_1 = {
-            "players_input": 300,
-            "teams_input": 32,
-            "opps_input": 32,
-            "stats_input": 29,
-            "embedding_player": 50,
-            "embedding_team": 10,
-            "embedding_opp": 10,
-            "linear_stack": 300,
-            "stats_output": 12,
+            "input": {
+                "unembedded": 29,
+                "player": 300,
+                "team": 32,
+                "opp": 32,
+            },
+            "embedding": {
+                "player": 50,
+                "team": 10,
+                "opp": 10,
+            },
+            "linear_stack": [300],
+            "output": 12,
         }
 
         self.neural_net_args = {"nn_shape": shape_1, "max_epochs": 100, "n_epochs_to_stop": 5}
 
         self.shape_2 = {
-            "players_input": 3,
-            "teams_input": 2,
-            "opps_input": 6,
-            "stats_input": 8,
-            "embedding_player": 2,
-            "embedding_team": 4,
-            "embedding_opp": 4,
-            "linear_stack": 30,
-            "stats_output": 3,
+            "input": {
+                "unembedded": 8,
+                "player": 3,
+                "team": 2,
+                "opp": 6,
+            },
+            "embedding": {
+                "player": 2,
+                "team": 4,
+                "opp": 4,
+            },
+            "linear_stack": [30],
+            "output": 3,
         }
 
     def test_basic_attributes_no_optional_inputs(self):
@@ -127,29 +135,37 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
         self.load_folder = "tests/_test_files/"
 
         shape_1 = {
-            "players_input": 300,
-            "teams_input": 32,
-            "opps_input": 32,
-            "stats_input": 29,
-            "embedding_player": 50,
-            "embedding_team": 10,
-            "embedding_opp": 10,
-            "linear_stack": 300,
-            "stats_output": 12,
+            "input": {
+                "unembedded": 29,
+                "player": 300,
+                "team": 32,
+                "opp": 32,
+            },
+            "embedding": {
+                "player": 50,
+                "team": 10,
+                "opp": 10,
+            },
+            "linear_stack": [300],
+            "output": 12,
         }
 
         self.neural_net_args = {"nn_shape": shape_1, "max_epochs": 100, "n_epochs_to_stop": 5}
 
         self.weird_shape = {
-            "players_input": 1,
-            "teams_input": 1,
-            "opps_input": 1,
-            "stats_input": 1,
-            "embedding_player": 1,
-            "embedding_team": 1,
-            "embedding_opp": 1,
-            "linear_stack": 1,
-            "stats_output": 1,
+            "input": {
+                "unembedded": 1,
+                "player": 1,
+                "team": 1,
+                "opp": 1,
+            },
+            "embedding": {
+                "player": 1,
+                "team": 1,
+                "opp": 1,
+            },
+            "linear_stack": [1],
+            "output": 1,
         }
 
     def test_loaded_optimizer_equals_default(self):
@@ -168,12 +184,19 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
 
     def test_load_model_outside_of_initializer_overwrites_model(self):
         predictor = NeuralNetPredictor(name="test", **self.neural_net_args)
-        # Change size of first linear layer in model
-        next(iter(predictor.model.children()))[0].in_features = 4
+
+        # Change size of first linear stack in model
+        def get_first_linear_stack(model):
+            return next(x for i, x in enumerate(model.children()) if i == 1)
+
+        linear_stack = get_first_linear_stack(predictor.model)
+        linear_stack[0].in_features = 4
+
         # Load model
         predictor.load(self.load_folder)
+        linear_stack = get_first_linear_stack(predictor.model)
 
-        self.assertNotEqual(next(iter(predictor.model.children()))[0].in_features, 4)
+        self.assertNotEqual(linear_stack[0].in_features, 4)
 
     def test_load_model_of_new_shape_overwrites_model(self):
         predictor = NeuralNetPredictor(
@@ -211,15 +234,19 @@ class TestSaveModel_NeuralNetPredictor(unittest.TestCase):
         self.save_folder = "tests/_test_files/empty/"
 
         shape_1 = {
-            "players_input": 300,
-            "teams_input": 32,
-            "opps_input": 32,
-            "stats_input": 29,
-            "embedding_player": 50,
-            "embedding_team": 10,
-            "embedding_opp": 10,
-            "linear_stack": 300,
-            "stats_output": 12,
+            "input": {
+                "unembedded": 29,
+                "player": 300,
+                "team": 32,
+                "opp": 32,
+            },
+            "embedding": {
+                "player": 50,
+                "team": 10,
+                "opp": 10,
+            },
+            "linear_stack": [300],
+            "output": 12,
         }
 
         self.neural_net_args = {"nn_shape": shape_1, "max_epochs": 100, "n_epochs_to_stop": 5}
@@ -252,17 +279,20 @@ class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
         self.save_folder = "tests/_test_files/"
         self.load_folder = "tests/_test_files/"
         self.mock_shape = {
-            "players_input": 3,
-            "teams_input": 2,
-            "opps_input": 6,
-            "stats_input": 8,
-            "embedding_player": 2,
-            "embedding_team": 4,
-            "embedding_opp": 4,
-            "linear_stack": 30,
-            "stats_output": 3,
+            "input": {
+                "unembedded": 8,
+                "player": 3,
+                "team": 2,
+                "opp": 6,
+            },
+            "embedding": {
+                "player": 2,
+                "team": 4,
+                "opp": 4,
+            },
+            "linear_stack": [30],
+            "output": 3,
         }
-
         # Custom stats list (only using a subset of all statistics)
         self.scoring_weights = {
             "Pass Yds": 0.04,
@@ -337,15 +367,19 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
     def setUp(self):
         torch.manual_seed(0)
         self.mock_shape = {
-            "players_input": 3,
-            "teams_input": 2,
-            "opps_input": 6,
-            "stats_input": 8,
-            "embedding_player": 2,
-            "embedding_team": 4,
-            "embedding_opp": 4,
-            "linear_stack": 30,
-            "stats_output": 3,
+            "input": {
+                "unembedded": 8,
+                "player": 3,
+                "team": 2,
+                "opp": 6,
+            },
+            "embedding": {
+                "player": 2,
+                "team": 4,
+                "opp": 4,
+            },
+            "linear_stack": [30],
+            "output": 3,
         }
 
         # Hyper-parameters
@@ -387,7 +421,7 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
         self.assertEqual(self.predictor.learning_rate, self.hp_set.get("learning_rate").value)
         self.assertEqual(self.predictor.lmbda, self.hp_set.get("lmbda").value)
         self.assertEqual(self.predictor.loss_fn, self.hp_set.get("loss_fn").value)
-        self.assertEqual(self.predictor.nn_shape["linear_stack"], self.hp_set.get("linear_stack").value)
+        self.assertEqual(self.predictor.nn_shape["linear_stack"], [self.hp_set.get("linear_stack").value])
 
     def test_hyper_parameter_set_with_some_hps_configures_all_correctly(self):
         partial_hp_set = HyperParameterSet((self.mini_batch_size_hp, self.learning_rate_hp))
@@ -416,7 +450,7 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
         self.assertEqual(self.predictor.learning_rate, self.hp_set.get("learning_rate").value)
         self.assertEqual(self.predictor.lmbda, self.hp_set.get("lmbda").value)
         self.assertEqual(self.predictor.loss_fn, self.hp_set.get("loss_fn").value)
-        self.assertEqual(self.predictor.nn_shape["linear_stack"], self.hp_set.get("linear_stack").value)
+        self.assertEqual(self.predictor.nn_shape["linear_stack"], [self.hp_set.get("linear_stack").value])
 
     def test_dict_param_set_with_some_hps_configures_all_correctly(self):
         partial_hp_dict = self.hp_dict
@@ -427,7 +461,7 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
         self.assertEqual(self.predictor.learning_rate, self.hp_set.get("learning_rate").value)
         self.assertEqual(self.predictor.lmbda, 0)
         self.assertEqual(self.predictor.loss_fn, self.hp_set.get("loss_fn").value)
-        self.assertEqual(self.predictor.nn_shape["linear_stack"], self.hp_set.get("linear_stack").value)
+        self.assertEqual(self.predictor.nn_shape["linear_stack"], [self.hp_set.get("linear_stack").value])
 
     def test_no_param_set_input_configures_all_correctly(self):
         self.predictor.modify_hyper_parameter_values(param_set=None)
@@ -451,15 +485,19 @@ class TestConfigureDataloader_NeuralNetPredictor(unittest.TestCase):
         torch.manual_seed(0)
 
         self.mock_shape = {
-            "players_input": 3,
-            "teams_input": 2,
-            "opps_input": 6,
-            "stats_input": 8,
-            "embedding_player": 2,
-            "embedding_team": 4,
-            "embedding_opp": 4,
-            "linear_stack": 30,
-            "stats_output": 3,
+            "input": {
+                "unembedded": 8,
+                "player": 3,
+                "team": 2,
+                "opp": 6,
+            },
+            "embedding": {
+                "player": 2,
+                "team": 4,
+                "opp": 4,
+            },
+            "linear_stack": [30],
+            "output": 3,
         }
 
         # Hyper-parameters
@@ -520,19 +558,23 @@ class TestConfigureModelAndOptimizer_NeuralNetPredictor(unittest.TestCase):
         # Hyper-parameters
         self.learning_rate = 1e4
         self.lmbda = 2
-        self.linear_stack = 45
+        self.linear_stack = [45]
         self.hps = {"learning_rate": self.learning_rate, "lmbda": self.lmbda, "linear_stack": self.linear_stack}
 
         self.mock_shape = {
-            "players_input": 3,
-            "teams_input": 2,
-            "opps_input": 6,
-            "stats_input": 8,
-            "embedding_player": 2,
-            "embedding_team": 4,
-            "embedding_opp": 4,
-            "linear_stack": 30,
-            "stats_output": 3,
+            "input": {
+                "unembedded": 8,
+                "player": 3,
+                "team": 2,
+                "opp": 6,
+            },
+            "embedding": {
+                "player": 2,
+                "team": 4,
+                "opp": 4,
+            },
+            "linear_stack": [30],
+            "output": 3,
         }
         self.mock_shape_modified = self.mock_shape.copy()
         self.mock_shape_modified["linear_stack"] = self.linear_stack
@@ -575,15 +617,19 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
         self.save_folder = "tests/_test_files/empty/"
 
         self.mock_shape = {
-            "players_input": 3,
-            "teams_input": 2,
-            "opps_input": 6,
-            "stats_input": 8,
-            "embedding_player": 2,
-            "embedding_team": 4,
-            "embedding_opp": 4,
-            "linear_stack": 30,
-            "stats_output": 3,
+            "input": {
+                "unembedded": 8,
+                "player": 3,
+                "team": 2,
+                "opp": 6,
+            },
+            "embedding": {
+                "player": 2,
+                "team": 4,
+                "opp": 4,
+            },
+            "linear_stack": [30],
+            "output": 3,
         }
 
         # Custom stats list (only using a subset of all statistics)
@@ -662,7 +708,7 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
         )
 
     def test_input_no_dataloaders_or_datasets_raises_error(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             self.predictor.train_and_validate(scoring_weights=self.scoring_weights)
 
     def test_invalid_dataloaders_raises_error(self):

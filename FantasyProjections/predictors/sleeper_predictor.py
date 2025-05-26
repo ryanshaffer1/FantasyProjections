@@ -8,6 +8,8 @@
         collect_sleeper_projections : Pulls player projected stats from the Sleeper API for a set of weeks and adds to a pre-existing dict of projections by week.
 """  # fmt:skip
 
+from __future__ import annotations
+
 import json
 import logging
 from dataclasses import dataclass
@@ -56,7 +58,7 @@ class SleeperPredictor(FantasyPredictor):
 
     # CONSTRUCTOR
     player_id_file: str = data_files_config.MASTER_PLAYER_ID_FILE
-    proj_dict_file: str = None
+    proj_dict_file: str | None = None
     update_players: bool = False
 
     def __post_init__(self):
@@ -202,11 +204,14 @@ class SleeperPredictor(FantasyPredictor):
         unique_year_weeks = list(eval_data.id_data["Year-Week"].unique())
 
         # Gather all stats from Sleeper
-        try:
-            with open(self.proj_dict_file, encoding="utf-8") as file:
-                all_proj_dict = json.load(file)
-        except (FileNotFoundError, TypeError):
-            logger.warning("Sleeper projection dictionary file not found during load process.")
+        if self.proj_dict_file is not None:
+            try:
+                with open(self.proj_dict_file, encoding="utf-8") as file:
+                    all_proj_dict = json.load(file)
+            except (FileNotFoundError, TypeError):
+                logger.warning("Sleeper projection dictionary file not found during load process.")
+                all_proj_dict = {}
+        else:
             all_proj_dict = {}
 
         if not all(year_week in all_proj_dict for year_week in unique_year_weeks):
@@ -214,11 +219,12 @@ class SleeperPredictor(FantasyPredictor):
             all_proj_dict = collect_sleeper_projections(all_proj_dict, unique_year_weeks)
             logger.info(f"Adding Year-Weeks to Sleeper projections dictionary: {self.proj_dict_file} \n{unique_year_weeks}")
             # Save projection dictionary to JSON file for use next time
-            try:
-                with open(self.proj_dict_file, "w", encoding="utf-8") as file:
-                    json.dump(all_proj_dict, file)
-            except (FileNotFoundError, TypeError):
-                logger.warning("Sleeper projection dictionary file not found during save process.")
+            if self.proj_dict_file is not None:
+                try:
+                    with open(self.proj_dict_file, "w", encoding="utf-8") as file:
+                        json.dump(all_proj_dict, file)
+                except (FileNotFoundError, TypeError):
+                    logger.warning("Sleeper projection dictionary file not found during save process.")
 
         return all_proj_dict
 
@@ -281,7 +287,7 @@ def collect_sleeper_projections(all_proj_dict, year_weeks):
     for year_week in year_weeks:
         if year_week not in all_proj_dict:
             [year, week] = year_week.split("-")
-            week_proj = stats.get_week_projections("regular", int(year), int(week))
+            week_proj = stats.get_week_projections("regular", year, week)
             all_proj_dict[year_week] = week_proj
 
     return all_proj_dict

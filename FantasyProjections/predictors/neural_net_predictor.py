@@ -4,12 +4,17 @@
         NeuralNetPredictor : child of FantasyPredictor. Predicts NFL player stats using a Neural Net.
 """  # fmt: skip
 
+from __future__ import annotations
+
 import logging
+import re
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
 from torch import nn
+from torch.optim.sgd import SGD
 from torch.utils.data import DataLoader
 
 from misc.manage_files import create_folders
@@ -17,6 +22,10 @@ from misc.stat_utils import stats_to_fantasy_points
 from neural_net import HyperParameterSet, NeuralNetwork
 from neural_net.nn_utils import compare_net_sizes
 from predictors import FantasyPredictor
+
+if TYPE_CHECKING:
+    from misc.dataset import StatsDataset
+
 
 # Set up logger
 logger = logging.getLogger("log")
@@ -61,8 +70,8 @@ class NeuralNetPredictor(FantasyPredictor):
     nn_shape: dict
     max_epochs: int
     n_epochs_to_stop: int
-    save_folder: str = None
-    load_folder: str = None
+    save_folder: str | None = None
+    load_folder: str | None = None
     # hyper-parameters
     mini_batch_size: int = 0  # Will be set to a defined hyper-parameter value later
     learning_rate: float = 0  # Will be set to a defined hyper-parameter value later
@@ -80,11 +89,11 @@ class NeuralNetPredictor(FantasyPredictor):
             self.load(self.load_folder, print_loaded_model=True)
         else:
             self.model = NeuralNetwork(shape=self.nn_shape).to(self.device)
-            self.optimizer = torch.optim.SGD(self.model.parameters())
+            self.optimizer = SGD(self.model.parameters())
 
     # PUBLIC METHODS
 
-    def configure_dataloader(self, dataset, **kwargs):
+    def configure_dataloader(self, dataset: StatsDataset, **kwargs):
         """Sets up DataLoader object for training with provided implementation details.
 
             Args:
@@ -132,12 +141,12 @@ class NeuralNetPredictor(FantasyPredictor):
         print_model_flag = kwargs.get("print_model_flag", True)
 
         self.model = NeuralNetwork(shape=self.nn_shape).to(self.device)
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, weight_decay=self.lmbda)
+        self.optimizer = SGD(self.model.parameters(), lr=self.learning_rate, weight_decay=self.lmbda)
 
         if print_model_flag:
             self.print(self.model, log=True)
 
-    def eval_model(self, eval_data=None, eval_dataloader=None, **kwargs):
+    def eval_model(self, eval_data: StatsDataset | None = None, eval_dataloader: DataLoader | None = None, **kwargs):
         """Generates predicted stats for an input evaluation dataset, as computed by the NeuralNetwork.
 
             Either eval_data or eval_dataloader must be input.
@@ -160,17 +169,20 @@ class NeuralNetPredictor(FantasyPredictor):
         # Raise error if normalized=False in kwargs
         if "normalized" in kwargs and not kwargs["normalized"]:
             msg = "NeuralNetPredictor evaluation data must be normalized."
+            logger.exception(msg)
             raise ValueError(msg)
         kwargs["normalized"] = True
 
         # Create dataloader if only a dataset is passed as input
         if not eval_dataloader:
+            if eval_data is None:
+                msg = f"{self.name}, eval_model: Either eval_data or eval_dataloader must not be None"
+                logger.exception(msg)
+                raise ValueError(msg)
             eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
-        # Override data in eval_data (in case both are passed, or eval_data is used in following code)
-        eval_data = eval_dataloader.dataset
 
         # List of stats being used to compute fantasy score
-        stat_columns = eval_dataloader.dataset.y_data_columns
+        stat_columns = eval_dataloader.dataset.y_data_columns  # pyright: ignore[reportAttributeAccessIssue]
 
         # Gather all predicted/true outputs for the input dataset
         self.model.eval()
@@ -188,7 +200,7 @@ class NeuralNetPredictor(FantasyPredictor):
 
         return result
 
-    def load(self, model_folder, print_loaded_model=True):
+    def load(self, model_folder: str, print_loaded_model: bool = True):
         """Initializes a NeuralNetwork and optimizer using specifications saved to file.
 
             Assumes the file name for the model is "model.pth"
@@ -212,22 +224,7 @@ class NeuralNetPredictor(FantasyPredictor):
         opt_file = model_folder + "opt.pth"
         # Establish shape of the model based on data within file
         state_dict = torch.load(model_file, weights_only=True)
-        self.nn_shape = {
-            "players_input": state_dict["embedding_player.0.weight"].shape[1],
-            "teams_input": state_dict["embedding_team.0.weight"].shape[1],
-            "opps_input": state_dict["embedding_opp.0.weight"].shape[1],
-            "embedding_player": state_dict["embedding_player.0.weight"].shape[0],
-            "embedding_team": state_dict["embedding_team.0.weight"].shape[0],
-            "embedding_opp": state_dict["embedding_opp.0.weight"].shape[0],
-            "linear_stack": state_dict["linear_stack.0.weight"].shape[0],
-            "stats_output": state_dict["linear_stack.2.weight"].shape[0],
-        }
-        self.nn_shape["stats_input"] = (
-            state_dict["linear_stack.0.weight"].shape[1]
-            - self.nn_shape["embedding_player"]
-            - self.nn_shape["embedding_team"]
-            - self.nn_shape["embedding_opp"]
-        )
+        self.nn_shape = self.__build_shape_from_state_dict(state_dict)
 
         # Create Neural Network model with shape determined above
         self.model = NeuralNetwork(shape=self.nn_shape).to(self.device)
@@ -236,7 +233,7 @@ class NeuralNetPredictor(FantasyPredictor):
         self.model.load_state_dict(state_dict)
 
         # Initialize optimizer, then load state dict from file
-        self.optimizer = torch.optim.SGD(self.model.parameters())
+        self.optimizer = SGD(self.model.parameters())
         opt_state_dict = torch.load(opt_file, weights_only=True)
         self.optimizer.load_state_dict(opt_state_dict)
 
@@ -245,7 +242,7 @@ class NeuralNetPredictor(FantasyPredictor):
             logger.info(f"Loaded model from file {model_file}")
             self.print(self.model, log=True)
 
-    def modify_hyper_parameter_values(self, param_set):
+    def modify_hyper_parameter_values(self, param_set: HyperParameterSet | dict | None):
         """Configures the neural net's hyper-parameters based on an input parameter set.
 
             Args:
@@ -283,10 +280,16 @@ class NeuralNetPredictor(FantasyPredictor):
         self.lmbda = param_set.get("lmbda", self.lmbda)
         self.loss_fn = param_set.get("loss_fn", self.loss_fn)
         # Fold network-shape hyper-parameters into nn_shape attribute
-        for shape_param in self.nn_shape:
-            self.nn_shape[shape_param] = param_set.get(shape_param, self.nn_shape[shape_param])
+        for layer_name, layer in self.nn_shape.items():
+            if isinstance(layer, dict):
+                for shape_param in layer:
+                    layer[shape_param] = param_set.get(shape_param, layer[shape_param])
+            elif isinstance(layer, list):
+                layer = param_set.get(layer_name, layer)
+                layer = [layer] if isinstance(layer, int) else layer  # Ensure layer is a list
+            self.nn_shape[layer_name] = layer
 
-    def print(self, model, log=False):
+    def print(self, model: NeuralNetwork, log: bool = False):
         """Displays the NeuralNetwork architecture and parameter size to console or to a logger.
 
             Args:
@@ -314,6 +317,11 @@ class NeuralNetPredictor(FantasyPredictor):
             The optimizer is always saved as "opt.pth"
         """  # fmt: skip
 
+        if self.save_folder is None:
+            msg = f"Cannot save model {self.name}: no save folder provided."
+            logger.exception(msg)
+            raise ValueError(msg)
+
         # Check that folder exists, and set filenames
         create_folders(self.save_folder)
         model_save_file = self.save_folder + "model.pth"
@@ -325,11 +333,11 @@ class NeuralNetPredictor(FantasyPredictor):
 
     def train_and_validate(
         self,
-        train_dataloader=None,
-        validation_dataloader=None,
-        training_data=None,
-        validation_data=None,
-        param_set=None,
+        train_dataloader: DataLoader | None = None,
+        validation_dataloader: DataLoader | None = None,
+        training_data: StatsDataset | None = None,
+        validation_data: StatsDataset | None = None,
+        param_set: HyperParameterSet | dict | None = None,
         **kwargs,
     ):
         """Carries out the training process and generates predictions for a separate evaluation dataset.
@@ -366,6 +374,10 @@ class NeuralNetPredictor(FantasyPredictor):
 
         # Configure neural net and dataloaders for training
         if (train_dataloader is None) or (validation_dataloader is None):
+            if training_data is None or validation_data is None:
+                msg = f"{self.name}, train_and_validate: missing training or validation data"
+                logger.exception(msg)
+                raise ValueError(msg)
             train_dataloader = self.configure_dataloader(training_data, mini_batch=True, shuffle=True)
             validation_dataloader = self.configure_dataloader(validation_data, mini_batch=False, shuffle=False)
         if not self.__model_and_optimizer_up_to_date():
@@ -392,7 +404,7 @@ class NeuralNetPredictor(FantasyPredictor):
 
     # PRIVATE METHODS
 
-    def __assign_device(self, print_device=True):
+    def __assign_device(self, print_device: bool = True):
         # Get cpu, gpu or mps device for training.
         device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
         if print_device:
@@ -400,7 +412,54 @@ class NeuralNetPredictor(FantasyPredictor):
 
         return device
 
-    def __end_learning(self, perfs, n_epochs_to_stop, improvement_threshold=0.01):
+    def __build_shape_from_state_dict(self, state_dict):
+        # Given a state_dict loaded from a model file, return the shape of the NeuralNetwork.
+        # Assumes shape with categories "input", "embedding", and "linear_stack".
+        # Assumes linear_stack shape is stored in a list (to handle multiple layers)
+        linear_stacks_seen = []  # tracks all linear stacks in network
+
+        shape = {}
+        # Iterate through all keys
+        for key, val in state_dict.items():
+            # Find the numeric part of the key's name. All shape-related keywords are prior to this
+            key = key.split(".")
+            numeric_key_idx, key_num = next(iter((i, keyword) for i, keyword in enumerate(key) if keyword.isnumeric()))
+            # Recursively update the shape dictionary with any missing keywords
+            sub_dict = shape
+            for i, keyword in enumerate(key[:numeric_key_idx]):
+                if i < numeric_key_idx - 1:
+                    # Recursion to next layer
+                    if keyword not in sub_dict:
+                        sub_dict[keyword] = {}
+                    sub_dict = sub_dict[keyword]
+                # At the lowest layer: assign a value to shape
+                # Special handling for linear_stack
+                elif keyword == "linear_stack":
+                    if keyword not in sub_dict:
+                        sub_dict[keyword] = []
+                    if key_num not in linear_stacks_seen:
+                        sub_dict[keyword].append(val.shape[0])
+                        linear_stacks_seen.append(key_num)
+
+                else:
+                    sub_dict[keyword] = val.shape[0]
+
+        # Deduce input layer shape based on other layers
+        shape["input"] = {}
+        # Obtain all input sizes for embedding layers
+        embedding_pattern = "embedding.(.+?).0.weight"
+        embedding_layers = [(m.group(0), m.group(1)) for key in state_dict if (m := re.search(embedding_pattern, key))]
+        n_embedded_outputs = 0
+        for layer, layer_name in embedding_layers:
+            shape["input"][layer_name] = state_dict[layer].shape[1]
+            n_embedded_outputs += state_dict[layer].shape[0]
+        # Find number of unembedded inputs based on difference in embedded outputs and linear stack inputs
+        n_linear_stack_inputs = state_dict["linear_stack.0.weight"].shape[1]
+        shape["input"]["unembedded"] = n_linear_stack_inputs - n_embedded_outputs
+
+        return shape
+
+    def __end_learning(self, perfs: list, n_epochs_to_stop: int, improvement_threshold: float = 0.01):
         # Determines whether to stop training (if test performance has stagnated)
         # Returns true if learning should be stopped
         # If n_epochs_to_stop is less than zero, this feature is turned off
@@ -416,10 +475,10 @@ class NeuralNetPredictor(FantasyPredictor):
         # Checks whether the properties of self.model are consistent with the shape in self.nn_shape
         # and the properties of self.optimizer are consistent with the NeuralNetPredictor's other attributes (like learning_rate)
         return compare_net_sizes(self.model, NeuralNetwork(shape=self.nn_shape)) and (
-            self.optimizer == torch.optim.SGD(self.model.parameters(), lr=self.learning_rate, weight_decay=self.lmbda)
+            self.optimizer == SGD(self.model.parameters(), lr=self.learning_rate, weight_decay=self.lmbda)
         )
 
-    def __train(self, dataloader, loss_fn, print_losses=True):
+    def __train(self, dataloader: DataLoader, loss_fn, print_losses: bool = True):
         # Implements Stochastic Gradient Descent to train the model
         # against the provided training dataloader. Periodically logs losses from the loss function
         # Loss function may be a function handle or a subset of valid strings that match function handles
@@ -431,10 +490,12 @@ class NeuralNetPredictor(FantasyPredictor):
                 loss_fn = loss_fn_strings[loss_fn]
             except KeyError as e:
                 msg = "Invalid loss function string"
+                logger.exception(msg)
                 raise KeyError(msg) from e
 
-        size = len(dataloader.dataset)
-        num_batches = int(np.ceil(size / dataloader.batch_size))
+        size = len(dataloader.dataset)  # pyright: ignore[reportArgumentType]
+        batch_size = dataloader.batch_size if dataloader.batch_size is not None else 1
+        num_batches = int(np.ceil(size / batch_size))
         self.model.train()
         for batch, (x_dataloader, y_dataloader) in enumerate(dataloader):
             x_matrix, y_matrix = x_dataloader.to(self.device), y_dataloader.to(self.device)

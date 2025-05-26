@@ -110,7 +110,13 @@ def save_features_config(feature_sets):
         stat_feature_df["thresholds"].tolist(),
         index=stat_feature_df.index,
     )
-    stat_feature_df = pd.concat((stat_feature_df, pd.json_normalize(stat_feature_df["site_labels"].to_dict())), axis=1)
+
+    # Convert dict of site labels to individual columns for each site label key
+    site_labels_df = pd.json_normalize(stat_feature_df["site_labels"].tolist())
+    site_labels_df.index = stat_feature_df.index
+    stat_feature_df = pd.concat((stat_feature_df, site_labels_df), axis=1)
+
+    # Format output dataframe
     stat_feature_df = stat_feature_df.drop(columns=["thresholds", "site_labels"])
     stat_feature_df = stat_feature_df.set_index("name")
 
@@ -302,7 +308,5 @@ def _unnormalize_series(col, thresholds):
         # normalization, so there's a small chance of lost info...
         [lwr, upr] = thresholds[col.name]
         col = col * (upr - lwr) + lwr
-    else:
-        logger.warning(f"Warning: {col.name} not explicitly normalized")
 
     return col

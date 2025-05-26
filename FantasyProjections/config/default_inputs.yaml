@@ -58,15 +58,18 @@ predictors:
       max_epochs: 30
       n_epochs_to_stop: 5
       nn_shape:
-        players_input: 300
-        teams_input: 32
-        opps_input: 32
-        stats_input: 29
-        embedding_player: 50
-        embedding_team: 10
-        embedding_opp: 10
-        linear_stack: 300
-        stats_output: 12
+        input:
+          unembedded: 29
+          player: 300
+          team: 32
+          opp: 32
+        embedding:
+          player: 50
+          team: 10
+          opp: 10
+        linear_stack:
+          - 300
+        output: 12
   - name: default
     type: SleeperPredictor
     config:

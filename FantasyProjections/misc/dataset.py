@@ -5,13 +5,17 @@
             pre-game/midgame/final stats for NFL players/games.
 """  # fmt: skip
 
+from __future__ import annotations
+
 import logging
+import logging.config
 import random
 
 import numpy as np
 import pandas as pd
 import pandas.testing as pdtest
 import torch
+import torch.utils.data
 
 from config.log_config import LOGGING_CONFIG
 
@@ -51,14 +55,14 @@ class StatsDataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        name,
-        id_df,
-        pbp_df=None,
-        boxscore_df=None,
-        x_data=None,
-        x_data_columns=None,
-        y_data=None,
-        y_data_columns=None,
+        name: str,
+        id_df: pd.DataFrame,
+        pbp_df: pd.DataFrame | None = None,
+        boxscore_df: pd.DataFrame | None = None,
+        x_data: torch.Tensor | None = None,
+        x_data_columns: list | None = None,
+        y_data: torch.Tensor | None = None,
+        y_data_columns: list | None = None,
         **kwargs,
     ):
         """Constructor for StatsDataset.
@@ -117,19 +121,24 @@ class StatsDataset(torch.utils.data.Dataset):
         # Process DFs; convert numeric data (inputs "x" and desired
         # outputs "y") to tensors
         if pbp_df is not None:
-            self.x_data = torch.tensor(pbp_df.values)
-            self.x_data_columns = pbp_df.columns.to_list()
-        else:
-            self.x_data = x_data
-            self.x_data_columns = x_data_columns
+            x_data = torch.tensor(pbp_df.values)
+            x_data_columns = pbp_df.columns.to_list()
 
         if boxscore_df is not None:
-            self.y_data = torch.tensor(boxscore_df.values)
-            self.y_data_columns = boxscore_df.columns.to_list()
-        else:
-            self.y_data = y_data
-            self.y_data_columns = y_data_columns
+            y_data = torch.tensor(boxscore_df.values)
+            y_data_columns = boxscore_df.columns.to_list()
 
+        # Check that all data has been set)
+        if x_data is None or x_data_columns is None or y_data is None or y_data_columns is None or id_df is None:
+            msg = "Not all data has been set for StatsDataset. x_data, y_data, and id_data must all be set."
+            logger.error(f"Error: {msg}")
+            raise ValueError(msg)
+
+        # Assign data to StatsDataset attributes
+        self.x_data = x_data
+        self.x_data_columns = x_data_columns
+        self.y_data = y_data
+        self.y_data_columns = y_data_columns
         self.id_data = id_df
 
         # Trim to only the desired data, according to multiple possible methods:
@@ -155,7 +164,7 @@ class StatsDataset(torch.utils.data.Dataset):
 
     # PUBLIC METHODS
 
-    def concat(self, other, inplace=True):
+    def concat(self, other: StatsDataset, inplace: bool = True):
         """Appends two StatsDatasets into one larger StatsDataset, either in-place or returning a new StatsDataset.
 
             Args:
@@ -208,7 +217,7 @@ class StatsDataset(torch.utils.data.Dataset):
             return new_dataset
         return None
 
-    def slice_by_criteria(self, inplace=True, **kwargs):
+    def slice_by_criteria(self, inplace=True, **kwargs) -> StatsDataset:
         """Removes all data from a StatsDataset except the entries that meet a set of criteria.
 
             Args:
@@ -245,17 +254,17 @@ class StatsDataset(torch.utils.data.Dataset):
             self.x_data = self.x_data[row_nums]
             self.y_data = self.y_data[row_nums]
             self.id_data = self.id_data.iloc[row_nums]
-        else:
-            new_dataset = StatsDataset(
-                name=self.name,
-                id_df=self.id_data.iloc[row_nums],
-                x_data=self.x_data[row_nums],
-                x_data_columns=self.x_data_columns,
-                y_data=self.y_data[row_nums],
-                y_data_columns=self.y_data_columns,
-            )
-            return new_dataset
-        return None
+            return self
+
+        new_dataset = StatsDataset(
+            name=self.name,
+            id_df=self.id_data.iloc[row_nums],
+            x_data=self.x_data[row_nums],
+            x_data_columns=self.x_data_columns,
+            y_data=self.y_data[row_nums],
+            y_data_columns=self.y_data_columns,
+        )
+        return new_dataset
 
     def remove_game_duplicates(self, inplace=False):
         """Filters evaluation data to only contain one entry per unique game/player.

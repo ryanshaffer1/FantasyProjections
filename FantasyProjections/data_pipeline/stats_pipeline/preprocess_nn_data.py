@@ -79,7 +79,12 @@ def preprocess_nn_data(midgame_input, final_stats_input, feature_sets, save_fold
     ]
     midgame_columns = [
         *stats_config.baseline_data_outputs["midgame"],
-        *[feat.name for feat_set in feature_sets for feat in feat_set.features if "midgame" in feat.outputs],
+        *[
+            feat.name
+            for feat_set in feature_sets
+            for feat in feat_set.features
+            if "midgame" in feat.outputs and not feat.one_hot_encode
+        ],
     ]
     final_stats_columns = [
         *stats_config.baseline_data_outputs["final"],
@@ -100,7 +105,12 @@ def preprocess_nn_data(midgame_input, final_stats_input, feature_sets, save_fold
     # One-Hot Encode each non-numeric, relevant pbp field (Player, Team, Position):
     fields_to_encode = [
         *stats_config.baseline_one_hot_columns,
-        *[feat.name for feat_set in feature_sets for feat in feat_set.features if feat.one_hot_encode],
+        *[
+            feat.name
+            for feat_set in feature_sets
+            for feat in feat_set.features
+            if "midgame" in feat.outputs and feat.one_hot_encode
+        ],
     ]
     encoded_fields_df = pd.get_dummies(id_df[fields_to_encode], columns=fields_to_encode, dtype=int)
     midgame_input = pd.concat((midgame_input, encoded_fields_df), axis=1)
