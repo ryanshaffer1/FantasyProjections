@@ -457,6 +457,15 @@ class NeuralNetPredictor(FantasyPredictor):
         n_linear_stack_inputs = state_dict["linear_stack.0.weight"].shape[1]
         shape["input"]["unembedded"] = n_linear_stack_inputs - n_embedded_outputs
 
+        # There's no easy way to find the data indices corresponding to each input group, so assume the inputs are ordered
+        # with unembedded inputs first, followed by each embedding group in the order they were found
+        shape["input_indices"] = {}
+        shape["input_indices"]["unembedded"] = range(shape["input"]["unembedded"])
+        prev = shape["input"]["unembedded"]
+        for _, embedded_layer_name in embedding_layers:
+            shape["input_indices"][embedded_layer_name] = range(prev, prev + shape["input"][embedded_layer_name])
+            prev += shape["input"][embedded_layer_name]
+
         return shape
 
     def __end_learning(self, perfs: list, n_epochs_to_stop: int, improvement_threshold: float = 0.01):

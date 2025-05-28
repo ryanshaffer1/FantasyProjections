@@ -21,7 +21,7 @@ BOXSCORE_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_
 ID_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_STAT_FILES["id"]
 
 
-def read_data_into_dataset(log_datafiles=True):
+def read_data_into_dataset(features: dict, log_datafiles: bool = True):
     """Reads all available input data into a large StatsDataset object.
 
         Args:
@@ -42,7 +42,23 @@ def read_data_into_dataset(log_datafiles=True):
         for name, file in zip(["pbp", "boxscore", "IDs"], [PBP_DATAFILE, BOXSCORE_DATAFILE, ID_DATAFILE]):
             logger.debug(f"{name}: {file}")
 
+    # Filter dataframes to just the desired features (and order dataframe according to features)
+    input_features = read_features(features, pbp_df)
+    pbp_df = pbp_df[input_features]
+
     # Create dataset containing all data from above files
     all_data = StatsDataset("All", id_df=id_df, pbp_df=pbp_df, boxscore_df=boxscore_df)
 
     return all_data
+
+
+def read_features(features: dict, pbp_df: pd.DataFrame) -> list:
+    input_features = []
+    for feat_name, feat_specs in features.get("input", {}).items():
+        if feat_specs is None or not feat_specs.get("one_hot_encoded", False):
+            input_features.append(feat_name)
+        else:
+            all_encoded_cols = pbp_df.filter(like=f"{feat_name}_", axis=1).columns.to_list()
+            input_features += all_encoded_cols
+
+    return input_features

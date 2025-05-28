@@ -41,11 +41,6 @@ class NeuralNetwork(nn.Module):
         super().__init__()
         self.shape = shape
 
-        # Process input layer
-        # Assumption: all non-embedded inputs are BEFORE the embedded inputs
-        num_unembedded = shape["input"]["unembedded"]
-        self.unembedded_indices = range(num_unembedded)
-
         # Create embedding layers
         self.embedding = nn.ModuleDict()
         for embedding_name, embedding_size in shape.get("embedding", {}).items():
@@ -56,17 +51,9 @@ class NeuralNetwork(nn.Module):
             )
             self.embedding[embedding_name] = embedding
 
-        # Track embedding input indices
-        self.embed_input_indices = {}
-        prev = num_unembedded - 1
-        for e_name, e_layer in self.embedding.items():
-            input_indices = self.__index_range(prev, e_layer[0].in_features)  # pyright: ignore[reportIndexIssue]
-            self.embed_input_indices[e_name] = input_indices
-            prev = input_indices
-
         # Create linear stack layers
         self.linear_stack = nn.Sequential()
-        prev_layer_size = num_unembedded + sum(shape.get("embedding", {}).values())
+        prev_layer_size = shape["input"]["unembedded"] + sum(shape.get("embedding", {}).values())
         for layer_stack_size in shape["linear_stack"]:
             layer_input_size = prev_layer_size
             self.linear_stack += nn.Sequential(
@@ -83,24 +70,24 @@ class NeuralNetwork(nn.Module):
 
     # PUBLIC METHODS
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Defines the feedforward flow of information through the network, including the embedding and linear stack layers.
 
             Args:
-                x (tensor): input vector into Neural Net
+                x (Tensor): input vector into Neural Net
 
             Returns:
-                tensor: output vector from Neural Net based on provided input
+                Tensor: output vector from Neural Net based on provided input
 
         """  # fmt: skip
 
         # Pass through all non-embedded inputs
-        x_non_embedded = x[:, self.unembedded_indices]
+        x_non_embedded = x[:, self.shape["input_indices"]["unembedded"]]
 
         # Compute all embeddings from inputs
         post_embeddings = []
         for e_name in self.embedding:
-            x_embedded_input = x[:, self.embed_input_indices[e_name]]
+            x_embedded_input = x[:, self.shape["input_indices"][e_name]]
             x_post_embedding = self.embedding[e_name](x_embedded_input)
             post_embeddings.append(x_post_embedding)
 
@@ -111,12 +98,3 @@ class NeuralNetwork(nn.Module):
         x_post_stack = self.linear_stack(x_post_embeddings)
         logits = self.output(x_post_stack)
         return logits
-
-    # PRIVATE METHODS
-
-    def __index_range(self, prev, length):
-        # Returns the next range of length "length", starting after an index or a previous range, "prev"
-        if isinstance(prev, int):
-            return range(prev + 1, prev + 1 + length)
-
-        return range(max(prev) + 1, max(prev) + 1 + length)

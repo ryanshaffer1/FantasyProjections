@@ -34,8 +34,11 @@ logger.info("Starting Program")
 scenario = managers.ScenarioObjects()
 
 # Read data from csv files and create all datasets
-all_data = managers.read_data_into_dataset(log_datafiles=True)
+all_data = managers.read_data_into_dataset(input_params.features, log_datafiles=True)
 scenario.datasets = managers.create_datasets(input_params.datasets, all_data)
+
+# Update some scenario input parameters based on features/data
+input_params.update_params_based_on_features(all_data)
 
 # Hyper-Parameters affecting the behavior of the Neural Net
 scenario.hyperparameters = HyperParameterSet(hp_dict=input_params.hyperparameters)

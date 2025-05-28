@@ -54,6 +54,12 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
                 "team": 32,
                 "opp": 32,
             },
+            "input_indices": {
+                "unembedded": range(29),
+                "player": range(29, 329),
+                "team": range(329, 361),
+                "opp": range(361, 393),
+            },
             "embedding": {
                 "player": 50,
                 "team": 10,
@@ -71,6 +77,12 @@ class TestConstructor_NeuralNetPredictor(unittest.TestCase):
                 "player": 3,
                 "team": 2,
                 "opp": 6,
+            },
+            "input_indices": {
+                "unembedded": range(8),
+                "player": range(8, 11),
+                "team": range(11, 13),
+                "opp": range(13, 19),
             },
             "embedding": {
                 "player": 2,
@@ -141,6 +153,12 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
                 "team": 32,
                 "opp": 32,
             },
+            "input_indices": {
+                "unembedded": range(29),
+                "player": range(29, 329),
+                "team": range(329, 361),
+                "opp": range(361, 393),
+            },
             "embedding": {
                 "player": 50,
                 "team": 10,
@@ -158,6 +176,12 @@ class TestLoadModel_NeuralNetPredictor(unittest.TestCase):
                 "player": 1,
                 "team": 1,
                 "opp": 1,
+            },
+            "input_indices": {
+                "unembedded": range(1),
+                "player": range(1, 2),
+                "team": range(2, 3),
+                "opp": range(3, 4),
             },
             "embedding": {
                 "player": 1,
@@ -240,6 +264,12 @@ class TestSaveModel_NeuralNetPredictor(unittest.TestCase):
                 "team": 32,
                 "opp": 32,
             },
+            "input_indices": {
+                "unembedded": range(29),
+                "player": range(29, 329),
+                "team": range(329, 361),
+                "opp": range(361, 393),
+            },
             "embedding": {
                 "player": 50,
                 "team": 10,
@@ -284,6 +314,12 @@ class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
                 "player": 3,
                 "team": 2,
                 "opp": 6,
+            },
+            "input_indices": {
+                "unembedded": range(8),
+                "player": range(8, 11),
+                "team": range(11, 13),
+                "opp": range(13, 19),
             },
             "embedding": {
                 "player": 2,
@@ -372,6 +408,12 @@ class TestModifyHyperParameterValues_NeuralNetPredictor(unittest.TestCase):
                 "player": 3,
                 "team": 2,
                 "opp": 6,
+            },
+            "input_indices": {
+                "unembedded": range(8),
+                "player": range(8, 11),
+                "team": range(11, 13),
+                "opp": range(13, 19),
             },
             "embedding": {
                 "player": 2,
@@ -491,6 +533,12 @@ class TestConfigureDataloader_NeuralNetPredictor(unittest.TestCase):
                 "team": 2,
                 "opp": 6,
             },
+            "input_indices": {
+                "unembedded": range(8),
+                "player": range(8, 11),
+                "team": range(11, 13),
+                "opp": range(13, 19),
+            },
             "embedding": {
                 "player": 2,
                 "team": 4,
@@ -568,6 +616,12 @@ class TestConfigureModelAndOptimizer_NeuralNetPredictor(unittest.TestCase):
                 "team": 2,
                 "opp": 6,
             },
+            "input_indices": {
+                "unembedded": range(8),
+                "player": range(8, 11),
+                "team": range(11, 13),
+                "opp": range(13, 19),
+            },
             "embedding": {
                 "player": 2,
                 "team": 4,
@@ -622,6 +676,12 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
                 "player": 3,
                 "team": 2,
                 "opp": 6,
+            },
+            "input_indices": {
+                "unembedded": range(8),
+                "player": range(8, 11),
+                "team": range(11, 13),
+                "opp": range(13, 19),
             },
             "embedding": {
                 "player": 2,

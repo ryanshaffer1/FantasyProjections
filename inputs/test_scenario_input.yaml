@@ -10,11 +10,14 @@ save_options:
   save_plots: true
   save_input_file: true
 
+# Features
+
+
 # Datasets
 datasets:
   - name: Training
     config:
-      - years: [2021]
+      - years: [2021, 2022]
       - years: [2023]
         weeks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   - name: Validation
@@ -70,19 +73,8 @@ predictors:
     type: NeuralNetPredictor
     save_model: true
     config:
-      load_folder: "models/20241126_120555/"
       max_epochs: 1
       n_epochs_to_stop: 5
-      nn_shape:
-        players_input: 300
-        teams_input: 32
-        opps_input: 32
-        stats_input: 29
-        embedding_player: 50
-        embedding_team: 10
-        embedding_opp: 10
-        linear_stack: 300
-        stats_output: 12
   - name: Sleeper
     type: SleeperPredictor
     config:

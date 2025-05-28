@@ -11,6 +11,7 @@
 import logging
 
 from gamblers import BasicGambler
+from misc.dataset import StatsDataset
 from predictors import LastNPredictor, NeuralNetPredictor, PerfectPredictor, SleeperPredictor
 from results import PredictionResult, PredictionResultGroup
 from tuners import GridSearchTuner, RandomSearchTuner, RecursiveRandomSearchTuner
@@ -19,7 +20,7 @@ from tuners import GridSearchTuner, RandomSearchTuner, RecursiveRandomSearchTune
 logger = logging.getLogger("log")
 
 
-def create_datasets(dataset_params, all_data):
+def create_datasets(dataset_params: list[dict], all_data: StatsDataset):
     """Generates datasets using a subset of all available data, based on the parameters specified for each dataset.
 
         Args:
@@ -36,15 +37,19 @@ def create_datasets(dataset_params, all_data):
 
     # Create datasets one-by-one
     for dataset_ipt in dataset_params:
-        name = dataset_ipt.get("name", "")
+        # Slice dataset rows based on input configuration criteria
         for i, configuration in enumerate(dataset_ipt.get("config", {})):
             if i == 0:
                 dataset = all_data.slice_by_criteria(inplace=False, **configuration)
             else:
                 dataset.concat(all_data.slice_by_criteria(inplace=False, **configuration))
+
+        # Name dataset and add to datasets dict
+        name = dataset_ipt.get("name", "dataset")
         dataset.name = name
         datasets[name] = dataset
 
+    # Log dataset info (size)
     for dataset in datasets.values():
         logger.info(f"{dataset.name} Dataset size: {dataset.x_data.shape[0]}")
 

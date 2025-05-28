@@ -10,6 +10,53 @@ save_options:
   save_plots: true
   save_input_file: true
 
+# Features
+features:
+  input:
+    Elapsed Time:
+    Team Score:
+    Opp Score:
+    Possession:
+    Field Position:
+    Site:
+    Team Wins:
+    Team Losses:
+    Team Ties:
+    Opp Wins:
+    Opp Losses:
+    Opp Ties:
+    Pass Att:
+    Pass Cmp:
+    Pass Yds:
+    Pass TD:
+    Int:
+    Rush Att:
+    Rush Yds:
+    Rush TD:
+    Rec:
+    Rec Yds:
+    Rec TD:
+    Fmb:
+    Age:
+    injury_status:
+    Position: {one_hot_encoded: true}
+    Player ID: {one_hot_encoded: true}
+    Team: {one_hot_encoded: true}
+    Opponent: {one_hot_encoded: true}
+  output:
+    Pass Att:
+    Pass Cmp:
+    Pass Yds:
+    Pass TD:
+    Int:
+    Rush Att:
+    Rush Yds:
+    Rush TD:
+    Rec:
+    Rec Yds:
+    Rec TD:
+    Fmb:  
+
 # Datasets
 datasets:
   - name: default
@@ -58,18 +105,13 @@ predictors:
       max_epochs: 30
       n_epochs_to_stop: 5
       nn_shape:
-        input:
-          unembedded: 29
-          player: 300
-          team: 32
-          opp: 32
         embedding:
-          player: 50
-          team: 10
-          opp: 10
+          player: {n: 50, feature: Player ID}
+          team: {n: 10, feature: Team}
+          opp: {n: 10, feature: Opponent}
         linear_stack:
           - 300
-        output: 12
+
   - name: default
     type: SleeperPredictor
     config:
