@@ -4,22 +4,27 @@
         SingleGameOddsGatherer : Collects all player props ("odds") for a single NFL game. Automatically processes data upon initialization.
 """  # fmt: skip
 
+from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING, cast
 
 import dateutil.parser as dateparse
 import numpy as np
 import pandas as pd
-import requests
 
 from config import data_files_config
 from config.player_id_config import PRIMARY_PLAYER_ID
-from data_pipeline.odds_pipeline.odds_api_helper_functions import BOOKMAKER, DATE_FMT, SPORT_KEY, log_api_usage
+from data_pipeline.odds_pipeline.odds_api_helper_functions import BOOKMAKER, DATE_FMT, SPORT_KEY
 from data_pipeline.single_game_data_worker import SingleGameDataWorker
 from data_pipeline.utils import team_abbreviations as team_abbrs
 from data_pipeline.utils.name_matching import find_matching_name_ind
 from data_pipeline.utils.time_helper_functions import find_prev_time_index
+
+if TYPE_CHECKING:
+    from data_pipeline.odds_pipeline.seasonal_odds_collector import SeasonalOddsCollector
 
 # Set up logger
 logger = logging.getLogger("log")
@@ -55,7 +60,7 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
 
     """  # fmt: skip
 
-    def __init__(self, seasonal_data, event_id, game_id, **kwargs):
+    def __init__(self, seasonal_data: SeasonalOddsCollector, event_id: str, game_id: str, **kwargs):
         """Constructor for SingleGamePbpParser object.
 
             Args:
@@ -83,10 +88,10 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
 
         # Optional keyword arguments
         player_props = kwargs.get("player_props")
-        odds_file = kwargs.get("odds_file")
+        odds_file: str = kwargs.get("odds_file", "")
 
         # Basic info
-        self.api_key = seasonal_data.api_key
+        self.api_manager = seasonal_data.api_manager
         self.event_id = event_id
 
         # Helpful: maps game time to UTC time
@@ -100,15 +105,15 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
             odds_df = pd.DataFrame()
 
         # Determine the list of odds to collect
-        self.set_markets(odds_df, player_props)
+        self.set_markets(odds_df, player_props, remove_existing=False)
 
         # Collect additional odds from API
         if len(self.markets) > 0:
-            self.odds_df = self.gather_historical_odds(odds_df=odds_df, game_times=[0, 30])
+            self.odds_df = self.gather_historical_odds(odds_df=odds_df, game_times=[0])
         else:
             self.odds_df = self.reformat_odds_df(odds_df)
 
-    def gather_historical_odds(self, odds_df=None, game_times=None):
+    def gather_historical_odds(self, odds_df: pd.DataFrame | None = None, game_times: list | None = None):
         """Requests historical odds data from The Odds API for the player props of interest at game times of interest.
 
             Args:
@@ -128,47 +133,45 @@ class SingleGameOddsGatherer(SingleGameDataWorker):
         if odds_df is None:
             odds_df = pd.DataFrame()
 
-        # Make a separate API request for each desired game time
+        # Make a separate API request for each desired game time, each market
         for game_time in game_times:
             # Determine time of the most recent play in order to request the odds from that time
             pbp_index = find_prev_time_index(game_time, self.all_game_times)
             time = datetime.strftime(dateparse.parse(self.all_game_times.iloc[pbp_index]), DATE_FMT)
 
-            # Make the request to The Odds for data on the selected markets at the correct time
-            response = requests.get(
-                f"https://api.the-odds-api.com/v4/historical/sports/{SPORT_KEY}/events/{self.event_id}/odds",
-                params={
-                    "api_key": self.api_key,
+            for market in self.markets:
+                # Make the request to The Odds for data on the selected markets at the correct time
+                endpoint = f"https://api.the-odds-api.com/v4/historical/sports/{SPORT_KEY}/events/{self.event_id}/odds"
+                request_params = {
                     "regions": "us",
-                    "markets": ",".join(self.markets),
+                    "markets": market,
                     "date": time,
-                },
-                timeout=10,
-            )
-            # Track usage of API key
-            log_api_usage(response)
+                }
+                response, success = self.api_manager.make_api_request(endpoint, request_params)
 
-            # Process API Response to obtain market data. Exit gracefully if response does not contain "data" or data does not contain "markets".
-            try:
-                event_data = json.loads(response.text)["data"]
-            except KeyError:
-                logger.warning(f"Key Error encountered in API request. Aborting game {self.game_id} early.")
-                return odds_df
-            try:
-                market_data = pd.DataFrame(event_data["bookmakers"]).set_index("key").loc[BOOKMAKER, "markets"]
-            except KeyError:
-                logger.warning(f"Key Error encountered: {BOOKMAKER} missing. Aborting game {self.game_id} early.")
-                return odds_df
+                # Process API Response to obtain market data. Exit gracefully if response does not contain "data" or data does not contain "markets".
+                try:
+                    event_data = json.loads(response)["data"]
+                except KeyError:
+                    logger.warning(f"Key Error encountered in API request. Aborting game {self.game_id} early.")
+                    return odds_df
+                try:
+                    market_data = cast(
+                        "list",
+                        pd.DataFrame(event_data["bookmakers"]).set_index("key").loc[BOOKMAKER, "markets"],
+                    )
+                except KeyError:
+                    logger.warning(f"Key Error encountered: {BOOKMAKER} missing. Aborting game {self.game_id} early.")
+                    return odds_df
 
-            for market in market_data:
                 # Process Odds data into a DataFrame
-                single_market_odds_df = pd.DataFrame(market["outcomes"]).rename(
+                single_market_odds_df = pd.DataFrame(market_data[0]["outcomes"]).rename(
                     columns={"description": "Player Name", "name": "Line"},
                 )
                 # Add Player Prop Stat and UTC time from market data
                 labels_df_to_odds = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["odds"].dropna().to_dict()
-                single_market_odds_df["Player Prop Stat"] = team_abbrs.invert(labels_df_to_odds)[market["key"]]
-                single_market_odds_df["UTC Time"] = market["last_update"]
+                single_market_odds_df["Player Prop Stat"] = team_abbrs.invert(labels_df_to_odds)[market_data[0]["key"]]
+                single_market_odds_df["UTC Time"] = market_data[0]["last_update"]
                 # Format dataframe for output
                 single_market_odds_df = self.reformat_odds_df(single_market_odds_df)
                 # Add to running list of all odds

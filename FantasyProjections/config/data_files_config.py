@@ -42,5 +42,7 @@ PFR_ID_FILENAME = MISC_FOLDER + "names_to_pfr_ids.json"
 SLEEPER_PROJ_DICT_FILE = MISC_FOLDER + "sleeper_projections_dict.json"
 # Odds data
 ODDS_FILE = ODDS_FOLDER + "odds.csv"
+ODDS_REQUESTS_FILE = ODDS_FOLDER + "all_requests.json"
+ODDS_SURROGATE_DATA = ODDS_FOLDER + "surrogate_data/"
 # Private configuration data (e.g. API Keys)
 ODDS_API_KEY_FILE = "FantasyProjections/config/private/odds_api_key.txt"

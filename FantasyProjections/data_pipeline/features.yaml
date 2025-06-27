@@ -61,7 +61,7 @@ feature_sets:
       thresholds: [-50, 1000]
       outputs: ["midgame", "final"]
       scoring_weight: 0.1
-      site_labels: {"sleeper": "rush_yd", "pfr": "rush_yds", "odds": "player_rush_yards"}
+      site_labels: {"sleeper": "rush_yd", "pfr": "rush_yds", "odds": "player_rush_yds"}
     - !StatFeature
       name: "Rush TD"
       thresholds: [0, 8]

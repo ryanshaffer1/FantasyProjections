@@ -8,9 +8,8 @@ import json
 import logging
 from datetime import datetime
 
-import requests
-
-from data_pipeline.odds_pipeline.odds_api_helper_functions import DATE_FMT, SPORT_KEY, get_odds_api_key, log_api_usage
+from data_pipeline.odds_pipeline.odds_api_helper_functions import DATE_FMT, SPORT_KEY
+from data_pipeline.odds_pipeline.odds_api_manager import OddsAPIManager
 from data_pipeline.odds_pipeline.single_game_odds_gatherer import SingleGameOddsGatherer
 from data_pipeline.seasonal_data_collector import SeasonalDataCollector
 from data_pipeline.utils import team_abbreviations as team_abbrs
@@ -75,14 +74,15 @@ class SeasonalOddsCollector(SeasonalDataCollector):
         """  # fmt: skip
 
         # Initialize SeasonalDataCollector
-        super().__init__(year=year, team_names=team_names, weeks=weeks, **kwargs)
+        super().__init__(year=year, team_names=team_names, weeks=weeks, feature_sets=[], **kwargs)
 
         # Optional keyword arguments
         player_props = kwargs.get("player_props")
         odds_file = kwargs.get("odds_file")
+        surrogate = kwargs.get("surrogate", False)
 
         # API Key
-        self.api_key = get_odds_api_key()
+        self.api_manager = OddsAPIManager(surrogate)
 
         # List of SingleGameData objects
         self.games = self.generate_games(odds_file=odds_file, player_props=player_props)
@@ -109,13 +109,11 @@ class SeasonalOddsCollector(SeasonalDataCollector):
         year_start_date, _ = week_to_date_range(self.year, week=1)
         year_start_date = datetime.strftime(year_start_date, DATE_FMT)
         # Get all events in week
-        response = requests.get(
-            f"https://api.the-odds-api.com/v4/historical/sports/{SPORT_KEY}/events",
-            params={"api_key": self.api_key, "date": year_start_date},
-            timeout=10,
-        )
-        log_api_usage(response)
-        events_list = json.loads(response.text)["data"]
+        endpoint = f"https://api.the-odds-api.com/v4/historical/sports/{SPORT_KEY}/events"
+        request_params = {"date": year_start_date}
+        response, success = self.api_manager.make_api_request(endpoint, request_params)
+
+        events_list = json.loads(response)["data"]
 
         # Extract IDs from each event
         event_ids = []
@@ -136,7 +134,13 @@ class SeasonalOddsCollector(SeasonalDataCollector):
         for i, (event_id, game_id) in enumerate(zip(event_ids, game_ids)):
             logger.info(f"({i + 1} of {n_games}): {game_id}")
             # Process data/stats for single game
-            game = SingleGameOddsGatherer(self, event_id, game_id, odds_file=odds_file, player_props=player_props)
+            game = SingleGameOddsGatherer(
+                self,
+                event_id,
+                game_id,
+                odds_file=odds_file,
+                player_props=player_props,
+            )
             # Add to list of games
             games.append(game)
 
