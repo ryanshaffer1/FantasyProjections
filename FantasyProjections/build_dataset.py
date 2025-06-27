@@ -9,6 +9,7 @@ This module is a script to be run alone. Before running, the packages in require
 """  # fmt: skip
 
 # fmt: skip
+import argparse
 import logging
 import logging.config
 from datetime import datetime
@@ -26,18 +27,17 @@ from misc.manage_files import collect_roster_filter, create_folders, move_logfil
 from misc.stat_utils import save_features_config
 from misc.yaml_constructor import add_yaml_constructors
 
-# Flags
-SAVE_DATA = True  # Saves data in .csv's (output files specified below)
-PROCESS_TO_NN = True  # After saving human-readable data, creates data formatted for Neural Network usage
-FILTER_ROSTER = True  # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
-UPDATE_FILTER = True  # Forces re-evaluation of filtered list of players
-VALIDATE_PARSING = True  # Gathers true box scores from the internet to confirm logic in play-by-play parsing is correct
-SCRAPE_MISSING = True  # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
-# Data Inputs
-TEAM_NAMES = "all"  # All team names
-YEARS = range(2024, 2025)  # All years to process data for
-WEEKS = range(1, 18)  # All weeks to process data for (applies this set to all years in YEARS)
-GAME_TIMES = range(76)  # range(0,76). Alternates: 'all', list of numbers
+# Read command line argument: input parameter file
+parser = argparse.ArgumentParser("main")
+parser.add_argument("parameter_file", help="YAML file containing all dataset parameters - see example input files.")
+args = parser.parse_args()
+add_yaml_constructors()
+with open(args.parameter_file) as file:
+    inputs = yaml.safe_load(file)
+# Unpack inputs into variables
+flags = inputs["flags"]
+dataset_opts = inputs["dataset_options"]
+feature_sets = inputs["feature_sets"]
 
 
 # Set up logger
@@ -50,21 +50,23 @@ logger.info("Starting Program")
 
 # Log user inputs
 logger.debug(
-    f"FLAGS: \nSAVE_DATA={SAVE_DATA} \nPROCESS_TO_NN={PROCESS_TO_NN} \nFILTER_ROSTER={FILTER_ROSTER} \nUPDATE_FILTER={UPDATE_FILTER}\
-            \nVALIDATE_PARSING={VALIDATE_PARSING} \nSCRAPE_MISSING={SCRAPE_MISSING}",
+    f"FLAGS: \nSAVE_DATA={flags.save_data} \nPROCESS_TO_NN={flags.process_to_nn} \nFILTER_ROSTER={flags.filter_roster} \nUPDATE_FILTER={flags.update_filter}\
+            \nVALIDATE_PARSING={flags.validate_parsing} \nSCRAPE_MISSING={flags.scrape_missing}",
 )
-logger.debug(f"DATA INPUTS: \nTEAM_NAMES={TEAM_NAMES} \nYEARS={YEARS} \nWEEKS={WEEKS} \nGAME_TIMES={GAME_TIMES}")
+logger.debug(
+    f"DATA INPUTS: \nTEAM_NAMES={dataset_opts.team_names} \nYEARS={dataset_opts.years} \nWEEKS={dataset_opts.weeks} \nGAME_TIMES={dataset_opts.game_times}",
+)
 
 # Check inputs
-if len(YEARS) == 0:
-    msg = "No years specified. Please specify at least one year to process."
+if len(dataset_opts.years) == 0:
+    msg = "No years specified. Specify at least one year to process."
     logger.error(msg)
     raise ValueError(msg)
 
 # Files to optionally load
-ROSTER_FILTER_FILE = data_files_config.ROSTER_FILTER_FILE if FILTER_ROSTER else None
+ROSTER_FILTER_FILE = data_files_config.ROSTER_FILTER_FILE if flags.filter_roster else None
 # Files to save
-if SAVE_DATA:
+if flags.save_data:
     ROSTER_SAVE_FILE = ROSTER_FILTER_FILE
     PRE_PROCESS_FOLDER = data_files_config.PRE_PROCESS_FOLDER
 else:
@@ -77,28 +79,23 @@ final_stats_df = pd.DataFrame()
 aux_data_df = pd.DataFrame()
 
 # Load optional roster filter
-filter_df, filter_load_success = collect_roster_filter(FILTER_ROSTER, UPDATE_FILTER, ROSTER_FILTER_FILE)
+filter_df, filter_load_success = collect_roster_filter(flags.filter_roster, flags.update_filter, ROSTER_FILTER_FILE)
 logger.info(f"Filter Load Success: {filter_load_success}; Filter file: {ROSTER_FILTER_FILE}")
 
-# Create FeatureSet objects
-add_yaml_constructors()
-with open("FantasyProjections/data_pipeline/features.yaml") as file:
-    inputs = yaml.safe_load(file)
-feature_sets = inputs["feature_sets"]
 # Save StatsFeatures
 save_features_config(feature_sets)
 
 # Process NFL data one year at a time
-for year in YEARS:
+for year in dataset_opts.years:
     logger.info(f"--------------- {year} ---------------")
 
     # Create SeasonalData object, which automatically processes all data for that year
     seasonal_data = SeasonalDataCollector(
         year=year,
         feature_sets=feature_sets,
-        team_names=TEAM_NAMES,
-        weeks=WEEKS,
-        game_times=GAME_TIMES,
+        team_names=dataset_opts.team_names,
+        weeks=dataset_opts.weeks,
+        game_times=dataset_opts.game_times,
         filter_df=filter_df,
     )
 
@@ -123,17 +120,17 @@ processor = DatasetProcessor(
 
 # If roster filter could not be found/applied before processing,
 # generate a roster filter file now and apply it to the data
-if FILTER_ROSTER and ((not filter_load_success) or UPDATE_FILTER):
+if flags.filter_roster and ((not filter_load_success) or flags.update_filter):
     logger.info("Generating new filter.")
     processor.generate_roster_filter(seasonal_data.raw_rosters_df, save_file=ROSTER_SAVE_FILE)
     processor.apply_roster_filter()
 
 # Optionally validate that parsed data matches data found from secondary sources (e.g. Pro-Football-Reference.com)
-if VALIDATE_PARSING:
-    processor.validate_final_df(scrape_missing=SCRAPE_MISSING, save_data=SAVE_DATA)
+if flags.validate_parsing:
+    processor.validate_final_df(scrape_missing=flags.scrape_missing, save_data=flags.save_data)
 
 # Save raw data
-if SAVE_DATA:
+if flags.save_data:
     create_folders(data_files_config.OUTPUT_FOLDER)
     midgame_df.to_csv(data_files_config.OUTPUT_FILE_MIDGAME)
     logger.info(f"Saved midgame stats to {data_files_config.OUTPUT_FILE_MIDGAME}.")
@@ -141,7 +138,7 @@ if SAVE_DATA:
     logger.info(f"Saved final stats to {data_files_config.OUTPUT_FILE_FINAL_STATS}.")
 
 # Generate/save data in a format readable into the Neural Net
-if PROCESS_TO_NN:
+if flags.process_to_nn:
     logger.info("Pre-processing data for use in Neural Net.")
     preprocess_nn_data(
         midgame_input=midgame_df,
