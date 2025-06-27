@@ -8,6 +8,8 @@
         subsample_game_time : Reduces the size of the midgame stats data by sampling the data at discrete game times, rather than keeping the stats after every single play.
 """  # fmt: skip
 
+from __future__ import annotations
+
 import logging
 import warnings
 
@@ -54,7 +56,7 @@ def calc_game_time_elapsed(data):
     return time_elapsed
 
 
-def clean_team_names(team_names, year=None):
+def clean_team_names(team_names: list[str] | str, year: int | None = None) -> list[str]:
     """Modifies list of team names to process data for. Primarily used to generate a list of team names to replace the "all" placeholder.
 
         If a list of team names is input, no change is made.
@@ -77,6 +79,9 @@ def clean_team_names(team_names, year=None):
         )
         # Take all team names from dict
         team_names = list(team_abbrs.roster_website_abbrevs.keys())
+    # If team_names is a string, convert to list
+    elif isinstance(team_names, str):
+        team_names = [team_names]
 
     return team_names
 

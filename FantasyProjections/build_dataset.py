@@ -36,8 +36,8 @@ VALIDATE_PARSING = True  # Gathers true box scores from the internet to confirm 
 SCRAPE_MISSING = False  # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
 # Data Inputs
 TEAM_NAMES = "all"  # All team names
-YEARS = range(2023, 2024)  # All years to process data for
-WEEKS = range(1, 3)  # All weeks to process data for (applies this set to all years in YEARS)
+YEARS = range(2023, 2025)  # All years to process data for
+WEEKS = range(1, 18)  # All weeks to process data for (applies this set to all years in YEARS)
 GAME_TIMES = range(76)  # range(0,76). Alternates: 'all', list of numbers
 
 

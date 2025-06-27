@@ -75,20 +75,21 @@ def preprocess_nn_data(midgame_input, final_stats_input, feature_sets, save_fold
     # Break out the columns we want to keep for each dataframe
     id_columns = [
         *stats_config.baseline_data_outputs["id"],
-        *[feat.name for feat_set in feature_sets for feat in feat_set.features if "id" in feat.outputs],
+        *[col for feat_set in feature_sets for feat in feat_set.features for col in feat.columns if "id" in feat.outputs],
     ]
     midgame_columns = [
         *stats_config.baseline_data_outputs["midgame"],
         *[
-            feat.name
+            col
             for feat_set in feature_sets
             for feat in feat_set.features
+            for col in feat.columns
             if "midgame" in feat.outputs and not feat.one_hot_encode
         ],
     ]
     final_stats_columns = [
         *stats_config.baseline_data_outputs["final"],
-        *[feat.name for feat_set in feature_sets for feat in feat_set.features if "final" in feat.outputs],
+        *[col for feat_set in feature_sets for feat in feat_set.features for col in feat.columns if "final" in feat.outputs],
     ]
 
     # Trim each output to only the columns of interest

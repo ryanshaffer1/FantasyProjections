@@ -101,6 +101,7 @@ def drop_name_frills(name, expand_nicknames=True, lowercase=True):
     # Changes to be made
     special_chars = [".", "-", "'"]
     unicode_quirks = {"Ã©": "é"}
+    unicode_to_ascii_map = {"é": "e"}
     suffixes = ["Sr", "Jr", "III", "II"]
     nicknames_to_full_names = {
         "Mike ": "Michael ",
@@ -108,6 +109,11 @@ def drop_name_frills(name, expand_nicknames=True, lowercase=True):
         "Tim ": "Timothy ",
         "Josh ": "Joshua ",
         "Chig ": "Chigoziem ",
+        "Gabe ": "Gabriel ",
+        "Tank ": "Nathaniel ",
+    }
+    common_misspellings = {
+        "Paris ": "Parris ",
     }
 
     # Remove special characters
@@ -118,9 +124,17 @@ def drop_name_frills(name, expand_nicknames=True, lowercase=True):
     for quirk, correct in unicode_quirks.items():
         name = name.replace(quirk, correct)
 
+    # Replace unicode characters with their ASCII equivalents
+    for unicode_char, ascii_char in unicode_to_ascii_map.items():
+        name = name.replace(unicode_char, ascii_char)
+
     # Remove suffixes from name
     for suffix in suffixes:
         name = name.removesuffix(suffix)
+
+    # Replace common misspellings
+    for wrong_name, right_name in common_misspellings.items():
+        name = name.replace(wrong_name, right_name)
 
     # Optionally replace nicknames with the corresponding full names
     if expand_nicknames:

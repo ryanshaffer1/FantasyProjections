@@ -11,8 +11,10 @@ constructable_classes = {
     "StatsFeatureSet": features.StatsFeatureSet,
     "PlayerInfoFeatureSet": features.PlayerInfoFeatureSet,
     "InjuryFeatureSet": features.InjuryFeatureSet,
+    "OddsFeatureSet": features.OddsFeatureSet,
     "Feature": features.Feature,
     "StatFeature": features.StatFeature,
+    "MultiColumnFeature": features.MultiColumnFeature,
     # Add other classes as needed
 }
 

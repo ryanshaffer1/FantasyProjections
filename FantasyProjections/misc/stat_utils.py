@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 
 from config import data_files_config
-from data_pipeline.features.feature import Feature
 
 # Set up logger
 logger = logging.getLogger("log")
@@ -102,10 +101,14 @@ def unnormalize_stat(data, thresholds=None):
 
 
 def save_features_config(feature_sets):
-    # Extract all StatFeature objects from feature_sets
-    stat_feature_objects = [feat for feat_set in feature_sets for feat in feat_set.features if isinstance(feat, Feature)]
+    # Extract all Feature objects from feature_sets
+    stat_feature_objects = [feat for feat_set in feature_sets for feat in feat_set.features]
     # Convert relevant data from StatFeature into a DataFrame
-    stat_feature_df = pd.DataFrame(stat_feature_objects)[["name", "thresholds", "scoring_weight", "site_labels"]]
+    try:
+        stat_feature_df = pd.DataFrame(stat_feature_objects)[["name", "thresholds", "scoring_weight", "site_labels"]]
+    except KeyError:
+        # If missing keys, assume there are no StatFeature objects in feature_sets, and quit early
+        return
     stat_feature_df[["threshold_low", "threshold_high"]] = pd.DataFrame(
         stat_feature_df["thresholds"].tolist(),
         index=stat_feature_df.index,

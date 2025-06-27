@@ -110,3 +110,13 @@ feature_sets:
     sources:
       online: !concat [!config_var ONLINE_URL_NFLVERSE, "injuries/injuries_{0}.csv"]
       local: !path [!config_var INPUT_FOLDER, "injuries/injuries_{0}.csv"]
+
+  - !OddsFeatureSet
+    features:
+    - !MultiColumnFeature {name: "Pass Yds", thresholds: [], outputs: ["midgame"], sub_columns: ["Over Point", "Over Price", "Under Point", "Under Price"]}
+    - !MultiColumnFeature {name: "Rush Yds", thresholds: [], outputs: ["midgame"], sub_columns: ["Over Point", "Over Price", "Under Point", "Under Price"]}
+    - !MultiColumnFeature {name: "Rec Yds", thresholds: [], outputs: ["midgame"], sub_columns: ["Over Point", "Over Price", "Under Point", "Under Price"]}
+    sources:
+      local: !path [!config_var INPUT_FOLDER, "odds/odds_api_requests.json"]
+    surrogate: false
+    game_times: [0]

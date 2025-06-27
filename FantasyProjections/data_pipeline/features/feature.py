@@ -21,6 +21,9 @@ class Feature:
             else:
                 self.outputs = ["midgame"]
 
+        # List of columns associated with this feature in the output dataframe
+        self.columns = [self.name]
+
 
 @dataclass
 class StatFeature(Feature):
@@ -28,3 +31,15 @@ class StatFeature(Feature):
     scoring_weight: float = 0.0
     validate: bool = True
     site_labels: dict | None = None
+
+
+@dataclass
+class MultiColumnFeature(Feature):
+    # CONSTRUCTOR
+    sub_columns: list[str] | None = None
+
+    def __post_init__(self):
+        if self.sub_columns is None:
+            self.columns = [self.name]
+        else:
+            self.columns = [f"{self.name} {sub_col}" for sub_col in self.sub_columns]
