@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pandas as pd
+
 from misc.manage_files import collect_input_dfs
 
 if TYPE_CHECKING:
-    import pandas as pd
-
     from data_pipeline.features.feature import Feature
 
 
@@ -63,3 +63,10 @@ class FeatureSet:
                 return feature
         msg = f"Feature {name} not found in feature set."
         raise ValueError(msg)
+
+    def collect_validation_data(
+        self,
+        *_args,
+        **_kwargs,
+    ):
+        return pd.DataFrame()

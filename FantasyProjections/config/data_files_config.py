@@ -5,6 +5,7 @@ DATA_FOLDER = "data/"
 INPUT_FOLDER = DATA_FOLDER + "inputs/"
 OUTPUT_FOLDER = DATA_FOLDER + "stats/"
 MISC_FOLDER = DATA_FOLDER + "misc/"
+VALIDATION_FOLDER = DATA_FOLDER + "validation/"
 ODDS_FOLDER = DATA_FOLDER + "odds/"
 PRE_PROCESS_FOLDER = DATA_FOLDER + "to_nn/"
 
@@ -33,8 +34,7 @@ FEATURE_CONFIG_FILE = MISC_FOLDER + "stats_config.csv"
 PFR_BOXSCORE_URL_INTRO = "https://www.pro-football-reference.com/boxscores/"
 PFR_PLAYER_URL_INTRO = "https://www.pro-football-reference.com/players/"
 # Box-Score Parsing Validation files
-TRUE_STATS_FILE = MISC_FOLDER + "true_box_scores.csv"
-PARSING_VALIDATION_FILE = MISC_FOLDER + "pbp_parsing_validation.csv"
+PARSING_VALIDATION_FILE = VALIDATION_FOLDER + "pbp_parsing_validation.csv"
 # Player ID dictionaries/cross-mapping files
 MASTER_PLAYER_ID_FILE = MISC_FOLDER + "player_ids.csv"
 PFR_ID_FILENAME = MISC_FOLDER + "names_to_pfr_ids.json"

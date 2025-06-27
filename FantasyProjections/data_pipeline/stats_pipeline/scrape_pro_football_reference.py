@@ -6,6 +6,8 @@
         scrape_player_page_for_name : Given a URL to a pro-football-reference.com player profile, returns the player's name.
 """  # fmt: skip
 
+from __future__ import annotations
+
 import logging
 from datetime import datetime
 from time import sleep
@@ -23,27 +25,36 @@ logger = logging.getLogger("log")
 REQ_WAIT_TIME = 2  # seconds between web scraper HTTP requests to avoid rate-limiting lockout by pro-football-reference
 
 
-def scrape_box_score(stats_html, team_abbrevs, last_req_time):
+def scrape_box_score(
+    stats_html: str,
+    team_abbrevs: str | list[str],
+    last_req_time: datetime | None = None,
+) -> tuple[pd.DataFrame, datetime, bool]:
     """Obtains box-score statistics (final player stats for a game) from pro-football-reference.com for all players on a given team in a given game.
 
         Args:
             stats_html (str): HTML to page containing game stats on pro-football-reference.com.
             team_abbrevs (str | list of strs): Abbreviation(s) of the team(s) being processed (as used on pro-football-reference.com)
-            last_req_time (datetime.datetime): Timestamp of the last HTTP request made.
+            last_req_time (datetime.datetime, optional): Timestamp of the last HTTP request made.
                 Included so that REQ_WAIT_TIME is not exceeded (tripping rate limiting thresholds).
+                If not provided, will be set to the current time when the function is called.
 
         Returns:
             pandas.DataFrame: Final stats for each player on the team who played in the game.
             datetime.datetime: Timestamp of the HTTP request made during the function call.
+            bool: Success status of the HTTP request. True if successful, False if there was a ReadTimeout or other error.
 
     """  # fmt: skip
 
+    # Optional input: last request time
+    if last_req_time is None:
+        last_req_time = datetime.now().astimezone()
+
     # Handle optional non-iterable type for team_abbrevs
-    if not hasattr(team_abbrevs, "__iter__"):
+    if not isinstance(team_abbrevs, list):
         team_abbrevs = [team_abbrevs]
 
     # Gathers offensive stats from a game
-
     box_score_df = pd.DataFrame()
 
     # Make HTTP request (after waiting for the cooldown period)
@@ -61,9 +72,14 @@ def scrape_box_score(stats_html, team_abbrevs, last_req_time):
     success = True
 
     soup = BeautifulSoup(r.content, "html.parser")
-    stats_table = soup.find("table", {"id": "player_offense"})
-    stats_table_body = stats_table.find("tbody")
-    rows = stats_table_body.find_all("tr")
+    try:
+        stats_table = soup.find("table", {"id": "player_offense"})
+        stats_table_body = stats_table.find("tbody")  # type: ignore[reportOptionalMemberAccess]
+        rows = stats_table_body.find_all("tr")  # type: ignore[reportOptionalMemberAccess]
+    except AttributeError:
+        logger.warning(f"Could not find stats table in {stats_html}. No data obtained.")
+        success = False
+        return box_score_df, last_req_time, success
     for row in rows:
         if row.find("th", {"data-stat": "player"}) is None or row.find("th", {"data-stat": "player"}).find("a") is None:
             continue
@@ -174,9 +190,9 @@ def scrape_player_page_for_name(player_url, last_req_time):
     # Parse HTML to find player name
     soup = BeautifulSoup(r.content, "html.parser")
     try:
-        scraped_name = soup.find("div", {"id": "meta"}).find("h1").find("span").text
+        scraped_name = soup.find("div", {"id": "meta"}).find("h1").find("span").text  # type: ignore[reportOptionalMemberAccess]
     except AttributeError:
         # In some cases there is no span inside the h1
-        scraped_name = soup.find("div", {"id": "meta"}).find("h1").text
+        scraped_name = soup.find("div", {"id": "meta"}).find("h1").text  # type: ignore[reportOptionalMemberAccess]
 
     return scraped_name, last_req_time
