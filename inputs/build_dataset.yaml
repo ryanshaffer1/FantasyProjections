@@ -4,14 +4,14 @@ flags:
     save_data: True  # Saves data in .csv's (output files specified below)
     process_to_nn: True  # After saving human-readable data, creates data formatted for Neural Network usage
     filter_roster: True  # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
-    update_filter: True  # Forces re-evaluation of filtered list of players
+    update_filter: False  # Forces re-evaluation of filtered list of players
     validate_parsing: True  # Gathers true box scores from the internet to confirm logic in play-by-play parsing is correct
-    scrape_missing: True  # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
+    scrape_missing: False  # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
 # Dataset Inputs
 dataset_options:
   !DatasetOptions
     team_names: "all"  # All team names
-    years: !range [2024, 2025]  # All years to process data for
+    years: !range [2021, 2025]  # All years to process data for
     weeks: !range [1, 18]  # All weeks to process data for (applies this set to all years in YEARS)
     game_times: !range [76]  # Alternates: 'all', list of numbers
 
@@ -124,7 +124,7 @@ feature_sets:
 
   - !InjuryFeatureSet
     features:
-      - !Feature {name: "injury_status", thresholds: [0,1], outputs: ["midgame"]}
+      - !Feature {name: "Injury Status", thresholds: [0,1], outputs: ["midgame"]}
     sources:
       online: !concat [!config_var ONLINE_URL_NFLVERSE, "injuries/injuries_{0}.csv"]
       local: !path [!config_var INPUT_FOLDER, "injuries/injuries_{0}.csv"]
@@ -136,5 +136,5 @@ feature_sets:
     - !MultiColumnFeature {name: "Rec Yds", thresholds: [], outputs: ["midgame"], sub_columns: ["Over Point", "Over Price", "Under Point", "Under Price"]}
     sources:
       local: !path [!config_var INPUT_FOLDER, "odds/odds_api_requests.json"]
-    surrogate: false
+    surrogate: true
     game_times: [0]

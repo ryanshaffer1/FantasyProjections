@@ -14,7 +14,6 @@ import logging
 import logging.config
 from datetime import datetime
 
-import matplotlib.pyplot as plt
 import pandas as pd
 import yaml
 
@@ -23,7 +22,7 @@ from config.log_config import LOGGING_CONFIG
 from data_pipeline.dataset_processor import DatasetProcessor
 from data_pipeline.seasonal_data_collector import SeasonalDataCollector
 from data_pipeline.stats_pipeline.preprocess_nn_data import preprocess_nn_data
-from misc.manage_files import collect_roster_filter, create_folders, move_logfile
+from misc.manage_files import collect_roster_filter, create_folders, move_logfile, save_plots
 from misc.stat_utils import save_features_config
 from misc.yaml_constructor import add_yaml_constructors
 
@@ -147,8 +146,14 @@ if flags.process_to_nn:
         save_folder=PRE_PROCESS_FOLDER,
     )
 
-# Finish up
+
+# Save plots
+if flags.save_data:
+    logger.info("Saving plots")
+    save_plots(data_files_config.VALIDATION_FOLDER)
+
+# End logging and move logfile to the correct folder
 logger.info(f"Program complete. Elapsed Time: {(datetime.now().astimezone() - start_time).total_seconds()} seconds")
 logging.shutdown()
-move_logfile("logfile.log", data_files_config.DATA_FOLDER)
-plt.show()
+if flags.save_data:
+    move_logfile("logfile.log", data_files_config.DATA_FOLDER)

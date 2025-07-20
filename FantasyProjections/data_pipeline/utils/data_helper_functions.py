@@ -56,14 +56,14 @@ def calc_game_time_elapsed(data):
     return time_elapsed
 
 
-def clean_team_names(team_names: list[str] | str, year: int | None = None) -> list[str]:
+def clean_team_names(team_names: list[str] | str, year: int) -> list[str]:
     """Modifies list of team names to process data for. Primarily used to generate a list of team names to replace the "all" placeholder.
 
         If a list of team names is input, no change is made.
 
         Args:
             team_names (str | list): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]).
-            year (int, optional): Season to use to generate the full list of team names. Defaults to None. Must be input if team_names is "all".
+            year (int): Season to use to generate the full list of team names.
 
         Returns:
             list: List of full team names.
@@ -74,7 +74,7 @@ def clean_team_names(team_names: list[str] | str, year: int | None = None) -> li
     if team_names == "all":
         # Adjust team names and abbreviations for year (team name changes over the years)
         team_abbrs.adjust_team_names(
-            (team_abbrs.pbp_abbrevs, team_abbrs.boxscore_website_abbrevs, team_abbrs.roster_website_abbrevs),
+            [team_abbrs.pbp_abbrevs, team_abbrs.boxscore_website_abbrevs, team_abbrs.roster_website_abbrevs],
             year,
         )
         # Take all team names from dict

@@ -28,7 +28,7 @@ logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger("log")
 
 # Start
-logger.info("Starting Program")
+logger.info(f"Starting Program. Input parameters from file: {args.parameter_file}")
 
 # Initialize a collector for all scenario objects
 scenario = managers.ScenarioObjects()

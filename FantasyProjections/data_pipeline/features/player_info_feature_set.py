@@ -14,7 +14,7 @@ class PlayerInfoFeatureSet(FeatureSet):
 
     def collect_data(
         self,
-        year: list[int] | range | int,
+        year: int,
         weeks: list[int] | range,
         df_sources: dict[str, pd.DataFrame] | None = None,
     ) -> None:

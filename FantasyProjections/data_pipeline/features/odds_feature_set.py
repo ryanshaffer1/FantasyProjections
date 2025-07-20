@@ -31,16 +31,17 @@ class OddsFeatureSet(FeatureSet):
     def __init__(self, features, sources, **kwargs):
         super().__init__(features, sources)
         # Optional keyword arguments
-        surrogate = kwargs.get("surrogate", False)
+        self.surrogate = kwargs.get("surrogate", False)
         self.game_times = kwargs.get("game_times")
 
-        self.api_manager = OddsAPIManager(surrogate)
+        self.api_manager = OddsAPIManager(surrogate=self.surrogate)
         self.game_to_event_ids = {}
         self.markets = self.__get_markets(player_props=[feat.name for feat in self.features])
+        self.labels_df_to_odds = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["odds"].dropna().to_dict()
 
     def collect_data(
         self,
-        year: list[int] | range | int,
+        year: int,
         weeks: list[int] | range,
         _df_sources: dict[str, pd.DataFrame] | None = None,
     ) -> None:
@@ -53,40 +54,54 @@ class OddsFeatureSet(FeatureSet):
         request_params = {"date": year_start_date}
         response, success = self.api_manager.make_api_request(endpoint, request_params)
 
-        events_list = json.loads(response)["data"]
+        if success:
+            events_list = json.loads(response)["data"]
 
-        # Extract IDs from each event that matches the input criteria
-        game_to_event_ids = {}
-        for event in events_list:
-            year, week = date_to_nfl_week(event["commence_time"])
-            home_team = team_abbrs.pbp_abbrevs[event["home_team"]]
-            away_team = team_abbrs.pbp_abbrevs[event["away_team"]]
-            game_data = {"Year": year, "Week": week, "Home Team": home_team, "Away Team": away_team}
-            if week in weeks and (home_team in team_abbrevs_to_process or away_team in team_abbrevs_to_process):
-                game_id = construct_game_id(game_data)
-                game_to_event_ids[game_id] = event["id"]
-        self.game_to_event_ids = game_to_event_ids
+            # Extract IDs from each event that matches the input criteria
+            game_to_event_ids = {}
+            for event in events_list:
+                year, week = date_to_nfl_week(event["commence_time"])
+                home_team = team_abbrs.pbp_abbrevs[event["home_team"]]
+                away_team = team_abbrs.pbp_abbrevs[event["away_team"]]
+                game_data = {"Year": year, "Week": week, "Home Team": home_team, "Away Team": away_team}
+                if week in weeks and (home_team in team_abbrevs_to_process or away_team in team_abbrevs_to_process):
+                    game_id = construct_game_id(game_data)
+                    game_to_event_ids[game_id] = event["id"]
+            self.game_to_event_ids = game_to_event_ids
+        elif self.surrogate:
+            # If surrogate is enabled, use a surrogate game ID
+            logger.info(f"TheOddsAPI: Using surrogate game IDs for {year}.")
+            self.game_to_event_ids = {"surrogate_game_id": "surrogate_event_id"}
+        else:
+            msg = f"TheOddsAPI: Failed to retrieve game IDs for {year}."
+            logger.error(msg)
+            raise ValueError(msg)
 
     def process_data(self, game_data_worker):
         #        """Collects historical odds data for the player props of interest at game times of interest.
-
-        # Get game times from either feature set or game data worker
-        game_times = self.game_times if self.game_times is not None else game_data_worker.game_times
-        if game_times is None:
-            game_times = [0]  # Default to just the start of the game if not game times are provided
-        elif isinstance(game_times, np.ndarray):
-            game_times = game_times.tolist()
-
-        # Event ID for current game
-        event_id = self.game_to_event_ids[game_data_worker.game_id]
-
-        # Maps game time to UTC time
-        self.all_game_times = game_data_worker.pbp_df["time_of_day"].dropna()
 
         # Initialize output dataframe
         odds_df = pd.DataFrame(
             index=pd.MultiIndex.from_arrays([[], [], [], []], names=["Year", "Week", PRIMARY_PLAYER_ID, "Elapsed Time"]),
         )
+
+        # Get game times from either feature set or game data worker
+        game_times = self.__clean_game_times(game_data_worker)
+
+        # Event ID for current game
+        try:
+            event_id = self.game_to_event_ids[game_data_worker.game_id]
+        except KeyError:
+            if self.surrogate:
+                # If surrogate is enabled, use a surrogate event ID
+                event_id = "surrogate_event_id"
+            else:
+                msg = f"Event ID not found for game {game_data_worker.game_id}. Aborting early."
+                logger.warning(msg)
+                return odds_df
+
+        # Maps game time to UTC time
+        self.all_game_times = game_data_worker.pbp_df["time_of_day"].dropna()
 
         # Make a separate API request for each desired game time, each market
         for game_time in game_times:
@@ -104,31 +119,44 @@ class OddsFeatureSet(FeatureSet):
                 }
                 response, success = self.api_manager.make_api_request(endpoint, request_params)
 
-                # Process API Response to obtain market data. Exit gracefully if response does not contain "data" or data does not contain "markets".
-                try:
-                    event_data = json.loads(response)["data"]
-                except KeyError:
-                    msg = f"Key Error encountered in API request. Aborting game {game_data_worker.game_id} early."
-                    logger.warning(msg)
-                    return odds_df
-                try:
-                    market_data = cast(
-                        "list",
-                        pd.DataFrame(event_data["bookmakers"]).set_index("key").loc[BOOKMAKER, "markets"],
-                    )
-                except KeyError:
-                    msg = f"Key Error encountered: {BOOKMAKER} missing. Aborting game {game_data_worker.game_id} early."
-                    logger.warning(msg)
-                    return odds_df
+                if success:
+                    # Process API Response to obtain market data. Exit gracefully if response does not contain "data" or data does not contain "markets".
+                    try:
+                        event_data = json.loads(response)["data"]
+                    except KeyError:
+                        msg = f"Key Error encountered in API request. Aborting game {game_data_worker.game_id} early."
+                        logger.warning(msg)
+                        return odds_df
+                    try:
+                        market_data = cast(
+                            "list",
+                            pd.DataFrame(event_data["bookmakers"]).set_index("key").loc[BOOKMAKER, "markets"],
+                        )
+                    except KeyError:
+                        msg = f"Key Error encountered: {BOOKMAKER} missing. Aborting game {game_data_worker.game_id} early."
+                        logger.warning(msg)
+                        return odds_df
 
-                # Process Odds data into a DataFrame
-                single_market_odds_df = pd.DataFrame(market_data[0]["outcomes"]).rename(
-                    columns={"description": "Player Name", "name": "Line"},
-                )
-                # Add Player Prop Stat and UTC time from market data
-                labels_df_to_odds = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["odds"].dropna().to_dict()
-                player_prop_stat = team_abbrs.invert(labels_df_to_odds)[market_data[0]["key"]]
-                single_market_odds_df["UTC Time"] = market_data[0]["last_update"]
+                    # Process Odds data into a DataFrame
+                    single_market_odds_df = pd.DataFrame(market_data[0]["outcomes"]).rename(
+                        columns={"description": "Player Name", "name": "Line"},
+                    )
+                    # Add Player Prop Stat and UTC time from market data
+                    player_prop_stat = team_abbrs.invert(self.labels_df_to_odds)[market_data[0]["key"]]
+                    single_market_odds_df["UTC Time"] = market_data[0]["last_update"]
+
+                # Handle unsuccessful API requests: create surrogate data or skip this market
+                elif self.surrogate:
+                    logger.info(
+                        f"TheOddsAPI: Using surrogate odds for game {game_data_worker.game_id} at time {time} for market {market}.",
+                    )
+                    single_market_odds_df = self.gen_surrogate_odds(time, game_data_worker)
+                    player_prop_stat = team_abbrs.invert(self.labels_df_to_odds)[market]
+                else:
+                    msg = f"TheOddsAPI: request failed for game {game_data_worker.game_id} at time {time} for market {market}."
+                    logger.warning(msg)
+                    continue
+
                 # Format dataframe for output
                 single_market_odds_df = self.reformat_odds_df(game_data_worker, single_market_odds_df, player_prop_stat)
                 # Add to running list of all odds
@@ -136,6 +164,16 @@ class OddsFeatureSet(FeatureSet):
                     odds_df = odds_df.merge(single_market_odds_df, how="outer", left_index=True, right_index=True)
 
         return odds_df
+
+    def gen_surrogate_odds(self, time, game_data_worker):
+        single_market_odds_df = pd.DataFrame()
+        single_market_odds_df["Player Name"] = game_data_worker.roster_df.set_index("Player Name").index.repeat(2)
+        single_market_odds_df["Line"] = ["Over", "Under"] * len(game_data_worker.roster_df)
+        single_market_odds_df["price"] = 0
+        single_market_odds_df["point"] = 0
+        single_market_odds_df["UTC Time"] = time
+
+        return single_market_odds_df
 
     def reformat_odds_df(self, game_data_worker, df_to_format, player_prop_stat):
         """Formats data collected from The Odds into consistent style as other data products (common Player IDs, etc.) and structures as one row per player.
@@ -189,6 +227,15 @@ class OddsFeatureSet(FeatureSet):
         df_to_format = df_to_format.set_index(["Year", "Week", PRIMARY_PLAYER_ID, "Elapsed Time"])
 
         return df_to_format
+
+    def __clean_game_times(self, game_data_worker):
+        # Get game times from either feature set or game data worker, and ensure they are in a list
+        game_times = self.game_times if self.game_times is not None else game_data_worker.game_times
+        if game_times is None:
+            game_times = [0]  # Default to just the start of the game if not game times are provided
+        elif isinstance(game_times, np.ndarray):
+            game_times = game_times.tolist()
+        return game_times
 
     def __get_markets(self, player_props: list[str]) -> list[str]:
         """Creates list of player props data to gather from The Odds for this game, optionally removing any player props already present in preexisting odds data.
@@ -270,10 +317,9 @@ class OddsAPIManager:
             success = True
             return response, success
 
-        # If surrogate turned on, skip making the API request and return surrogate data
+        # If surrogate turned on, skip making the API request (surrogate data will be generated later)
         if self.surrogate:
-            response_text = self.load_surrogate_response(endpoint, params=request_params)
-            return response_text, True
+            return "", False
 
         # Add API key to the request params
         request_params["api_key"] = self.api_key
@@ -306,19 +352,6 @@ class OddsAPIManager:
 
         return response_text, success
 
-    def load_surrogate_response(self, endpoint: str, params: dict) -> str:
-        # Read file that matches the end point type (such as "events" or "odds")
-        endpoint_type = endpoint.split("/")[-1]
-        filename = data_files_config.ODDS_SURROGATE_DATA + f"{endpoint_type}.txt"
-        try:
-            with open(filename) as file:
-                response_text = file.read()
-        except FileNotFoundError as exc:
-            msg = f"Surrogate data not supported for Odds API end point of type {endpoint_type}"
-            raise NotImplementedError(msg) from exc
-
-        return response_text
-
     def log_api_usage(self, response):
         """Logs the number of API requests fulfilled by The Odds with the current API key, and how many requests are remaining on the key.
 
@@ -327,10 +360,15 @@ class OddsAPIManager:
 
         """  # fmt: skip
 
-        # Check API key usage
-        logger.info(
-            f"TheOddsAPI: {response.headers['x-requests-remaining']} requests left ({response.headers['x-requests-used']} used)",
-        )
+        # Check for a deactivated API key
+        deactivated_key_status = 401
+        if response.status_code == deactivated_key_status:
+            logger.info("TheOddsAPI: API key is deactivated.")
+        else:
+            # Check API key usage
+            logger.info(
+                f"TheOddsAPI: {response.headers['x-requests-remaining']} requests left ({response.headers['x-requests-used']} used)",
+            )
 
     def handle_response_codes(self, response_code: int) -> tuple[bool, str | None]:
         match response_code:

@@ -13,49 +13,62 @@ save_options:
 # Features
 features:
   input:
-    Elapsed Time:
-    Team Score:
-    Opp Score:
-    Possession:
-    Field Position:
-    Site:
-    Team Wins:
-    Team Losses:
-    Team Ties:
-    Opp Wins:
-    Opp Losses:
-    Opp Ties:
-    Pass Att:
-    Pass Cmp:
-    Pass Yds:
-    Pass TD:
-    Int:
-    Rush Att:
-    Rush Yds:
-    Rush TD:
-    Rec:
-    Rec Yds:
-    Rec TD:
-    Fmb:
-    Age:
-    injury_status:
-    Position: {one_hot_encoded: true}
-    Player ID: {one_hot_encoded: true}
-    Team: {one_hot_encoded: true}
-    Opponent: {one_hot_encoded: true}
+    - Elapsed Time
+    - Team Score
+    - Opp Score
+    - Possession
+    - Field Position
+    - Site
+    - Team Wins
+    - Team Losses
+    - Team Ties
+    - Opp Wins
+    - Opp Losses
+    - Opp Ties
+    - Pass Att
+    - Pass Cmp
+    - Pass Yds
+    - Pass TD
+    - Int
+    - Rush Att
+    - Rush Yds
+    - Rush TD
+    - Rec
+    - Rec Yds
+    - Rec TD
+    - Fmb
+    - Age
+    - injury_status
+    - Position 
+    - Player ID 
+    - Team 
+    - Opponent 
   output:
-    Pass Att:
-    Pass Cmp:
-    Pass Yds:
-    Pass TD:
-    Int:
-    Rush Att:
-    Rush Yds:
-    Rush TD:
-    Rec:
-    Rec Yds:
-    Rec TD:
-    Fmb:  
+    - Pass Att
+    - Pass Cmp
+    - Pass Yds
+    - Pass TD
+    - Int
+    - Rush Att
+    - Rush Yds
+    - Rush TD
+    - Rec
+    - Rec Yds
+    - Rec TD
+    - Fmb  
+  odds:
+    - Pass Yds Over Point
+    - Pass Yds Over Price
+    - Pass Yds Under Point
+    - Pass Yds Under Price
+    - Rush Yds Over Point
+    - Rush Yds Over Price
+    - Rush Yds Under Point
+    - Rush Yds Under Price
+    - Rec Yds Over Point
+    - Rec Yds Over Price
+    - Rec Yds Under Point
+    - Rec Yds Under Price
 
 # Datasets
 datasets:

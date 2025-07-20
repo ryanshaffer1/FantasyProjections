@@ -59,6 +59,7 @@ class StatsDataset(torch.utils.data.Dataset):
         id_df: pd.DataFrame,
         pbp_df: pd.DataFrame | None = None,
         boxscore_df: pd.DataFrame | None = None,
+        misc_df: pd.DataFrame | None = None,
         x_data: torch.Tensor | None = None,
         x_data_columns: list | None = None,
         y_data: torch.Tensor | None = None,
@@ -83,6 +84,7 @@ class StatsDataset(torch.utils.data.Dataset):
                 y_data_columns (list): Labels for each column of data in y_data
 
             Keyword-Args:
+                misc_df (pd.DataFrame, optional): DataFrame containing miscellaneous data from the NFL games in question.
                 start_index (int, optional): First index to use in DataFrames (if taking consecutive data from the DataFrames).
                     Defaults to None (start of DataFrame).
                 end_index (int, optional): First index to exclude from DataFrames (if taking consecutive data from the DataFrames).
@@ -140,6 +142,7 @@ class StatsDataset(torch.utils.data.Dataset):
         self.y_data = y_data
         self.y_data_columns = y_data_columns
         self.id_data = id_df
+        self.misc_df = misc_df
 
         # Trim to only the desired data, according to multiple possible methods:
         # 1. Weeks, Years, Teams, Player IDs, and/or Elapsed Time specified
@@ -254,6 +257,7 @@ class StatsDataset(torch.utils.data.Dataset):
             self.x_data = self.x_data[row_nums]
             self.y_data = self.y_data[row_nums]
             self.id_data = self.id_data.iloc[row_nums]
+            self.misc_df = self.misc_df.iloc[row_nums] if self.misc_df is not None else None
             return self
 
         new_dataset = StatsDataset(
@@ -263,6 +267,7 @@ class StatsDataset(torch.utils.data.Dataset):
             x_data_columns=self.x_data_columns,
             y_data=self.y_data[row_nums],
             y_data_columns=self.y_data_columns,
+            misc_df=self.misc_df.iloc[row_nums] if self.misc_df is not None else None,
         )
         return new_dataset
 
@@ -288,11 +293,17 @@ class StatsDataset(torch.utils.data.Dataset):
         new_x_data = self.x_data[np.logical_not(duplicated_rows)]
         new_y_data = self.y_data[np.logical_not(duplicated_rows)]
         new_id_data = self.id_data.reset_index(drop=True).loc[np.logical_not(duplicated_rows)].reset_index(drop=True)
+        new_misc_df = (
+            self.misc_df.reset_index(drop=True).loc[np.logical_not(duplicated_rows)].reset_index(drop=True)
+            if self.misc_df is not None
+            else None
+        )
 
         if inplace:
             self.x_data = new_x_data
             self.y_data = new_y_data
             self.id_data = new_id_data
+            self.misc_df = new_misc_df
         else:
             new_dataset = StatsDataset(
                 name=self.name,
@@ -301,6 +312,7 @@ class StatsDataset(torch.utils.data.Dataset):
                 x_data_columns=self.x_data_columns,
                 y_data=new_y_data,
                 y_data_columns=self.y_data_columns,
+                misc_df=new_misc_df,
             )
             return new_dataset
         return None
@@ -320,6 +332,7 @@ class StatsDataset(torch.utils.data.Dataset):
             x_data_columns=self.x_data_columns,
             y_data=self.y_data,
             y_data_columns=self.y_data_columns,
+            misc_df=self.misc_df,
         )
 
     def equals(self, other, check_non_data_attributes=False):
@@ -357,6 +370,13 @@ class StatsDataset(torch.utils.data.Dataset):
         try:
             pdtest.assert_frame_equal(self.id_data, other.id_data, check_dtype=False)
         except AssertionError:
+            return False
+        if self.misc_df is not None and other.misc_df is not None:
+            try:
+                pdtest.assert_frame_equal(self.misc_df, other.misc_df, check_dtype=False)
+            except AssertionError:
+                return False
+        elif self.misc_df != other.misc_df:
             return False
 
         # If pandas object comparison passes without AssertionError, return True

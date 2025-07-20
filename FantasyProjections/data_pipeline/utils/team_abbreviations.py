@@ -13,6 +13,8 @@
 
 """  # fmt: skip
 
+from __future__ import annotations
+
 pbp_abbrevs = {
     "Arizona Cardinals": "ARI",
     "Atlanta Falcons": "ATL",
@@ -160,8 +162,8 @@ def convert_abbrev(abbrevs, dict1, dict2):
     return new_abbrev
 
 
-def adjust_team_names(dictionaries, year):
-    """Changes NFL team names and abbreviations in internal dictionaries to account for the changing of NFL team names over the years in real life.
+def adjust_team_names(inputs: str | dict | list[str | dict], year: int) -> list[str | dict]:
+    """Changes NFL team names and abbreviations in arbitary input data to account for the changing of NFL team names over the years in real life.
 
         Ex. in 2020: Oakland Raiders -> Las Vegas Raiders
             If year < 2019.5, must use "Oakland Raiders" as the name to find the correct stats/info from data sources.
@@ -169,11 +171,11 @@ def adjust_team_names(dictionaries, year):
             - In some cases the abbreviations also change: OAK became LVR, or LV, depending on the data source.
 
         Args:
-            dictionaries (dict | list of dicts): Dictionary or list of dictionaries with keys listing out NFL team names.
+            dictionaries (str | dict | list[str | dict]): String, dictionary, or list of either. For dict inputs, keys list out NFL team names.
             year (int): Current year being processed.
 
         Returns:
-            list of dicts: list of dictionaries where each dict has had keys adjusted for any NFL team name changes.
+            list[str | dict]: list of strings or dictionaries where each element has had substrings/keys adjusted for any NFL team name changes.
 
     """  # fmt: skip
 
@@ -181,55 +183,57 @@ def adjust_team_names(dictionaries, year):
     # chronological order (most important for teams w/ multiple changes, e.g.
     # Washington)
 
-    # Handle edge case of singular dict being input
-    if isinstance(dictionaries, dict):
-        dictionaries = [dictionaries]
+    # Handle case of singular dict being input
+    if isinstance(inputs, dict | str):
+        inputs = [inputs]
 
-    for dictionary in dictionaries:
+    for i, input_var in enumerate(inputs):
         # 2022: Washington Football Team -> Washington Commanders
-        dictionary = swap_team_names(
+        input_var = swap_team_names(
             year,
-            dictionary,
+            input_var,
             2021.5,
             "Washington Football Team",
             "Washington Commanders",
         )
 
         # 2020: Washington Redskins -> Washington Football Team
-        dictionary = swap_team_names(
+        input_var = swap_team_names(
             year,
-            dictionary,
+            input_var,
             2019.5,
             "Washington Redskins",
             "Washington Football Team",
         )
 
         # 2020: Oakland Raiders -> Las Vegas Raiders
-        dictionary = swap_team_names(
+        input_var = swap_team_names(
             year,
-            dictionary,
+            input_var,
             2019.5,
             "Oakland Raiders",
             "Las Vegas Raiders",
         )
         # also need to make a value (abbreviation) swap for this one
-        if "Oakland Raiders" in dictionary and dictionary["Oakland Raiders"] in ["LV", "LVR"]:
-            dictionary["Oakland Raiders"] = "OAK"
-        if "Las Vegas Raiders" in dictionary and dictionary["Las Vegas Raiders"] == "OAK":
+        if isinstance(input_var, dict) and "Oakland Raiders" in input_var and input_var["Oakland Raiders"] in ["LV", "LVR"]:
+            input_var["Oakland Raiders"] = "OAK"
+        if isinstance(input_var, dict) and "Las Vegas Raiders" in input_var and input_var["Las Vegas Raiders"] == "OAK":
             # Swapping from Oakland to Las Vegas. One of the dictionaries needs "LV", one needs "LVR".
             # This helper function doesn't natively know which dict it is working with.
             # Using a hack where we see what Kansas City has as its value, and make
             # the change accordingly...
-            if dictionary["Kansas City Chiefs"] == "KC":
-                dictionary["Las Vegas Raiders"] = "LV"
+            if input_var["Kansas City Chiefs"] == "KC":
+                input_var["Las Vegas Raiders"] = "LV"
             else:
-                dictionary["Las Vegas Raiders"] = "LVR"
+                input_var["Las Vegas Raiders"] = "LVR"
 
-    return dictionaries
+        inputs[i] = input_var
+
+    return inputs
 
 
-def swap_team_names(year, dictionary, year_threshold, before_name, after_name):
-    """Changes the NFL team name used as a key in the dictionary if the name is not appropriate for the year.
+def swap_team_names(year: int, input_var: str | dict, year_threshold: float, before_name: str, after_name: str) -> str | dict:
+    """Changes the NFL team name used in some arbitrary input data (dict, string, etc) if the name is not appropriate for the year.
 
         Args:
             year (int): Current year being processed.
@@ -243,12 +247,24 @@ def swap_team_names(year, dictionary, year_threshold, before_name, after_name):
 
     """  # fmt: skip
 
-    if year < year_threshold:
-        if after_name in dictionary:
-            dictionary[before_name] = dictionary[after_name]
-            del dictionary[after_name]
-    elif before_name in dictionary:
-        dictionary[after_name] = dictionary[before_name]
-        del dictionary[before_name]
+    match input_var:
+        case dict():
+            dictionary = input_var
+            if year < year_threshold:
+                if after_name in dictionary:
+                    dictionary[before_name] = dictionary[after_name]
+                    del dictionary[after_name]
+            elif before_name in dictionary:
+                dictionary[after_name] = dictionary[before_name]
+                del dictionary[before_name]
 
-    return dictionary
+            return dictionary
+
+        case str():
+            string = input_var
+            string = string.replace(after_name, before_name) if year < year_threshold else string.replace(before_name, after_name)
+            return string
+
+        case _:
+            msg = f"Unsupported input type: {type(input_var)}. Expected str or dict."
+            raise TypeError(msg)

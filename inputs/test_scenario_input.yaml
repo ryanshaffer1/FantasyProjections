@@ -11,7 +11,57 @@ save_options:
   save_input_file: true
 
 # Features
-
+features:
+  input:
+    - Elapsed Time
+    - Team Score
+    - Opp Score
+    - Possession
+    - Field Position
+    - Pass Att
+    - Pass Cmp
+    - Pass Yds
+    - Pass TD
+    - Int
+    - Rush Att
+    - Rush Yds
+    - Rush TD
+    - Rec
+    - Rec Yds
+    - Rec TD
+    - Fmb
+    - injury_status
+    - Position 
+    - Player ID 
+    - Team 
+    - Opponent 
+  output:
+    - Pass Att
+    - Pass Cmp
+    - Pass Yds
+    - Pass TD
+    - Int
+    - Rush Att
+    - Rush Yds
+    - Rush TD
+    - Rec
+    - Rec Yds
+    - Rec TD
+    - Fmb
+  odds:
+    - Pass Yds Over Point
+    - Pass Yds Over Price
+    - Pass Yds Under Point
+    - Pass Yds Under Price
+    - Rush Yds Over Point
+    - Rush Yds Over Price
+    - Rush Yds Under Point
+    - Rush Yds Under Price
+    - Rec Yds Over Point
+    - Rec Yds Over Price
+    - Rec Yds Under Point
+    - Rec Yds Under Price
+    
 
 # Datasets
 datasets:

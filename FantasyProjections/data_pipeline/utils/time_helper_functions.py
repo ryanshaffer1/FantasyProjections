@@ -6,15 +6,20 @@
         find_prev_time_index : Finds the most recent time before a given time in a series of times (i.e. the nearest time in the past.)
 """  # fmt: skip
 
-import contextlib
+from __future__ import annotations
+
 import datetime as dt
+from typing import TYPE_CHECKING
 
 import dateutil.parser as dateparse
 import dateutil.relativedelta as datedelta
 import numpy as np
 
+if TYPE_CHECKING:
+    import pandas as pd
+
 # Week starts on WEDNESDAY
-WEEK_1_DATES = {
+WEEK_1_DATESTRS: dict[int, str] = {
     2018: "2018-09-05 00:00:00Z",
     2019: "2019-09-04 00:00:00Z",
     2020: "2020-09-09 00:00:00Z",
@@ -23,10 +28,10 @@ WEEK_1_DATES = {
     2023: "2023-09-06 00:00:00Z",
     2024: "2024-09-04 00:00:00Z",
 }
-WEEK_1_DATES = {key: dateparse.parse(val) for key, val in WEEK_1_DATES.items()}
+WEEK_1_DATES: dict[int, dt.datetime] = {key: dateparse.parse(val) for key, val in WEEK_1_DATESTRS.items()}
 
 
-def week_to_date_range(year, week):
+def week_to_date_range(year: int, week: int) -> list[dt.datetime]:
     """Returns the start and end dates of a given NFL week.
 
         For convention, it is assumed that the week starts on a Wednesday and ends on a Tuesday.
@@ -49,7 +54,7 @@ def week_to_date_range(year, week):
     return date_range
 
 
-def date_to_nfl_week(date):
+def date_to_nfl_week(date: dt.datetime | str) -> tuple[int, int]:
     """Returns the NFL season/week that contains a given date.
 
         For convention, it is assumed that the week starts on a Wednesday and ends on a Tuesday.
@@ -63,7 +68,7 @@ def date_to_nfl_week(date):
 
     """  # fmt: skip
 
-    with contextlib.suppress(TypeError):  # Assume date is already a datetime
+    if isinstance(date, str):
         date = dateparse.parse(date)
 
     days_delta = np.array([(date - start_date).days for start_date in WEEK_1_DATES.values()])
@@ -75,7 +80,7 @@ def date_to_nfl_week(date):
     return year, week
 
 
-def find_prev_time_index(time, other_times_series):
+def find_prev_time_index(time: float | str, other_times_series: pd.Series) -> int:
     """Finds the most recent time before a given time in a series of times (i.e. the nearest time in the past).
 
         Args:
@@ -97,10 +102,10 @@ def find_prev_time_index(time, other_times_series):
 
     # Time input as a UTC time string
     else:
-        time = dateparse.parse(time)
+        time_dt = dateparse.parse(time)
 
-        time_deltas = np.array([(time - dateparse.parse(other_time)) for other_time in other_times_series])
+        time_deltas = np.array([(time_dt - dateparse.parse(other_time)) for other_time in other_times_series])
         big_timedelta = dt.timedelta(days=1000)
-        index = np.argmin(np.where(time_deltas < dt.timedelta(0), big_timedelta, time_deltas))
+        index = np.argmin(np.where(time_deltas < dt.timedelta(0), big_timedelta, time_deltas))  # type: ignore[reportArgumentType]
 
-    return index
+    return int(index)
