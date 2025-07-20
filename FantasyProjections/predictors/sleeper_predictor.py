@@ -18,7 +18,6 @@ import pandas as pd
 import torch
 from sleeper_wrapper import Players, Stats
 
-from config import data_files_config
 from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.utils.name_matching import find_matching_name_ind
 from misc.stat_utils import stats_to_fantasy_points
@@ -38,10 +37,10 @@ class SleeperPredictor(FantasyPredictor):
 
         Args:
             name (str): name of the predictor object, used for logging/display purposes.
-            player_id_file (str): filepath (including filename) to .json file storing all player/roster information from Sleeper. Required input.
-            proj_dict_file (str, optional): filepath (including filename) to .json file storing all stat projections made by Sleeper.
-                Defaults to None. If a file is not entered, or the file does not contain all the necessary data, updated information will
-                automatically be requested from Sleeper.
+            data_files_config (dict, optional): dictionary containing file paths for data files used by the predictor. Contains:
+                proj_dict_file (str, optional): filepath (including filename) to .json file storing all stat projections made by Sleeper.
+                    Defaults to None. If a file is not entered, or the file does not contain all the necessary data, updated information will
+                    automatically be requested from Sleeper.
             update_players (bool, optional): whether to request updated information on NFL players/rosters from Sleeper. Defaults to False.
 
         Additional Class Attributes:
@@ -57,13 +56,15 @@ class SleeperPredictor(FantasyPredictor):
     """  # fmt:skip
 
     # CONSTRUCTOR
-    player_id_file: str = data_files_config.MASTER_PLAYER_ID_FILE
-    proj_dict_file: str | None = None
+    data_files_config: dict
     update_players: bool = False
 
     def __post_init__(self):
         # Evaluates as part of the Constructor.
         # Generates attributes that are not simple data copies of inputs.
+
+        self.player_id_file = self.data_files_config.get("master_player_id_file")
+        self.proj_dict_file = self.data_files_config.get("sleeper_proj_dict_file")
 
         # If no player dict file is input, player list must be updated from Sleeper API
         if self.player_id_file is None:
@@ -232,7 +233,9 @@ class SleeperPredictor(FantasyPredictor):
         # Re-names stats from Sleeper's format to the common names used across this project
         # and lists into the common stat line format.
 
-        labels_df_to_sleeper = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["sleeper"].dropna().to_dict()
+        labels_df_to_sleeper = (
+            pd.read_csv(self.data_files_config["feature_config_file"], index_col=0)["sleeper"].dropna().to_dict()
+        )
 
         stat_line = []
         for stat in stat_columns:

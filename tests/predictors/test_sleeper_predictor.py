@@ -5,11 +5,12 @@ import os
 import unittest
 
 import pandas.testing as pdtest
+import yaml
 
-from config import data_files_config
 from config.log_config import LOGGING_CONFIG
 from misc.dataset import StatsDataset
 from misc.stat_utils import stats_to_fantasy_points
+from misc.yaml_constructor import add_yaml_constructors
 
 # Module under test
 from predictors import SleeperPredictor
@@ -23,6 +24,11 @@ logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger("log")
 
 
+# Data files config
+test_data_files_config = "tests/_test_files/test_data_files_config.yaml"
+add_yaml_constructors()
+
+
 @unittest.skipIf(
     SKIP_SLEEPER_TESTS,
     "Sleeper API calls and file loads are slow. Skip flag can be set to False in skip_tests_config.py.",
@@ -31,43 +37,29 @@ class TestConstructor_SleeperPredictor(unittest.TestCase):
     # Set Up
     def setUp(self):
         # Sleeper data files
-        self.sleeper_player_id_file = "tests/_test_files/player_ids.csv"
-        self.sleeper_proj_dict_file = "tests/_test_files/sleeper_projections_dict.json"
+        with open(test_data_files_config) as file:
+            self.data_files_config = yaml.safe_load(file)
 
     def test_basic_attributes_no_optional_inputs(self):
         name = "test"
-        predictor = SleeperPredictor(name=name)
+        predictor = SleeperPredictor(name=name, data_files_config=self.data_files_config)
 
         self.assertEqual(predictor.name, name)
-        self.assertEqual(predictor.player_id_file, data_files_config.MASTER_PLAYER_ID_FILE)
-        self.assertIsNone(predictor.proj_dict_file)
+        self.assertEqual(predictor.player_id_file, self.data_files_config["master_player_id_file"])
+        self.assertEqual(predictor.proj_dict_file, self.data_files_config["sleeper_proj_dict_file"])
         self.assertEqual(predictor.update_players, False)
-        self.assertEqual(predictor.all_proj_dict, {})
-
-    def test_basic_attributes_no_player_id_file(self):
-        name = "test"
-        predictor = SleeperPredictor(name=name, player_id_file=None)
-
-        self.assertEqual(predictor.name, name)
-        self.assertIsNone(predictor.player_id_file)
-        self.assertIsNone(predictor.proj_dict_file)
-        self.assertEqual(
-            predictor.update_players,
-            True,
-        )  # Default value of False is overwritten because no player data was passed in
         self.assertEqual(predictor.all_proj_dict, {})
 
     def test_basic_attributes_with_optional_inputs(self):
         name = "test"
         predictor = SleeperPredictor(
             name=name,
-            player_id_file=self.sleeper_player_id_file,
-            proj_dict_file=self.sleeper_proj_dict_file,
+            data_files_config=self.data_files_config,
             update_players=False,
         )
         self.assertEqual(predictor.name, name)
-        self.assertEqual(predictor.player_id_file, self.sleeper_player_id_file)
-        self.assertEqual(predictor.proj_dict_file, self.sleeper_proj_dict_file)
+        self.assertEqual(predictor.player_id_file, self.data_files_config["master_player_id_file"])
+        self.assertEqual(predictor.proj_dict_file, self.data_files_config["sleeper_proj_dict_file"])
         self.assertEqual(predictor.update_players, False)
         self.assertEqual(predictor.all_proj_dict, {})
 
@@ -76,8 +68,7 @@ class TestConstructor_SleeperPredictor(unittest.TestCase):
         # Should provide a regression test before making any changes!
         SleeperPredictor(
             name="test",
-            player_id_file=self.sleeper_player_id_file,
-            proj_dict_file=self.sleeper_proj_dict_file,
+            data_files_config=self.data_files_config,
             update_players=True,
         )
 
@@ -93,11 +84,16 @@ class TestConstructor_SleeperPredictor(unittest.TestCase):
 class TestEvalModel_SleeperPredictor(unittest.TestCase):
     def setUp(self):
         # Sleeper data files
-        self.sleeper_player_id_file = "tests/_test_files/player_ids.csv"
-        self.sleeper_proj_dict_file = "tests/_test_files/sleeper_projections_dict.json"
+        with open(test_data_files_config) as file:
+            self.data_files_config = yaml.safe_load(file)
+
         # Dummy non-existent files to use in a test
-        self.nonexistent_file_1 = "tests/_test_files/empty/nonexistent_file1.json"
+        self.nonexistent_file_1 = "tests/_test_files/empty/nonexistent_file2.json"
         self.nonexistent_file_2 = "tests/_test_files/empty/nonexistent_file2.json"
+        # Dummy data files config pointing to non-existent file
+        self.nonexistent_data_files_config = self.data_files_config.copy()
+        self.nonexistent_data_files_config["master_player_id_file"] = self.nonexistent_file_1
+        self.nonexistent_data_files_config["sleeper_proj_dict_file"] = self.nonexistent_file_2
 
         # Custom stats list (only using a subset of all statistics)
         self.scoring_weights = {
@@ -115,8 +111,7 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
         # Sleeper Predictor
         self.predictor = SleeperPredictor(
             name="test",
-            player_id_file=self.sleeper_player_id_file,
-            proj_dict_file=self.sleeper_proj_dict_file,
+            data_files_config=self.data_files_config,
             update_players=False,
         )
 
@@ -125,17 +120,10 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
 
         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
 
-    def test_eval_model_no_data_input_gives_correct_results(self):
-        self.predictor = SleeperPredictor(name="test")
-        result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
-
-        pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
-
     def test_eval_model_nonexistent_data_files_gives_correct_results(self):
         self.predictor = SleeperPredictor(
             name="test",
-            player_id_file=self.nonexistent_file_1,
-            proj_dict_file=self.nonexistent_file_2,
+            data_files_config=self.nonexistent_data_files_config,
         )
         result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
 

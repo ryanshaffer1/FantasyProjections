@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import yaml
+
 
 @dataclass
 class Flags:
@@ -25,3 +27,12 @@ class DatasetOptions:
             self.years = [2024]
         if self.weeks is None:
             self.weeks = list(range(1, 18))
+
+
+@dataclass
+class DataFilesConfig:
+    config_file: str
+
+    def __post_init__(self):
+        with open(self.config_file) as file:
+            self.config = yaml.safe_load(file)

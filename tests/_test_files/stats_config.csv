@@ -1,0 +1,32 @@
+name,scoring_weight,threshold_low,threshold_high,sleeper,pfr,odds
+Team,,,,,,
+Opponent,,,,,,
+Team Score,,0.0,100.0,,,
+Opp Score,,0.0,100.0,,,
+Possession,,0.0,1.0,,,
+Field Position,,0.0,100.0,,,
+Site,,0.0,1.0,,,
+Team Wins,,0.0,18.0,,,
+Team Losses,,0.0,18.0,,,
+Team Ties,,0.0,18.0,,,
+Opp Wins,,0.0,18.0,,,
+Opp Losses,,0.0,18.0,,,
+Opp Ties,,0.0,18.0,,,
+Pass Att,0.0,0.0,100.0,pass_att,pass_att,player_pass_attempts
+Pass Cmp,0.0,0.0,100.0,pass_cmp,pass_cmp,player_pass_completions
+Pass Yds,0.04,-50.0,1000.0,pass_yd,pass_yds,player_pass_yds
+Pass TD,4.0,0.0,8.0,pass_td,pass_td,player_pass_tds
+Int,-2.0,0.0,8.0,pass_int,pass_int,player_pass_interceptions
+Rush Att,0.0,0.0,100.0,rush_att,rush_att,player_rush_attempts
+Rush Yds,0.1,-50.0,1000.0,rush_yd,rush_yds,player_rush_yds
+Rush TD,6.0,0.0,8.0,rush_td,rush_td,player_rush_tds
+Rec,1.0,0.0,100.0,rec,rec,player_receptions
+Rec Yds,0.1,-50.0,1000.0,rec_yd,rec_yds,player_reception_yds
+Rec TD,6.0,0.0,8.0,rec_td,rec_td,player_reception_tds
+Fmb,-2.0,0.0,8.0,fum_lost,fumbles_lost,
+Position,,,,,,
+Age,,0.0,60.0,,,
+Injury Status,,0.0,1.0,,,
+Pass Yds,,,,,,
+Rush Yds,,,,,,
+Rec Yds,,,,,,

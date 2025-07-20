@@ -4,7 +4,6 @@ import logging
 
 import pandas as pd
 
-from config import data_files_config
 from config.player_id_config import PRIMARY_PLAYER_ID, fill_blank_player_ids
 from data_pipeline.features.feature_set import FeatureSet
 from data_pipeline.stats_pipeline.scrape_pro_football_reference import scrape_box_score
@@ -47,13 +46,14 @@ class StatsFeatureSet(FeatureSet):
 
     def collect_validation_data(
         self,
+        data_files_config: dict,
         final_stats_df: pd.DataFrame,
         aux_data_df: pd.DataFrame,
         scrape_missing=False,
         save_data=False,
     ):
         # Read saved truth data
-        true_data_file = data_files_config.VALIDATION_FOLDER + f"{type(self).__name__}.csv"
+        true_data_file = data_files_config["validation_folder"] + f"{type(self).__name__}.csv"
         try:
             true_df = pd.read_csv(true_data_file).set_index([PRIMARY_PLAYER_ID, "Year", "Week"])
         except FileNotFoundError:
@@ -65,15 +65,16 @@ class StatsFeatureSet(FeatureSet):
         # Add PFR ID to any players in the parsed database that are missing it
         final_stats_df = fill_blank_player_ids(
             players_df=final_stats_df,
-            master_id_file=data_files_config.MASTER_PLAYER_ID_FILE,
-            pfr_id_filename=data_files_config.PFR_ID_FILENAME,
+            pfr_player_url_intro=data_files_config["pfr_player_url_intro"],
+            master_id_file=data_files_config["master_player_id_file"],
+            pfr_id_filename=data_files_config["pfr_id_filename"],
             add_missing_pfr=scrape_missing,
             update_master=save_data,
         )
 
         if scrape_missing and len(missing_games) > 0:
             logger.info("Scraping web data:")
-            missing_games_df = self.__scrape_missing_games(missing_games, aux_data_df)
+            missing_games_df = self.__scrape_missing_games(data_files_config, missing_games, aux_data_df)
             # Add primary player ID for all scraped players
             missing_games_df = (
                 final_stats_df.reset_index()
@@ -256,7 +257,7 @@ class StatsFeatureSet(FeatureSet):
 
         return missing_games, true_df
 
-    def __scrape_missing_games(self, missing_games, aux_data_df):
+    def __scrape_missing_games(self, data_files_config, missing_games, aux_data_df):
         missing_data_df = pd.DataFrame()
         # Scrape the corresponding stat URLs
         last_req_time = None
@@ -268,7 +269,7 @@ class StatsFeatureSet(FeatureSet):
             )
             game_url = aux_data_df.drop_duplicates(subset=["PFR URL"]).loc[game_id, "PFR URL"]
             logger.info(f"({i + 1} of {len(missing_games)}) {game_id} from {game_url}")
-            boxscore, last_req_time, success = scrape_box_score(game_url, team_abbrevs, last_req_time)
+            boxscore, last_req_time, success = scrape_box_score(data_files_config, game_url, team_abbrevs, last_req_time)
 
             if success:
                 boxscore[["Year", "Week"]] = row.loc[["Year", "Week"]].to_list()

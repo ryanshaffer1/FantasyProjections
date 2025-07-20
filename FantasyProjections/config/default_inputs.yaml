@@ -1,6 +1,9 @@
 # DEFAULT INPUTS
 
 ---
+# File structure for all input/auxiliary data
+data_files_config: &data_files_config !DataFilesConfig {config_file: "FantasyProjections/config/data_files_config.yaml"}
+
 # Output Files
 save_options:
   save_directory: models/
@@ -128,7 +131,7 @@ predictors:
   - name: default
     type: SleeperPredictor
     config:
-      proj_dict_file: "data/misc/sleeper_projections_dict.json"
+      data_files_config: *data_files_config
       update_players: false
   - name: default
     type: LastNPredictor

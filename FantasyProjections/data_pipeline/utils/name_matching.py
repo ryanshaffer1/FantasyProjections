@@ -6,6 +6,8 @@
         drop_name_frills : Modifies an input name to just the "base" name with no modifiers included.
 """  # fmt: skip
 
+from __future__ import annotations
+
 import logging
 
 import numpy as np
@@ -14,7 +16,7 @@ import numpy as np
 logger = logging.getLogger("log")
 
 
-def find_matching_name_ind(name, others):
+def find_matching_name_ind(name: str, others: list[str] | str) -> int | float:
     """Finds the index in a list of names that exactly, or approximately, matches the given name.
 
         Args:

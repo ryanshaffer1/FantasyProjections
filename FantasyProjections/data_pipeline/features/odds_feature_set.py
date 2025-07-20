@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import requests
 
-from config import data_files_config
 from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.features.feature_set import FeatureSet
 from data_pipeline.utils import team_abbreviations as team_abbrs
@@ -33,11 +32,15 @@ class OddsFeatureSet(FeatureSet):
         # Optional keyword arguments
         self.surrogate = kwargs.get("surrogate", False)
         self.game_times = kwargs.get("game_times")
-
-        self.api_manager = OddsAPIManager(surrogate=self.surrogate)
         self.game_to_event_ids = {}
-        self.markets = self.__get_markets(player_props=[feat.name for feat in self.features])
-        self.labels_df_to_odds = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["odds"].dropna().to_dict()
+
+    def post_init(self, data_files_config: dict):
+        """Post-initialization method to set up the Odds API Manager and other attributes that rely on data_files_config."""
+        self.api_manager = OddsAPIManager(data_files_config=data_files_config, surrogate=self.surrogate)
+        self.labels_df_to_odds = pd.read_csv(data_files_config["feature_config_file"], index_col=0)["odds"].dropna().to_dict()
+        self.markets = [
+            self.labels_df_to_odds[stat] for stat in list({feat.name for feat in self.features} & set(self.labels_df_to_odds))
+        ]
 
     def collect_data(
         self,
@@ -45,6 +48,8 @@ class OddsFeatureSet(FeatureSet):
         weeks: list[int] | range,
         _df_sources: dict[str, pd.DataFrame] | None = None,
     ) -> None:
+        # Initialize API Manager
+
         team_abbrevs_to_process = list(team_abbrs.pbp_abbrevs.values())
 
         year_start_date, _ = week_to_date_range(year, week=1)
@@ -237,32 +242,16 @@ class OddsFeatureSet(FeatureSet):
             game_times = game_times.tolist()
         return game_times
 
-    def __get_markets(self, player_props: list[str]) -> list[str]:
-        """Creates list of player props data to gather from The Odds for this game, optionally removing any player props already present in preexisting odds data.
-
-            Args:
-                player_props (list[str]): List of player props to include in odds data (e.g. ["Pass Yds", "Rush Yds"]).
-
-            Returns:
-                list[str]: player props to request from The Odds, in the correct format used by The Odds.
-
-        """  # fmt: skip
-
-        # Set default list of stats to include (formatted correctly for The Odds)
-        stat_names_dict = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["odds"].dropna().to_dict()
-        markets = [stat_names_dict[stat] for stat in list(set(player_props) & set(stat_names_dict))]
-
-        return markets
-
 
 class OddsAPIManager:
-    def __init__(self, enable_api_requests: bool = True, surrogate: bool = False):
-        self.api_key = self.get_odds_api_key()
+    def __init__(self, data_files_config, enable_api_requests: bool = True, surrogate: bool = False):
+        self.data_files_config = data_files_config
+        self.api_key = self.get_odds_api_key(data_files_config["odds_api_key_file"])
         self.surrogate = surrogate
         self.enable_api_requests = enable_api_requests or not surrogate
 
         # Track previous API requests
-        self.all_requests_file = data_files_config.ODDS_REQUESTS_FILE  # .replace("requests", "test")
+        self.all_requests_file = self.data_files_config["odds_requests_file"]
         self.all_requests_df = self.process_previous_requests()
 
     def process_previous_requests(self) -> pd.DataFrame:
@@ -278,22 +267,18 @@ class OddsAPIManager:
 
         return all_requests_df
 
-    def get_odds_api_key(self, filename=None):
+    def get_odds_api_key(self, filename: str) -> str:
         """Reads API key for The Odds API from a local file. API key must be obtained manually and saved to this file by the user.
 
             The file must be a text file containing ONLY the API key and no other text.
 
             Args:
-                filename (str, optional): Path to text file containing API key. Defaults to using the filepath defined in data_files_config.
+                filename (str): Path to text file containing API key.
 
             Returns:
                 str: The Odds API key read from the file.
 
         """  # fmt: skip
-
-        # Handle default for optional input
-        if filename is None:
-            filename = data_files_config.ODDS_API_KEY_FILE
 
         with open(filename, encoding="utf-8") as file:
             api_key = file.readline()

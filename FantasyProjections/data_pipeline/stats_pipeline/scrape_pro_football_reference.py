@@ -16,16 +16,17 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from config import data_files_config
 from data_pipeline.utils.name_matching import drop_name_frills, fuzzy_match
 
 # Set up logger
 logger = logging.getLogger("log")
 
-REQ_WAIT_TIME = 2  # seconds between web scraper HTTP requests to avoid rate-limiting lockout by pro-football-reference
+REQ_WAIT_TIME = 6  # seconds between web scraper HTTP requests to avoid rate-limiting lockout by pro-football-reference
+# Source: https://www.sports-reference.com/bot-traffic.html
 
 
 def scrape_box_score(
+    data_files_config: dict,
     stats_html: str,
     team_abbrevs: str | list[str],
     last_req_time: datetime | None = None,
@@ -33,6 +34,7 @@ def scrape_box_score(
     """Obtains box-score statistics (final player stats for a game) from pro-football-reference.com for all players on a given team in a given game.
 
         Args:
+            data_files_config (dict): Configuration for data files, including paths and filenames.
             stats_html (str): HTML to page containing game stats on pro-football-reference.com.
             team_abbrevs (str | list of strs): Abbreviation(s) of the team(s) being processed (as used on pro-football-reference.com)
             last_req_time (datetime.datetime, optional): Timestamp of the last HTTP request made.
@@ -90,7 +92,7 @@ def scrape_box_score(
         box_score["pfr_id"] = row.find("th", {"data-stat": "player"})["data-append-csv"]
         box_score["Team"] = row.find("td", {"data-stat": "team"}).text
         # Collect all stats
-        labels_df_to_pfr = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)["pfr"].dropna().to_dict()
+        labels_df_to_pfr = pd.read_csv(data_files_config["feature_config_file"], index_col=0)["pfr"].dropna().to_dict()
         for key, val in labels_df_to_pfr.items():
             box_score[key] = int(row.find("td", {"data-stat": val}).text)
 
@@ -102,13 +104,19 @@ def scrape_box_score(
     return box_score_df, last_req_time, success
 
 
-def search_for_missing_pfr_id(player_name, max_attempts=20, continue_on_404=False):
+def search_for_missing_pfr_id(
+    pfr_player_url_intro: str,
+    player_name: str,
+    max_attempts: int = 20,
+    continue_on_404: bool | None = False,
+) -> tuple[str | None, dict]:
     """Checks pro-football-reference.com for a player ID which corresponds to the input player name.
 
         Generates a dict mapping each ID it checks to the corresponding player name,
         so that these pairs can be "cached" for future searches to reduce the number of HTTP requests needed.
 
         Args:
+            pfr_player_url_intro (str): Base URL of the Pro-Football-Reference player pages (unique player IDs are appended to this URL).
             player_name (str): Player name.
             max_attempts (int, optional): Max number of player IDs to try. Defaults to 20.
                 Note that the search will also abort if it encounters an HTTPError (like 404/page not found).
@@ -133,7 +141,7 @@ def search_for_missing_pfr_id(player_name, max_attempts=20, continue_on_404=Fals
     while i < max_attempts:
         # Construct current attempted player ID and associated URL
         curr_pfr_id = pfr_id_base + str(i).rjust(2, "0")
-        player_url = f"{data_files_config.PFR_PLAYER_URL_INTRO}{curr_pfr_id[0]}/{curr_pfr_id}.htm"
+        player_url = f"{pfr_player_url_intro}{curr_pfr_id[0]}/{curr_pfr_id}.htm"
 
         # Scrape Pro Football Reference for player name associated with current pfr_id
         scraped_name, last_req_time = scrape_player_page_for_name(player_url, last_req_time)

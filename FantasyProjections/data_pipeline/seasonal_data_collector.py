@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 import dateutil.parser as dateparse
 import pandas as pd
 
-from config import data_files_config
 from config.player_id_config import PLAYER_IDS, PRIMARY_PLAYER_ID, fill_blank_player_ids
 from data_pipeline.single_game_data_worker import SingleGameDataWorker
 from data_pipeline.utils import team_abbreviations as team_abbrs
@@ -62,6 +61,7 @@ class SeasonalDataCollector:
 
     def __init__(
         self,
+        data_files_config: dict,
         year: int,
         feature_sets: list[FeatureSet],
         team_names: list[str] | str = "all",
@@ -95,6 +95,7 @@ class SeasonalDataCollector:
         filter_df = kwargs.get("filter_df")
 
         # Basic attributes
+        self.data_files_config = data_files_config
         self.year = year
         self.weeks = weeks
         self.team_names = clean_team_names(team_names, self.year)
@@ -104,8 +105,8 @@ class SeasonalDataCollector:
         dfs_dict, df_sources = collect_input_dfs(
             self.year,
             self.weeks,
-            data_files_config.local_file_paths,
-            data_files_config.online_file_paths,
+            self.data_files_config["local_file_paths"],
+            self.data_files_config["online_file_paths"],
             online_avail=True,
         )
         self.pbp_df = dfs_dict[0].pop("pbp")
@@ -267,8 +268,9 @@ class SeasonalDataCollector:
         # Update player IDs
         all_rosters_df = fill_blank_player_ids(
             players_df=all_rosters_df,
-            master_id_file=data_files_config.MASTER_PLAYER_ID_FILE,
-            pfr_id_filename=data_files_config.PFR_ID_FILENAME,
+            pfr_player_url_intro=self.data_files_config["pfr_player_url_intro"],
+            master_id_file=self.data_files_config["master_player_id_file"],
+            pfr_id_filename=self.data_files_config["pfr_id_filename"],
             add_missing_pfr=False,
             update_master=False,
         )
@@ -317,7 +319,7 @@ class SeasonalDataCollector:
             # URL to get stats from
             scores_df["game_date"] = scores_df.apply(lambda x: dateparse.parse(x["game_date"]).strftime("%Y%m%d"), axis=1)
             scores_df["PFR URL"] = scores_df.apply(
-                lambda x: data_files_config.PFR_BOXSCORE_URL_INTRO
+                lambda x: self.data_files_config["pfr_boxscore_url_intro"]
                 + x["game_date"]
                 + "0"
                 + team_abbrs.convert_abbrev(

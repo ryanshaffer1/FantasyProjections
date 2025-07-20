@@ -11,11 +11,18 @@ if TYPE_CHECKING:
 
 
 class FeatureSet:
-    def __init__(self, features: list[Feature], sources: dict[str, dict[str, str]] | dict[str, str]) -> None:
+    def __init__(
+        self,
+        features: list[Feature],
+        sources: dict[str, dict[str, str]] | dict[str, str],
+    ) -> None:
         self.sources = sources
         self.features = features
         self.thresholds = {feat.name: feat.thresholds for feat in self.features}
         self.df_dict = {}
+
+    def post_init(self, **kwargs):
+        pass
 
     def collect_data(
         self,

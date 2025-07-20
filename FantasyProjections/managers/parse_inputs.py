@@ -16,6 +16,7 @@ import yaml
 
 from misc.dataset import StatsDataset
 from misc.manage_files import create_folders, name_save_folder
+from misc.yaml_constructor import add_yaml_constructors
 
 default_filename = "FantasyProjections/config/default_inputs.yaml"
 
@@ -36,6 +37,7 @@ def parse_inputs(input_filename):
             InputParameters: Parsed and normalized inputs.
 
     """  # fmt: skip
+    add_yaml_constructors()
 
     with open(input_filename) as stream:
         inputs = InputParameters(yaml.safe_load(stream))
@@ -98,7 +100,7 @@ class InputParameters:
                 Any omitted fields are initialized as an empty dict or empty list, depending on the input type.
 
         """  # fmt: skip
-
+        self.data_files_config = input_dict.get("data_files_config", {})
         self.save_options = input_dict.get("save_options", {})
         self.features = input_dict.get("features", {})
         self.datasets = input_dict.get("datasets", [])
@@ -121,6 +123,7 @@ class InputParameters:
 
         # Merge dictionaries, with self taking precedence over default_inputs in the case of matching keys
         # Note that though the recursive_dict_merge returns a value, it does not need to be assigned due to the memory persistence of dicts
+        recursive_dict_merge(self.data_files_config, default_inputs.data_files_config, add_if_empty=True)
         recursive_dict_merge(self.save_options, default_inputs.save_options, add_if_empty=True)
         recursive_dict_merge(self.features, default_inputs.features, add_if_empty=True)
         recursive_dict_merge(self.datasets, default_inputs.datasets, add_if_empty=True)

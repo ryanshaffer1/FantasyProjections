@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from config import data_files_config
 from config.player_id_config import PRIMARY_PLAYER_ID
 from misc.manage_files import create_folders
 from misc.stat_utils import stats_to_fantasy_points
@@ -36,6 +35,7 @@ class RosterFilter:
 class DatasetProcessor:
     def __init__(
         self,
+        data_files_config: dict,
         feature_sets: list[FeatureSet],
         midgame_df: pd.DataFrame,
         final_stats_df: pd.DataFrame,
@@ -43,6 +43,7 @@ class DatasetProcessor:
         filter_df: pd.DataFrame | None = None,
         **kwargs,
     ):
+        self.data_files_config = data_files_config
         self.feature_sets = feature_sets
         self.midgame_df = midgame_df
         self.final_stats_df = final_stats_df
@@ -55,7 +56,7 @@ class DatasetProcessor:
             Rules
             1. "Currently" active players only (active at some point in the last season being processed)
             2. Sort by fantasy points per game played
-            3. Player must have played in at least 5 games
+            3. Player must have played in at least x number of games, where x is set by the RosterFilter.min_games_played attribute
             4. Take the top num_players number of players per criteria 2
 
             Saves filtered list of players to a csv file to be used for later data collection.
@@ -162,6 +163,7 @@ class DatasetProcessor:
         all_truth_columns = []
         for feature_set in self.feature_sets:
             val_df = feature_set.collect_validation_data(
+                data_files_config=self.data_files_config,
                 final_stats_df=self.final_stats_df,
                 aux_data_df=self.aux_data_df,
                 **kwargs,
@@ -177,8 +179,8 @@ class DatasetProcessor:
 
         # Save validation results to file if requested
         if save_data:
-            create_folders(data_files_config.PARSING_VALIDATION_FILE)
-            diff_df.to_csv(data_files_config.PARSING_VALIDATION_FILE)
+            create_folders(self.data_files_config["parsing_validation_file"])
+            diff_df.to_csv(self.data_files_config["parsing_validation_file"])
 
         # Plot differences in numerical values
         self.__plot_validation_comparison(diff_df, all_truth_columns)

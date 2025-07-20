@@ -34,7 +34,7 @@ logger.info(f"Starting Program. Input parameters from file: {args.parameter_file
 scenario = managers.ScenarioObjects()
 
 # Read data from csv files and create all datasets
-all_data = managers.read_data_into_dataset(input_params.features, log_datafiles=True)
+all_data = managers.read_data_into_dataset(input_params.features, input_params.data_files_config, log_datafiles=True)
 scenario.datasets = managers.create_datasets(input_params.datasets, all_data)
 
 # Update some scenario input parameters based on features/data

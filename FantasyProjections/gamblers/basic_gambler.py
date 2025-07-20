@@ -7,7 +7,6 @@
 import numpy as np
 import pandas as pd
 
-from config import data_files_config
 from gamblers.gambling_plots import plot_earnings_by_week
 
 
@@ -19,8 +18,7 @@ class BasicGambler:
 
         Attributes:
             prediction_result (PredictionResult): object created by a FantasyPredictor that contains predicted player stats, and the true outcomes of past games.
-            odds_file (str, optional): Path to a csv file containing player prop over/under lines from a sportsbook. Defaults to the filepath in data_files_config.
-            odds_df (pandas.DataFrame): Data from odds_file, pre-processed to be used for placing and evaluating bets.
+            odds_df (pandas.DataFrame): Odds data, processed to be used for placing and evaluating bets.
             bets (pandas.DataFrame): DataFrame containing all bets placed on player props in the dataset, as well as their payouts for winning and losing.
             bet_results (pandas.DataFrame): DataFrame containing the results of all bets placed on player props: whether the bet hit, and the earnings (positive or negative).
             earnings (float): Total gambling earnings (or losses, if negative) over the dataset
@@ -35,28 +33,21 @@ class BasicGambler:
 
     """  # fmt: skip
 
-    def __init__(self, prediction_result, odds_file=None):
+    def __init__(self, prediction_result):
         """Constructor for BasicGambler.
 
             Args:
                 prediction_result (PredictionResult): object created by a FantasyPredictor that contains predicted player stats, and the true outcomes of past games.
-                odds_file (str, optional): Path to a csv file containing player prop over/under lines from a sportsbook. Defaults to the filepath in data_files_config.
 
             Additional Class Attributes (generated, not passed as inputs):
-                odds_df (pandas.DataFrame): Data from odds_file, pre-processed to be used for placing and evaluating bets.
+                odds_df (pandas.DataFrame): Odds data, processed to be used for placing and evaluating bets.
                 bets (pandas.DataFrame): DataFrame containing all bets placed on player props in the dataset, as well as their payouts for winning and losing.
                 bet_results (pandas.DataFrame): DataFrame containing the results of all bets placed on player props: whether the bet hit, and the earnings (positive or negative).
                 earnings (float): Total gambling earnings (or losses, if negative) over the dataset
                 accuracy (float): Accuracy, as a fraction of correct bets divided by all bets
 
         """  # fmt: skip
-
-        # Optional input
-        if odds_file is None:
-            odds_file = data_files_config.ODDS_FILE
-
         self.prediction_result = prediction_result
-        self.odds_file = odds_file
 
         # Read and format odds df
         self.odds_df = self.process_odds_df()

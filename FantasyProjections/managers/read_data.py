@@ -6,22 +6,17 @@
 """  # fmt:skip
 
 import logging
+import os
 
 import pandas as pd
 
-from config import data_files_config
 from misc.dataset import StatsDataset
 
 # Set up logger
 logger = logging.getLogger("log")
 
-# Neural Net Data files
-PBP_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_STAT_FILES["midgame"]
-BOXSCORE_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_STAT_FILES["final"]
-ID_DATAFILE = data_files_config.PRE_PROCESS_FOLDER + data_files_config.NN_STAT_FILES["id"]
 
-
-def read_data_into_dataset(features: dict, log_datafiles: bool = True):
+def read_data_into_dataset(features: dict, data_files_config: dict, log_datafiles: bool = True):
     """Reads all available input data into a large StatsDataset object.
 
         Args:
@@ -32,14 +27,18 @@ def read_data_into_dataset(features: dict, log_datafiles: bool = True):
 
     """  # fmt: skip
 
+    pbp_datafile = os.path.join(data_files_config["pre_process_folder"], data_files_config["nn_stat_files"]["midgame"])
+    boxscore_datafile = os.path.join(data_files_config["pre_process_folder"], data_files_config["nn_stat_files"]["final"])
+    id_datafile = os.path.join(data_files_config["pre_process_folder"], data_files_config["nn_stat_files"]["id"])
+
     # Read data files
-    pbp_df = pd.read_csv(PBP_DATAFILE, engine="pyarrow")
-    boxscore_df = pd.read_csv(BOXSCORE_DATAFILE, engine="pyarrow")
-    id_df = pd.read_csv(ID_DATAFILE, engine="pyarrow")
+    pbp_df = pd.read_csv(pbp_datafile, engine="pyarrow")
+    boxscore_df = pd.read_csv(boxscore_datafile, engine="pyarrow")
+    id_df = pd.read_csv(id_datafile, engine="pyarrow")
 
     if log_datafiles:
         logger.info("Data files read")
-        for name, file in zip(["pbp", "boxscore", "IDs"], [PBP_DATAFILE, BOXSCORE_DATAFILE, ID_DATAFILE]):
+        for name, file in zip(["pbp", "boxscore", "IDs"], [pbp_datafile, boxscore_datafile, id_datafile]):
             logger.debug(f"{name}: {file}")
 
     # Filter dataframes to just the desired features (and order dataframe according to features)

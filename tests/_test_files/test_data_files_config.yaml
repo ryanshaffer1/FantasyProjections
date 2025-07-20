@@ -1,0 +1,11 @@
+
+# Folders
+data_folder: &data_folder "tests/_test_files/"
+
+# Miscellaneous:
+# Feature config file
+feature_config_file: !path [*data_folder, "stats_config.csv"]
+# Player ID dictionaries/cross-mapping files
+master_player_id_file: !path [*data_folder, "player_ids.csv"]
+# Sleeper API data
+sleeper_proj_dict_file: !path [*data_folder, "sleeper_projections_dict.json"]

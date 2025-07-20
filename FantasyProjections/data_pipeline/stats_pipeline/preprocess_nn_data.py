@@ -4,11 +4,13 @@
         preprocess_nn_data : Converts NFL stats data from raw statistics to a Neural Network-readable format.
 """  # fmt: skip
 
+from __future__ import annotations
+
 import logging
 
 import pandas as pd
 
-from config import data_files_config, stats_config
+from config import stats_config
 from config.player_id_config import PRIMARY_PLAYER_ID
 from misc.manage_files import create_folders
 from misc.stat_utils import normalize_stat
@@ -17,7 +19,14 @@ from misc.stat_utils import normalize_stat
 logger = logging.getLogger("log")
 
 
-def preprocess_nn_data(midgame_input, final_stats_input, feature_sets, save_folder=None, save_filenames=None):
+def preprocess_nn_data(
+    data_files_config: dict,
+    midgame_input: pd.DataFrame | str,
+    final_stats_input: pd.DataFrame | str,
+    feature_sets,
+    save_folder: str | None = None,
+    save_filenames: dict | None = None,
+):
     """Converts NFL stats data from raw statistics to a Neural Network-readable format.
 
         Main steps:
@@ -27,8 +36,10 @@ def preprocess_nn_data(midgame_input, final_stats_input, feature_sets, save_fold
             4. Encoding player, team, and opponent IDs as vectors of 0's and 1's (1 corresponds to the correct ID, 0 everywhere else)
 
         Args:
+            data_files_config (dict): Configuration for data files, including paths and filenames.
             midgame_input (pandas.DataFrame | str): Stats accrued over the course of an NFL game for a set of players/games, OR path to csv file containing this data.
             final_stats_input (pandas.DataFrame | str): Stats at the end of an NFL game for a set of players/games, OR path to csv file containing this data.
+            feature_sets:
             save_folder (str, optional): folder to save files that can be ingested by a Neural Net Fantasy Predictor. Defaults to None (files will not be saved).
             save_filenames (dict, optional): Filename to use for each neural net input csv. Defaults to filenames in data_files_config.
 
@@ -40,8 +51,8 @@ def preprocess_nn_data(midgame_input, final_stats_input, feature_sets, save_fold
     """  # fmt: skip
 
     # Optional save_filenames input
-    if not save_filenames:
-        save_filenames = data_files_config.NN_STAT_FILES
+    if save_filenames is None:
+        save_filenames = data_files_config["nn_stat_files"]
 
     # Read files if raw dataframes are not passed in
     if not isinstance(midgame_input, pd.DataFrame):
@@ -118,7 +129,7 @@ def preprocess_nn_data(midgame_input, final_stats_input, feature_sets, save_fold
     logger.info("Data pre-processed for projections")
 
     # Save data
-    if save_folder is not None:
+    if save_folder is not None and save_filenames is not None:
         create_folders(save_folder)
         logger.info("Saving pre-processed NN data")
         midgame_input.to_csv(f"{save_folder}{save_filenames['midgame']}", index=False)

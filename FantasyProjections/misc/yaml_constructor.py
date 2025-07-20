@@ -4,7 +4,6 @@ import os
 
 import yaml
 
-from config import data_files_config
 from data_pipeline import features
 from misc import yaml_dataclasses
 
@@ -39,6 +38,7 @@ def add_yaml_constructors():
     yaml.add_constructor("!config_var", config_var_constructor, Loader=yaml.SafeLoader)
     yaml.add_constructor("!path", path_constructor, Loader=yaml.SafeLoader)
     yaml.add_constructor("!range", range_constructor, Loader=yaml.SafeLoader)
+    yaml.add_constructor("!DataFilesConfig", data_files_config_constructor, Loader=yaml.SafeLoader)
 
 
 def constructor(loader, node):
@@ -60,13 +60,23 @@ def concat_constructor(loader, node):
     return str_concat
 
 
-def config_var_constructor(_loader, node):
+def config_var_constructor(loader, node):
     """
     Custom constructor for the !config_var tag in YAML files.
     This allows for using variables defined in another file.
     """
-    config_var = getattr(data_files_config, node.value)
+    [data_files_config, config_var_key] = loader.construct_sequence(node, deep=False)
+    config_var = data_files_config[config_var_key]
     return config_var
+
+
+def data_files_config_constructor(loader, node):
+    """
+    Custom constructor for the !DataFilesConfig tag in YAML files.
+    This allows for loading a DataFilesConfig object from a YAML file.
+    """
+    config_file = loader.construct_mapping(node)["config_file"]
+    return yaml_dataclasses.DataFilesConfig(config_file=config_file).config
 
 
 def path_constructor(loader, node):
