@@ -15,28 +15,28 @@ save_options:
 # Features
 features:
   input:
-    - Elapsed Time
-    - Team Score
-    - Opp Score
-    - Possession
-    - Field Position
-    - Pass Att
-    - Pass Cmp
-    - Pass Yds
-    - Pass TD
-    - Int
-    - Rush Att
-    - Rush Yds
-    - Rush TD
-    - Rec
-    - Rec Yds
-    - Rec TD
-    - Fmb
-    - injury_status
-    - Position 
-    - Player ID 
-    - Team 
-    - Opponent 
+    - Elapsed Time: {thresholds: [0, 60]}
+    - Team Score: {thresholds: [0, 100]}
+    - Opp Score: {thresholds: [0, 100]}
+    - Possession: {thresholds: [0, 1]}
+    - Field Position: {thresholds: [0, 100]}
+    - Pass Att: {thresholds: [0, 100]}
+    - Pass Cmp: {thresholds: [0, 100]}
+    - Pass Yds: {thresholds: [-50, 1000], scoring_weight: 0.04}
+    - Pass TD: {thresholds: [0, 8], scoring_weight: 4}
+    - Int: {thresholds: [0, 8], scoring_weight: -2}
+    - Rush Att: {thresholds: [0, 100]}
+    - Rush Yds: {thresholds: [-50, 1000], scoring_weight: 0.1}
+    - Rush TD: {thresholds: [0, 8], scoring_weight: 6}
+    - Rec: {thresholds: [0, 100], scoring_weight: 1}
+    - Rec Yds: {thresholds: [-50, 1000], scoring_weight: 0.1}
+    - Rec TD: {thresholds: [0, 8], scoring_weight: 6}
+    - Fmb: {thresholds: [0, 8], scoring_weight: -2}
+    - Injury Status: {thresholds: [0, 1]}
+    - Position: {one_hot_encode: true}
+    - Player ID: {one_hot_encode: true} 
+    - Team: {one_hot_encode: true}
+    - Opponent: {one_hot_encode: true}
   output:
     - Pass Att
     - Pass Cmp

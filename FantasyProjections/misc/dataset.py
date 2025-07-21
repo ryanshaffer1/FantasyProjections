@@ -388,7 +388,7 @@ class StatsDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         # Returns the input and output data at a given index
-        return self.x_data[idx], self.y_data[idx]
+        return self.x_data[idx].float(), self.y_data[idx].float()
 
     def __getid__(self, idx):
         # Returns the ID data at a given index

@@ -26,6 +26,10 @@ nn_stat_files:
   midgame: "midgame_data_to_nn.csv"
   final: "final_stats_to_nn.csv"
   id: "data_ids.csv"
+stat_files:
+  midgame: !path [*output_folder, "pbp_stats.csv"]
+  final: !path [*output_folder, "statlines.csv"]
+
 
 # Miscellaneous:
 # Feature config file

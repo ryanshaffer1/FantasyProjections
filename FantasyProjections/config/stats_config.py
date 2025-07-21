@@ -14,3 +14,5 @@ baseline_data_outputs = {
 baseline_data_thresholds = {"Elapsed Time": [0, 60]}
 
 baseline_one_hot_columns = ["Player ID"]
+
+baseline_id_columns = ["Player ID", *ALT_PLAYER_IDS, "Player Name", "Year", "Week", "Elapsed Time"]

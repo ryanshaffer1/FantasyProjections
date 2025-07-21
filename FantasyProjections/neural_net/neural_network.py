@@ -46,7 +46,7 @@ class NeuralNetwork(nn.Module):
         for embedding_name, embedding_size in shape.get("embedding", {}).items():
             input_size = shape["input"][embedding_name]
             embedding = nn.Sequential(
-                nn.Linear(input_size, embedding_size, dtype=float),
+                nn.Linear(input_size, embedding_size, dtype=torch.float32),
                 nn.ReLU(),
             )
             self.embedding[embedding_name] = embedding
@@ -57,14 +57,14 @@ class NeuralNetwork(nn.Module):
         for layer_stack_size in shape["linear_stack"]:
             layer_input_size = prev_layer_size
             self.linear_stack += nn.Sequential(
-                nn.Linear(layer_input_size, layer_stack_size, dtype=float),
+                nn.Linear(layer_input_size, layer_stack_size, dtype=torch.float32),
                 nn.ReLU(),
             )
             prev_layer_size = layer_stack_size
 
         # Create output layer
         self.output = nn.Sequential(
-            nn.Linear(shape["linear_stack"][-1], shape["output"], dtype=float),
+            nn.Linear(shape["linear_stack"][-1], shape["output"], dtype=torch.float32),
             nn.Sigmoid(),
         )
 
