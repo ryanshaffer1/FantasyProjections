@@ -39,7 +39,7 @@ def preprocess_nn_data(
             data_files_config (dict): Configuration for data files, including paths and filenames.
             midgame_input (pandas.DataFrame | str): Stats accrued over the course of an NFL game for a set of players/games, OR path to csv file containing this data.
             final_stats_input (pandas.DataFrame | str): Stats at the end of an NFL game for a set of players/games, OR path to csv file containing this data.
-            feature_sets:
+            feature_sets (list): all FeatureSet objects used to collect/process the data in the current dataset.
             save_folder (str, optional): folder to save files that can be ingested by a Neural Net Fantasy Predictor. Defaults to None (files will not be saved).
             save_filenames (dict, optional): Filename to use for each neural net input csv. Defaults to filenames in data_files_config.
 

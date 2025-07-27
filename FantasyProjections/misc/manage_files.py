@@ -71,6 +71,7 @@ def collect_input_dfs(
             tuple:
             - all_dfs: A list of dicts of names mapping to DataFrame objects corresponding to each input file type (e.g. 'pbp'). Each dict corresponds to a year.
             - all_loaded_files: A list of dicts of file names mapping to DataFrame objects loaded from the file.
+
     """  # fmt: skip
     # Handle single year being input
     if not isinstance(years, list | range):

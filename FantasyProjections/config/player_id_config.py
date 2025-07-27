@@ -114,7 +114,7 @@ def update_master_player_ids(
     """Adds potentially new players to the master Player IDs file, and optionally searches for matches to missing IDs in the file.
 
         Args:
-            data_files_config (dict): Configuration for data files, including paths and filenames.
+            pfr_player_url_intro (str): Base URL for Pro-Football-Reference stats, with game-specific IDs appended to this base.
             addl_players_df (pandas.DataFrame, optional): DataFrame listing out players that may not be in the master file. Defaults to None.
             master_id_file (str, optional): Filename to master list of players and their different ID formats. Defaults to None.
             pfr_id_filename (str, optional): Filename to pro-football-reference name to ID dictionary. Defaults to None.

@@ -2,6 +2,8 @@
 
     Functions:
         read_data_into_dataset : Reads all available input data into a large StatsDataset object.
+        preprocess_data : Converts stats data from raw statistics to a Neural Network-readable format.
+        columns_from_features : Extracts the columns from the features dictionary, optionally filtering by feature groups.
 
 """  # fmt:skip
 
@@ -20,10 +22,14 @@ from misc.stat_utils import normalize_stat
 logger = logging.getLogger("log")
 
 
-def read_data_into_dataset(features: dict, data_files_config: dict, log_datafiles: bool = True):
+def read_data_into_dataset(features: dict, data_files_config: dict, log_datafiles: bool = True) -> StatsDataset:
     """Reads all available input data into a large StatsDataset object.
 
         Args:
+            features (dict[dict]): Input struct of features, organized into groups of "input", "output", and optionally more groups.
+                Each group is a dict containing either strings with names of features (e.g. "Pass Att") or dicts
+                where the key is the feature name and the value is the configuration (including normalization thresholds, etc.)
+            data_files_config (dict): Settings for input and output data - used here to find input stats files.
             log_datafiles (bool, optional): Whether to output status and info to the logger. Defaults to True.
 
         Returns:
@@ -55,28 +61,29 @@ def read_data_into_dataset(features: dict, data_files_config: dict, log_datafile
 def preprocess_data(
     pbp_df: pd.DataFrame,
     final_stats_df: pd.DataFrame,
-    features,
+    features: dict,
 ):
     """Converts stats data from raw statistics to a Neural Network-readable format.
 
         Main steps:
-            1. Cleans dataframes (fills in blanks/NaNs as 0, converts all True/False to 1/0, removes non-numeric data)
-            2. Matches every row in midgame to the corresponding row in final_stats
-            3. Normalizing statistics so that all values are between 0 and 1
-            4. Encoding player, team, and opponent IDs as vectors of 0's and 1's (1 corresponds to the correct ID, 0 everywhere else)
+            1. Cleans dataframes (fills in blanks/NaNs as 0, etc.)
+            2. Matches every row in final_stats to the corresponding row in pbp
+            3. Trims/separates dataframes to only the desired columns in each, specified by features.
+            4. Normalizes statistics so that all values are between 0 and 1
+            5. Encodes one-hot-encoded features as vectors of 0's and 1's (1 corresponds to the correct ID, 0 everywhere else)
 
         Args:
-            data_files_config (dict): Configuration for data files, including paths and filenames.
-            midgame_input (pandas.DataFrame | str): Stats accrued over the course of an NFL game for a set of players/games, OR path to csv file containing this data.
-            final_stats_input (pandas.DataFrame | str): Stats at the end of an NFL game for a set of players/games, OR path to csv file containing this data.
-            feature_sets:
-            save_folder (str, optional): folder to save files that can be ingested by a Neural Net Fantasy Predictor. Defaults to None (files will not be saved).
-            save_filenames (dict, optional): Filename to use for each neural net input csv. Defaults to filenames in data_files_config.
+            pbp_df (pandas.DataFrame): Stats accrued over the course of an NFL game for a set of players/games (including midgame stats).
+            final_stats_df (pandas.DataFrame): Stats at the end of an NFL game for a set of players/games.
+            features (dict[dict]): Input struct of features, organized into groups of "input", "output", and optionally more groups.
+                Each group is a dict containing either strings with names of features (e.g. "Pass Att") or dicts
+                where the key is the feature name and the value is the configuration (including normalization thresholds, etc.)
 
         Returns:
+            pandas.DataFrame: ID (player/game information) input data in Neural Net-readable format
             pandas.DataFrame: Midgame input data in Neural Net-readable format
             pandas.DataFrame: Final Stats input data in Neural Net-readable format
-            pandas.DataFrame: ID (player/game information) input data in Neural Net-readable format
+            pandas.DataFrame: Miscellaneous data as specified in features, named based on feature groups.
 
     """  # fmt: skip
 
@@ -225,9 +232,3 @@ def columns_from_features(
                         columns.append(feat_config.get(return_key))
 
     return columns
-
-
-def feature_name(feature):
-    if isinstance(feature, dict):
-        return next(iter(feature))
-    return feature

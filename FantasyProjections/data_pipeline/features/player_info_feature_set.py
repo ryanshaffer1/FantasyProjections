@@ -1,3 +1,10 @@
+"""Class used to collect/process/store data related to player info, such as age, position, etc.
+
+    Class:
+        PlayerInfoFeatureSet : Class that collects and processes data related to player info, including age, position, etc.
+
+"""  # fmt: skip
+
 from __future__ import annotations
 
 import pandas as pd
@@ -8,9 +15,34 @@ from data_pipeline.utils.data_helper_functions import subsample_game_time
 
 
 class PlayerInfoFeatureSet(FeatureSet):
+    """Class that collects and processes data related to player info, including age, position, etc.
+
+        Sub-class of FeatureSet.
+
+        Args:
+            features (list[Feature]): All Feature (or sub-classes of Feature) objects to include in the feature set.
+            sources (dict): Paths to both local and online sources to collect data associated with the feature set.
+
+        Additional Class Attributes:
+            thresholds (dict[str, list]): Maps each individual feature in the set to its normalization thresholds
+            df_dict (dict): Stores loaded dataframes (including previously-cached dataframes) associated with each data source.
+
+        Public Methods:
+            collect_data : See FeatureSet
+            process_data : Generates game context output data, such as team record and score, for each player based on the collected play-by-play data.
+
+    """  # fmt: skip
+
     def __init__(self, features, sources):
+        """Constructor for PlayerInfoFeatureSet objects.
+
+            Args:
+                features (list[Feature]): All Feature (or sub-classes of Feature) objects to include in the feature set.
+                sources (dict): Paths to both local and online sources to collect data associated with the feature set.
+
+        """  # fmt: skip
+
         super().__init__(features, sources)
-        self.raw_rosters_df = None
 
     def collect_data(
         self,
@@ -18,13 +50,31 @@ class PlayerInfoFeatureSet(FeatureSet):
         weeks: list[int] | range,
         df_sources: dict[str, pd.DataFrame] | None = None,
     ) -> None:
+        """Collects data related to game context by searching the provided sources and checking for completeness.
+
+            Args:
+                year (int): Year associated with the data (assumes the full year's worth of data is contained in one file).
+                weeks (list | range): Weeks to ensure are included in the collected data (will search for them online if not).
+                df_sources (dict, optional): Cached map of filenames to dataframes that have already been loaded (reduces re-loading). Defaults to None.
+
+        """  # fmt: skip
+
         super().collect_data(year, weeks, df_sources)
-        self.raw_rosters_df = next(iter(self.df_dict.values()))
 
     def process_data(self, game_data_worker):
+        """Generates player info output data, such as age and position, for each player based on the collected data.
+
+            Args:
+                game_data_worker (SingleGameDataWorker): Processor for the current game, containing info on the roster, etc.
+
+            Returns:
+                pandas.DataFrame: Player info throughout this game. Indexed on Year, Week, Player ID, and Elapsed Time.
+
+        """  # fmt: skip
+
         # Compute stats for each player on the team in this game
         list_of_player_dfs = game_data_worker.roster_df.reset_index().apply(
-            self.midgame_player_info,
+            self.__midgame_player_info,
             args=(game_data_worker,),
             axis=1,
         )
@@ -40,13 +90,12 @@ class PlayerInfoFeatureSet(FeatureSet):
 
         return stats_df
 
-    def midgame_player_info(self, player_info, game_data_worker):
-        """Determines the mid-game info for one player throughout the game.
+    def __midgame_player_info(self, player_info, game_data_worker):
+        """Determines the player info for one player throughout the game.
 
             Args:
                 player_info (pandas.Series): Roster information for one player (number, ID, position, etc.).
-                game_times (list | str): Times in the game to output midgame stats for. May be a list of elapsed times in minutes,
-                    in which case the soonest play-by-play time after that elapsed time will be used as the stats at that time. If a string is passed, no filtering occurs.
+                game_data_worker (SingleGameDataWorker): Processor for the current game, containing info on the roster, etc.
 
             Returns:
                 pandas.DataFrame: Player's info at each time in the game (including any time-varying data). May have an additional (redundant) row for the final game time.

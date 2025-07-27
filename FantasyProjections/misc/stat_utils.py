@@ -3,6 +3,7 @@
     Functions:
         normalize_stat : Converts statistics from true values (i.e. football stats) to normalized values (scaled between 0 and 1).
         unnormalize_stat : Converts statistics from normalized values (scaled between 0 and 1) back to true values (i.e. actual football stats).
+        save_features_config : Creates a file containing all configuration variables for the FeatureSets to be used during later processing and fantasy predictions.
         stats_to_fantasy_points : Calculates Fantasy Points corresponding to an input stat line, based on fantasy scoring rules.
         gen_random_games : Generates random game/player combinations from input dataset, with no repeating.
         linear_regression : Performs Simple Linear Regression on x_data and y_data to determine line of best fit (slope, intercept) and coefficient of determination (r_squared).
@@ -100,7 +101,14 @@ def unnormalize_stat(data, thresholds=None):
     return data
 
 
-def save_features_config(feature_sets):
+def save_features_config(feature_sets: list) -> None:
+    """Creates a file containing all configuration variables for the FeatureSets to be used during later processing and fantasy predictions.
+
+        Args:
+            feature_sets (list): All FeatureSet objects used in the current dataset.
+
+    """  # fmt: skip
+
     # Extract all Feature objects from feature_sets
     stat_feature_objects = [feat for feat_set in feature_sets for feat in feat_set.features]
     # Convert relevant data from StatFeature into a DataFrame

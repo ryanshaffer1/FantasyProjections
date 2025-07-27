@@ -35,7 +35,9 @@ class SeasonalDataCollector:
         Specific data processing steps are carried out in sub-classes.
 
         Args:
+            data_files_config (dict): Settings for input and output data - used here to collect basic game data and player IDs.
             year (int): Year for season (e.g. 2023).
+            feature_sets (list): All the FeatureSet objects that configure the types of data being collected and logic used to process the data.
             team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
             weeks (list, optional): Weeks in the NFL season to collect data for. Defaults to range(1,19).
 
@@ -54,8 +56,12 @@ class SeasonalDataCollector:
             List of SingleGameDataWorker (or sub-class) objects
 
         Public Methods:
+            gather_final_stats : Separates the final data/stat line for each player/game from all the midgame data/stats.
+            generate_games : Creates a SingleGamePbpParser object for each unique game included in the SeasonalDataCollector.
             gather_all_game_data : Concatenates all relevant data from individual games in self.games into larger DataFrames for the full season.
             process_rosters : Trims DataFrame of all NFL week-by-week rosters in a given year to include only players of interest and data columns of interest.
+            get_game_info : Generates info on every game for each team in a given year: who is home vs away, and records of each team going into the game.
+
 
     """  # fmt: skip
 
@@ -71,7 +77,9 @@ class SeasonalDataCollector:
         """Constructor for SeasonalDataCollector class.
 
             Args:
+                data_files_config (dict): Settings for input and output data - used here to collect basic game data and player IDs.
                 year (int): Year for season (e.g. 2023).
+                feature_sets (list): All the FeatureSet objects that configure the types of data being collected and logic used to process the data.
                 team_names (str | list, optional): Either "all" or a list of full team names (e.g. ["Arizona Cardinals", "Baltimore Ravens", ...]). Defaults to "all".
                 weeks (list, optional): Weeks in the NFL season to collect data for. Defaults to range(1,19).
                 kwargs:
@@ -132,6 +140,13 @@ class SeasonalDataCollector:
 
     # PUBLIC METHODS
     def gather_final_stats(self):
+        """Separates the final data/stat line for each player/game from all the midgame data/stats.
+
+            Returns:
+                pandas.DataFrame: DataFrame based on the midgame_df, with only the last elapsed time for each player/game retained.
+
+        """  # fmt: skip
+
         # Remove rows with duplicated year/week/player, keeping only the last elapsed time
         duplicates = self.midgame_df.index.to_frame().duplicated(subset=["Year", "Week", PRIMARY_PLAYER_ID], keep="last")
         final_stats_df = self.midgame_df[~duplicates]

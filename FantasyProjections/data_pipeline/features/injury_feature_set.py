@@ -1,3 +1,10 @@
+"""Class used to collect/process/store data related to player injuries.
+
+    Class:
+        InjuryFeatureSet : Class that collects and processes data related to player injuries.
+
+"""  # fmt: skip
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -9,7 +16,34 @@ if TYPE_CHECKING:
 
 
 class InjuryFeatureSet(FeatureSet):
+    """Class that collects and processes data related to player injuries.
+
+        Sub-class of FeatureSet.
+
+        Args:
+            features (list[Feature]): All Feature (or sub-classes of Feature) objects to include in the feature set.
+            sources (dict): Paths to both local and online sources to collect data associated with the feature set.
+
+        Additional Class Attributes:
+            thresholds (dict[str, list]): Maps each individual feature in the set to its normalization thresholds
+            df_dict (dict): Stores loaded dataframes (including previously-cached dataframes) associated with each data source.
+            df (pandas.DataFrame): Injury data, as collected from data sources.
+
+        Public Methods:
+            collect_data : See FeatureSet
+            process_data : Generates injury status output data for each player based on the collected injury information.
+
+    """  # fmt: skip
+
     def __init__(self, features, sources):
+        """Constructor for InjuryFeatureSet objects.
+
+            Args:
+                features (list[Feature]): All Feature (or sub-classes of Feature) objects to include in the feature set.
+                sources (dict): Paths to both local and online sources to collect data associated with the feature set.
+
+        """  # fmt: skip
+
         super().__init__(features, sources)
         self.df = None
 
@@ -19,6 +53,17 @@ class InjuryFeatureSet(FeatureSet):
         weeks: list[int] | range,
         df_sources: dict[str, pd.DataFrame] | None = None,
     ) -> None:
+        """Collects data related to injury status by searching the provided sources and checking for completeness.
+
+            Modifies the attribute "df" to store the collected injury data.
+
+            Args:
+                year (int): Year associated with the data (assumes the full year's worth of data is contained in one file).
+                weeks (list | range): Weeks to ensure are included in the collected data (will search for them online if not).
+                df_sources (dict, optional): Cached map of filenames to dataframes that have already been loaded (reduces re-loading). Defaults to None.
+
+        """  # fmt: skip
+
         super().collect_data(year, weeks, df_sources)
         self.df = next(iter(self.df_dict.values()))
 
@@ -26,13 +71,13 @@ class InjuryFeatureSet(FeatureSet):
         self.df = self.df.drop_duplicates(subset=["gsis_id", "week"], keep="last")
 
     def process_data(self, game_data_worker):
-        """Adds injury data to the all_rosters_df attribute.
+        """Generates injury status output data for each player based on the collected injury information.
 
             Args:
-                roster_df (pandas.DataFrame): Contains weekly roster for all NFL teams.
+                game_data_worker (SingleGameDataWorker): Processor for the current game, containing info on the roster, etc.
 
             Returns:
-                pandas.DataFrame: Roster dataframe with injury data added.
+                pandas.DataFrame: Injury status for each player throughout this game. Indexed on Year, Week, Player ID, and Elapsed Time.
 
         """  # fmt: skip
 

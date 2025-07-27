@@ -1,3 +1,10 @@
+"""Class used to collect/process/store data related to player stats, such as Pass Att, Rush Yds, etc.
+
+    Class:
+        StatsFeatureSet : Class that collects and processes data related to player stats, including Pass Att, Rush Yds, etc.
+
+"""  # fmt: skip
+
 from __future__ import annotations
 
 import logging
@@ -16,7 +23,35 @@ logger = logging.getLogger("log")
 
 
 class StatsFeatureSet(FeatureSet):
+    """Class that collects and processes data related to player stats, including Pass Att, Rush Yds, etc.
+
+        Sub-class of FeatureSet.
+
+        Args:
+            features (list[Feature]): All Feature (or sub-classes of Feature) objects to include in the feature set.
+            sources (dict): Paths to both local and online sources to collect data associated with the feature set.
+
+        Additional Class Attributes:
+            thresholds (dict[str, list]): Maps each individual feature in the set to its normalization thresholds
+            df_dict (dict): Stores loaded dataframes (including previously-cached dataframes) associated with each data source.
+            pbp_df (pandas.DataFrame): Play-by-play data, as collected from data sources.
+
+        Public Methods:
+            collect_data : See FeatureSet
+            process_data : Generates game context output data, such as team record and score, for each player based on the collected play-by-play data.
+            collect_validation_data : Gathers final stats from pro-football-reference or local sources to independently verify stats parsing/accrual.
+
+    """  # fmt: skip
+
     def __init__(self, features, sources):
+        """Constructor for StatsFeatureSet objects.
+
+            Args:
+                features (list[Feature]): All Feature (or sub-classes of Feature) objects to include in the feature set.
+                sources (dict): Paths to both local and online sources to collect data associated with the feature set.
+
+        """  # fmt: skip
+
         super().__init__(features, sources)
         self.pbp_df = None
 
@@ -26,10 +61,31 @@ class StatsFeatureSet(FeatureSet):
         weeks: list[int] | range,
         df_sources: dict[str, pd.DataFrame] | None = None,
     ) -> None:
+        """Collects data related to game context by searching the provided sources and checking for completeness.
+
+            Modifies the attribute "pbp_df" to store the collected play-by-play data.
+
+            Args:
+                year (int): Year associated with the data (assumes the full year's worth of data is contained in one file).
+                weeks (list | range): Weeks to ensure are included in the collected data (will search for them online if not).
+                df_sources (dict, optional): Cached map of filenames to dataframes that have already been loaded (reduces re-loading). Defaults to None.
+
+        """  # fmt: skip
+
         super().collect_data(year, weeks, df_sources)
         self.pbp_df = next(iter(self.df_dict.values()))
 
     def process_data(self, game_data_worker):
+        """Generates stats output data, such as Pass Att and Rush Yds throughout the game, for each player based on the collected play-by-play data.
+
+            Args:
+                game_data_worker (SingleGameDataWorker): Processor for the current game, containing info on the roster, etc.
+
+            Returns:
+                pandas.DataFrame: Player stats throughout this game. Indexed on Year, Week, Player ID, and Elapsed Time.
+
+        """  # fmt: skip
+
         # Compute stats for each player on the team in this game
         list_of_player_dfs = game_data_worker.roster_df.reset_index().apply(
             self.__midgame_player_stats,
@@ -49,9 +105,23 @@ class StatsFeatureSet(FeatureSet):
         data_files_config: dict,
         final_stats_df: pd.DataFrame,
         aux_data_df: pd.DataFrame,
-        scrape_missing=False,
-        save_data=False,
-    ):
+        scrape_missing: bool = False,
+        save_data: bool = False,
+    ) -> pd.DataFrame:
+        """Gathers final stats from pro-football-reference or local sources to independently verify stats parsing/accrual.
+
+            Args:
+                data_files_config (dict): Settings for input and output data - used here to find previous validation data and the path to collect more.
+                final_stats_df (pandas.DataFrame): Final stats at the end of each game for each player, as parsed by the process_data method.
+                aux_data_df (pandas.DataFrame): Dataframe containing the URL needed to collect true final stats online.
+                scrape_missing (bool, optional): Whether to attempt to gather missing validation data online or ignore it. Defaults to False.
+                save_data (bool, optional): Whether to save any collected validation data. Defaults to False.
+
+            Returns:
+                pandas.DataFrame: All "true" final stats gathered from external sources (local or online).
+
+        """  # fmt: skip
+
         # Read saved truth data
         true_data_file = data_files_config["validation_folder"] + f"{type(self).__name__}.csv"
         try:
@@ -107,8 +177,7 @@ class StatsFeatureSet(FeatureSet):
 
             Args:
                 player_info (pandas.Series): Roster information for one player (number, ID, position, etc.).
-                game_times (list | str): Times in the game to output midgame stats for. May be a list of elapsed times in minutes,
-                    in which case the soonest play-by-play time after that elapsed time will be used as the stats at that time. If a string is passed, no filtering occurs.
+                game_data_worker (SingleGameDataWorker): Processor for the current game, containing info on the roster, etc.
 
             Returns:
                 pandas.DataFrame: Player's accumulated stat line at each time in the game. May have an additional (redundant) row for the final stat line.
@@ -152,6 +221,7 @@ class StatsFeatureSet(FeatureSet):
 
             Args:
                 player_stat_df (pandas.DataFrame): DataFrame containing some game info: elapsed time, as well as other relevant context (ex. Field Position).
+                pbp_df (pandas.DataFrame): DataFrame containing play-by-play info.
                 player_info (pandas.Series): Player information, including name, Player ID, position, etc.
                 team_abbrev (str): Abbreviation for the team used in the play-by-play data
 
@@ -238,7 +308,25 @@ class StatsFeatureSet(FeatureSet):
 
         return player_stat_df
 
-    def __identify_missing_games(self, final_stats_df, true_df, fill_missing_data=False):
+    def __identify_missing_games(
+        self,
+        final_stats_df: pd.DataFrame,
+        true_df: pd.DataFrame,
+        fill_missing_data: bool = False,
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Finds all games that are present in the parsed final stats but missing from true stats.
+
+            Args:
+                final_stats_df (pandas.DataFrame): Final stats as parsed by StatsFeatureSet.
+                true_df (pandas.DataFrame): True stat lines for each player obtained online.
+                fill_missing_data (bool, optional): Whether to fill missing data with zeroes. Defaults to False.
+
+            Returns:
+                pd.DataFrame: missing_games DataFrame listing out all Game IDs that could not be found in true_df.
+                pd.DataFrame: true_df, modified to contain zeros for missing games if fill_missing_data is True.
+
+        """  # fmt: skip
+
         final_stats_df = final_stats_df.copy()  # Copy df before manipulating it
 
         # Compare saved truth data to input data to determine whether any saved truth data is missing

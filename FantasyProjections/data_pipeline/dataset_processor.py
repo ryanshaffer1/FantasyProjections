@@ -1,7 +1,9 @@
-"""Creates and exports class to be used in NFL player statistics data collection.
+"""Classes used to perform common processing functions (filtering, final data validation, etc) on the collected dataset.
 
     Classes:
-        SeasonalDataCollector : Collects data (e.g. player stats) for all games in an NFL season. Automatically processes data upon initialization.
+        RosterFilter : Class storing configuration for the roster filter, which is a subset of players to collect data for.
+        DatasetProcessor : Class handling some common processing functions on a dataset, including filtering by player and data validation.
+
 """  # fmt: skip
 
 from __future__ import annotations
@@ -27,12 +29,41 @@ logger = logging.getLogger("log")
 
 @dataclass
 class RosterFilter:
+    """Class storing configuration for the roster filter, which is a subset of players to collect data for.
+
+        Args:
+            filter_df (pandas.DataFrame, optional): DataFrame containing the list of players to include. Defaults to None, which will trigger creation of the list.
+            min_games_played (int): Threshold number of games required for a player to have played in the last season being considered.
+            num_players (int): Number of players to include in the roster filter.
+
+    """  # fmt: skip
+
     filter_df: pd.DataFrame | None = None
     min_games_played: int = 3
     num_players: int = 300
 
 
 class DatasetProcessor:
+    """Class handling some common processing functions on a dataset, including filtering by player and data validation.
+
+        Args:
+            data_files_config (dict): Settings for input and output data - used here to collect/store validation data.
+            feature_sets (list): All FeatureSet objects used to generate the current dataset.
+            midgame_df (pandas.DataFrame): All midgame stats and information collected in the current dataset.
+            final_stats_df (pandas.DataFrame): All final (end of game) stats and information collected in the current dataset.
+            aux_data_df (pandas.DataFrame): Additional game-specific information needed in order to process the dataset.
+            filter_df (pandas.DataFrame, optional): List of players to include in the output dataset. Defaults to None (will generate a new filter).
+
+        Additional Class Attributes:
+            filter (RosterFilter): RosterFilter object used to reduce the number of players being processed.
+
+        Public Methods:
+            generate_roster_filter : Generates a short list of players to focus data collection on, based on highest average Fantasy Points per game.
+            apply_roster_filter : Trims previously-generated NFL stats DataFrames (midgame and final stats) to only include players in a filtered list.
+            validate_final_df :
+
+    """  # fmt: skip
+
     def __init__(
         self,
         data_files_config: dict,
@@ -43,6 +74,19 @@ class DatasetProcessor:
         filter_df: pd.DataFrame | None = None,
         **kwargs,
     ):
+        """Constructor for the DatasetProcessor class.
+
+            Args:
+                data_files_config (dict): Settings for input and output data - used here to collect/store validation data.
+                feature_sets (list): All FeatureSet objects used to generate the current dataset.
+                midgame_df (pandas.DataFrame): All midgame stats and information collected in the current dataset.
+                final_stats_df (pandas.DataFrame): All final (end of game) stats and information collected in the current dataset.
+                aux_data_df (pandas.DataFrame): Additional game-specific information needed in order to process the dataset.
+                filter_df (pandas.DataFrame, optional): List of players to include in the output dataset. Defaults to None (will generate a new filter).
+                kwargs (dict): Passed directly to the filter attribute, which is a RosterFilter.
+
+        """  # fmt: skip
+
         self.data_files_config = data_files_config
         self.feature_sets = feature_sets
         self.midgame_df = midgame_df
@@ -139,8 +183,6 @@ class DatasetProcessor:
     def apply_roster_filter(self):
         """Trims previously-generated NFL stats DataFrames (midgame and final stats) to only include players in a filtered list.
 
-            Args:
-
             Returns:
                 pandas.DataFrame: midgame_df, trimmed to only include the players in filter_df.
                 pandas.DataFrame: final_stats_df, trimmed to only include the players in filter_df.
@@ -155,6 +197,13 @@ class DatasetProcessor:
         self.final_stats_df = self.final_stats_df[self.final_stats_df.apply(lambda x: x.name[0] in filter_ids, axis=1)]
 
     def validate_final_df(self, **kwargs):
+        """Compares collected data in the final stats DataFrame against external info sources where applicable.
+
+            Keyword-Arguments:
+                save_data (bool, optional): Whether to save the data comparison. Defaults to False.
+
+        """  # fmt: skip
+
         # Optional input to save data
         save_data = kwargs.get("save_data", False)
 
@@ -205,6 +254,7 @@ class DatasetProcessor:
         logger.debug(f"Average difference by stat: \n{avg_diffs}")
 
     def __plot_validation_comparison(self, diff_df, columns):
+        # Create a scatterplot of differences in values for each info category (data column).
         x = [list(range(len(columns))) for _ in range(diff_df.shape[0])]
         y = diff_df[[s + "_diff" for s in columns]].stack()
 

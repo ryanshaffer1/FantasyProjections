@@ -1,16 +1,20 @@
-"""Functions and classes used to manipulate user inputs into the FantasyProjections scenario.
+"""Classes and functions used to manipulate user inputs into the FantasyProjections scenario.
+
+    Classes:
+        InputParameters : Data structure used to store and manipulate all inputs passed into the scenario.
 
     Functions:
         parse_inputs : Reads input YAML file into InputParameters object, normalizes, and optionally saves.
         recursive_dict_merge : Fills in any missing values in input_struct based on the values in defaults.
 
-    Classes:
-        InputParameters : Data structure used to store and manipulate all inputs passed into the scenario.
 
 """  # fmt:skip
 
+from __future__ import annotations
+
 import logging
 import os
+from typing import TYPE_CHECKING
 
 import yaml
 
@@ -18,43 +22,15 @@ from misc.dataset import StatsDataset
 from misc.manage_files import create_folders, name_save_folder
 from misc.yaml_constructor import add_yaml_constructors
 
+if TYPE_CHECKING:
+    from misc.dataset import StatsDataset
+
+
 default_filename = "FantasyProjections/config/default_inputs.yaml"
 
 
 # Set up logger
 logger = logging.getLogger("log")
-
-
-def parse_inputs(input_filename):
-    """Reads input YAML file into InputParameters object, normalizes, and optionally saves.
-
-        Normalization: replacing any missing, required inputs with inputs from the default input file.
-
-        Args:
-            input_filename (str): YAML input file for current scenario
-
-        Returns:
-            InputParameters: Parsed and normalized inputs.
-
-    """  # fmt: skip
-    add_yaml_constructors()
-
-    with open(input_filename) as stream:
-        inputs = InputParameters(yaml.safe_load(stream))
-
-    with open(default_filename) as stream:
-        default_inputs = InputParameters(yaml.safe_load(stream))
-
-    inputs.normalize(default_inputs)
-
-    # Generate save directory
-    inputs.save_options["save_directory"] = name_save_folder(inputs.save_options)
-
-    # Save a copy of the input parameters if specified
-    if inputs.save_options["save_input_file"]:
-        inputs.save()
-
-    return inputs
 
 
 class InputParameters:
@@ -79,7 +55,7 @@ class InputParameters:
 
     """  # fmt: skip
 
-    def __init__(self, input_dict):
+    def __init__(self, input_dict: dict):
         """Constructor for InputParameters.
 
             Args:
@@ -136,7 +112,7 @@ class InputParameters:
         recursive_dict_merge(self.gamblers, default_inputs.gamblers, add_if_empty=False)
         recursive_dict_merge(self.plot_groups, default_inputs.plot_groups, add_if_empty=False)
 
-    def save(self, save_file=None):
+    def save(self, save_file: str | None = None):
         """Generates YAML file from the InputParameters object.
 
             Args:
@@ -157,6 +133,15 @@ class InputParameters:
             yaml.dump(self, file)
 
     def update_params_based_on_features(self, all_data: StatsDataset) -> None:
+        """Updates input parameters after features have been loaded and a StatsDataset created.
+
+            Primary function is to modify any Neural Net Predictor objects to align with the input/output features.
+
+            Args:
+                all_data (StatsDataset): Dataset containing all input and output columns based on the features listed in the input parameters.
+
+        """  # fmt: skip
+
         # Update NeuralNetwork shape based on input/output features
         for pred in self.predictors:
             if pred.get("type") == "NeuralNetPredictor":
@@ -190,8 +175,44 @@ class InputParameters:
                 nn_shape["output"] = len(all_data.y_data_columns)
 
 
+def parse_inputs(input_filename: str) -> InputParameters:
+    """Reads input YAML file into InputParameters object, normalizes, and optionally saves.
+
+        Normalization: replacing any missing, required inputs with inputs from the default input file.
+
+        Args:
+            input_filename (str): YAML input file for current scenario
+
+        Returns:
+            InputParameters: Parsed and normalized inputs.
+
+    """  # fmt: skip
+    add_yaml_constructors()
+
+    with open(input_filename) as stream:
+        inputs = InputParameters(yaml.safe_load(stream))
+
+    with open(default_filename) as stream:
+        default_inputs = InputParameters(yaml.safe_load(stream))
+
+    inputs.normalize(default_inputs)
+
+    # Generate save directory
+    inputs.save_options["save_directory"] = name_save_folder(inputs.save_options)
+
+    # Save a copy of the input parameters if specified
+    if inputs.save_options["save_input_file"]:
+        inputs.save()
+
+    return inputs
+
+
 # ruff: noqa: PLR0912
-def recursive_dict_merge(input_struct, defaults, add_if_empty=True):
+def recursive_dict_merge(
+    input_struct: dict | list | tuple,
+    defaults: dict | list | tuple,
+    add_if_empty: bool = True,
+) -> dict | list | tuple:
     """Fills in any missing values in input_struct based on the values in defaults.
 
         Calls recursively so that nested dicts/lists/tuples are also filled with default values.
@@ -225,7 +246,7 @@ def recursive_dict_merge(input_struct, defaults, add_if_empty=True):
 
     # If "type" is a key for the input, then must match to the correct typed default
     if "type" in input_struct:
-        defaults = _recursive_find_dict_of_matching_type(input_struct, defaults)
+        defaults = _recursive_find_dict_of_matching_type(input_struct, defaults)  # type: ignore[reportAssignmentType]
         if defaults is None:
             # Default dict with the same type could not be found - cannot merge
             logger.warning(f"No default inputs found for input of type {input_struct['type']}")
@@ -254,7 +275,7 @@ def recursive_dict_merge(input_struct, defaults, add_if_empty=True):
     return input_struct
 
 
-def _recursive_find_dict_of_matching_type(input_dict, defaults):
+def _recursive_find_dict_of_matching_type(input_dict: dict, defaults: dict | list | tuple) -> dict | None:
     # If input_dict has key "type", then it likely has type-specific inputs (and default values).
     # Search for a data structure in defaults (may be nested) that has the same type as input_dict.
 

@@ -41,6 +41,7 @@ class StatsDataset(torch.utils.data.Dataset):
             y_data_columns (list): Labels for each column of data in y_data
             id_data (pandas.DataFrame): DataFrame containing all game/player ID data from the NFL games in question.
                 The data in id_data must be gathered, parsed, and pre-processed using functions in data_pipeline.
+            misc_df (pd.DataFrame, optional): DataFrame containing miscellaneous data from the NFL games in question.
 
         Public Methods:
             concat : Append two StatsDatasets into one larger StatsDataset, either in-place or returning a new StatsDataset.

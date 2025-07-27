@@ -1,9 +1,17 @@
+"""Classes used to collect/process/store data related to player prop odds.
+
+    Classes:
+        OddsFeatureSet : Class that collects and processes data related to player prop odds, such as overs and unders on player stats.
+        OddsAPIManager : Class that handles the interface with TheOddsAPI and takes measures to reduce its usage.
+
+"""  # fmt: skip
+
 from __future__ import annotations
 
 import json
 import logging
 from datetime import datetime
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import dateutil.parser as dateparse
 import numpy as np
@@ -17,6 +25,9 @@ from data_pipeline.utils.data_helper_functions import construct_game_id
 from data_pipeline.utils.name_matching import find_matching_name_ind
 from data_pipeline.utils.time_helper_functions import date_to_nfl_week, find_prev_time_index, week_to_date_range
 
+if TYPE_CHECKING:
+    from data_pipeline.single_game_data_worker import SingleGameDataWorker
+
 # Set up logger
 logger = logging.getLogger("log")
 
@@ -27,7 +38,45 @@ BOOKMAKER = "fanduel"
 
 
 class OddsFeatureSet(FeatureSet):
+    """Class that collects and processes data related to player prop odds, such as overs and unders on player stats.
+
+        Sub-class of FeatureSet.
+
+        Args:
+            features (list[Feature]): All Feature (or sub-classes of Feature) objects to include in the feature set.
+            sources (dict): Paths to both local and online sources to collect data associated with the feature set.
+            surrogate (bool, optional): Whether to use surrogate data instead of the (paid) API. Defaults to False.
+            game_times (list, optional): Elapsed game times to use specifically for gathering odds data.
+
+        Additional Class Attributes:
+            thresholds (dict[str, list]): Maps each individual feature in the set to its normalization thresholds
+            df_dict (dict): Stores loaded dataframes (including previously-cached dataframes) associated with each data source.
+            game_to_event_ids (dict): Maps game IDs to event IDs used by TheOddsAPI.
+            api_manager (OddsAPIManager): Manager of the interface with TheOddsAPI.
+            labels_df_to_odds (dict): Maps standard stats labels (e.g. Pass Yds) to the labels used by TheOddsAPI (player_pass_yds)
+            markets (list): All individual stats to collect from TheOddsAPI.
+
+        Public Methods:
+            collect_data : See FeatureSet
+            post_init : Set up the Odds API Manager and other attributes that rely on data_files_config.
+            process_data : Generates game context output data, such as team record and score, for each player based on the collected play-by-play data.
+            gen_surrogate_odds : Generates false, stand-in data not produced by TheOddsAPI, to avoid unnecessary API calls.
+            reformat_odds_df : Formats data collected from The Odds into consistent style as other data products (common Player IDs, etc.) and structures as one row per player.
+
+    """  # fmt: skip
+
     def __init__(self, features, sources, **kwargs):
+        """Constructor for OddsFeatureSet objects.
+
+            Args:
+                features (list[Feature]): All Feature (or sub-classes of Feature) objects to include in the feature set.
+                sources (dict): Paths to both local and online sources to collect data associated with the feature set.
+                kwargs:
+                    surrogate (bool, optional): Whether to use surrogate data instead of the (paid) API. Defaults to False.
+                    game_times (list, optional): Elapsed game times to use specifically for gathering odds data.
+
+        """  # fmt: skip
+
         super().__init__(features, sources)
         # Optional keyword arguments
         self.surrogate = kwargs.get("surrogate", False)
@@ -35,7 +84,13 @@ class OddsFeatureSet(FeatureSet):
         self.game_to_event_ids = {}
 
     def post_init(self, data_files_config: dict):
-        """Post-initialization method to set up the Odds API Manager and other attributes that rely on data_files_config."""
+        """Set up the Odds API Manager and other attributes that rely on data_files_config.
+
+            Args:
+                data_files_config (dict): Settings for input and output data - used here to find maps between standard and TheOddsAPI stats labels.
+
+        """  # fmt: skip
+
         self.api_manager = OddsAPIManager(data_files_config=data_files_config, surrogate=self.surrogate)
         self.labels_df_to_odds = pd.read_csv(data_files_config["feature_config_file"], index_col=0)["odds"].dropna().to_dict()
         self.markets = [
@@ -48,7 +103,16 @@ class OddsFeatureSet(FeatureSet):
         weeks: list[int] | range,
         _df_sources: dict[str, pd.DataFrame] | None = None,
     ) -> None:
-        # Initialize API Manager
+        """Collects data related to odds (specifically, a list of all event IDs in the season).
+
+            Does not rely on the collect_data method provided by FeatureSet.
+
+            Args:
+                year (int): Year associated with the data (assumes the full year's worth of data is contained in one file).
+                weeks (list | range): Weeks to ensure are included in the collected data (will search for them online if not).
+                df_sources (dict, optional): Unused. Required so that function signature matches parent.
+
+        """  # fmt: skip
 
         team_abbrevs_to_process = list(team_abbrs.pbp_abbrevs.values())
 
@@ -82,8 +146,16 @@ class OddsFeatureSet(FeatureSet):
             logger.error(msg)
             raise ValueError(msg)
 
-    def process_data(self, game_data_worker):
-        #        """Collects historical odds data for the player props of interest at game times of interest.
+    def process_data(self, game_data_worker: SingleGameDataWorker) -> pd.DataFrame:
+        """Collects historical odds data for the player props of interest at game times of interest.
+
+            Args:
+                game_data_worker (SingleGameDataWorker): Processor for the current game, containing info on the roster, etc.
+
+            Returns:
+                pandas.DataFrame: Odds info throughout this game. Indexed on Year, Week, Player ID, and Elapsed Time.
+
+        """  # fmt: skip
 
         # Initialize output dataframe
         odds_df = pd.DataFrame(
@@ -170,7 +242,18 @@ class OddsFeatureSet(FeatureSet):
 
         return odds_df
 
-    def gen_surrogate_odds(self, time, game_data_worker):
+    def gen_surrogate_odds(self, time: str, game_data_worker: SingleGameDataWorker) -> pd.DataFrame:
+        """Generates false, stand-in data not produced by TheOddsAPI, to avoid unnecessary API calls.
+
+            Args:
+                time (str): Date string with the UTC time of the "request".
+                game_data_worker (SingleGameDataWorker): Processor for the current game, containing info on the roster, etc.
+
+            Returns:
+                pandas.DataFrame: DataFrame containing all players in the roster, and zeros for each player prop price/point.
+
+        """  # fmt: skip
+
         single_market_odds_df = pd.DataFrame()
         single_market_odds_df["Player Name"] = game_data_worker.roster_df.set_index("Player Name").index.repeat(2)
         single_market_odds_df["Line"] = ["Over", "Under"] * len(game_data_worker.roster_df)
@@ -180,11 +263,18 @@ class OddsFeatureSet(FeatureSet):
 
         return single_market_odds_df
 
-    def reformat_odds_df(self, game_data_worker, df_to_format, player_prop_stat):
+    def reformat_odds_df(
+        self,
+        game_data_worker: SingleGameDataWorker,
+        df_to_format: pd.DataFrame,
+        player_prop_stat: str,
+    ) -> pd.DataFrame | None:
         """Formats data collected from The Odds into consistent style as other data products (common Player IDs, etc.) and structures as one row per player.
 
             Args:
+                game_data_worker (SingleGameDataWorker): Processor for the current game, containing info on the roster, etc.
                 df_to_format (pandas.DataFrame): Data collected from The Odds with some minor formatting/added info already applied.
+                player_prop_stat (str): Name of the player prop to use in column reformatting.
 
             Returns:
                 pandas.DataFrame: Data in consistent structure/style as other data products.
@@ -244,7 +334,37 @@ class OddsFeatureSet(FeatureSet):
 
 
 class OddsAPIManager:
+    """Class that handles the interface with TheOddsAPI and takes measures to reduce its usage.
+
+        Args:
+            data_files_config (dict): Settings for input and output data - used here to find the API key and store of previous requests.
+            enable_api_requests (bool, optional): Whether to allow making requests to the API or block them. Defaults to True (allow).
+            surrogate (bool, optional): Whether to fill in any odds data not locally available with "dummy" data.
+
+        Additional Class Attributes:
+            api_key (str): Key used to access information from TheOddsAPI.
+            all_requests_file (str): Filepath to the local store of previous requests made to TheOddsAPI and corresponding responses.
+            all_requests_df (pandas.DataFrame): Stores all previous requests made to TheOddsAPI and corresponding responses.
+
+        Public Methods:
+            process_previous_requests : Reads and processes the requests that have previously been made to TheOddsAPI, to avoid duplication.
+            get_odds_api_key : Reads API key for The Odds API from a local file. API key must be obtained manually and saved to this file by the user.
+            make_api_request : Obtains a response for a given request to TheOddsAPI, either via API access or a lookup of previous requests.
+            log_api_usage : Logs the number of API requests fulfilled by The Odds with the current API key, and how many requests are remaining on the key.
+            handle_response_codes : Distinguishes between successful and unsuccessful API requests and provides more detail on the reason for failure.
+
+    """  # fmt: skip
+
     def __init__(self, data_files_config, enable_api_requests: bool = True, surrogate: bool = False):
+        """Constructor for OddsAPIManager class.
+
+            Args:
+                data_files_config (dict): Settings for input and output data - used here to find the API key and store of previous requests.
+                enable_api_requests (bool, optional): Whether to allow making requests to the API or block them. Defaults to True (allow).
+                surrogate (bool, optional): Whether to fill in any odds data not locally available with "dummy" data.
+
+        """  # fmt: skip
+
         self.data_files_config = data_files_config
         self.api_key = self.get_odds_api_key(data_files_config["odds_api_key_file"])
         self.surrogate = surrogate
@@ -255,6 +375,13 @@ class OddsAPIManager:
         self.all_requests_df = self.process_previous_requests()
 
     def process_previous_requests(self) -> pd.DataFrame:
+        """Reads and processes the requests that have previously been made to TheOddsAPI, to avoid duplication.
+
+            Returns:
+                pandas.DataFrame: DataFrame storing all previous requests made to TheOddsAPI and corresponding responses.
+
+        """  # fmt: skip
+
         # Read the JSON file
         try:
             all_requests_df = pd.read_json(self.all_requests_file, orient="records", lines=True)
@@ -286,6 +413,24 @@ class OddsAPIManager:
         return api_key
 
     def make_api_request(self, endpoint: str, request_params: dict) -> tuple[str, bool]:
+        """Obtains a response for a given request to TheOddsAPI, either via API access or a lookup of previous requests.
+
+            If surrogate attribute is True and the request was not previously made, no data will be returned.
+
+            Args:
+                endpoint (str): URL to access information from TheOddsAPI (may be specific to this request).
+                request_params (dict): Parameters necessary for the request, such as odds markets to include.
+
+            Raises:
+                ValueError: If surrogate is False, enable_api_access is False, and the request is not found in previous requests,
+                    then no meaningful response can be provided, and a ValueError is raised.
+
+            Returns:
+                str: Response text from TheOddsAPI, which can be parsed as a JSON if the request was successful
+                bool: Whether the request was successful.
+
+        """  # fmt: skip
+
         # Check for an identical request in the database of previous requests
         params_string = str(dict(sorted(request_params.items())))
         try:
@@ -356,6 +501,17 @@ class OddsAPIManager:
             )
 
     def handle_response_codes(self, response_code: int) -> tuple[bool, str | None]:
+        """Distinguishes between successful and unsuccessful API requests and provides more detail on the reason for failure.
+
+            Args:
+                response_code (int): HTTP response code returned from TheOddsAPI.
+
+            Returns:
+                bool: Whether the response code indicates a successful request/response.
+                str | None: If successful response, None is returned. Otherwise, a message is returned explaining the failure.
+
+        """  # fmt: skip
+
         match response_code:
             case 200:
                 # Successful

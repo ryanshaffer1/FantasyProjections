@@ -171,7 +171,7 @@ def adjust_team_names(inputs: str | dict | list[str | dict], year: int) -> list[
             - In some cases the abbreviations also change: OAK became LVR, or LV, depending on the data source.
 
         Args:
-            dictionaries (str | dict | list[str | dict]): String, dictionary, or list of either. For dict inputs, keys list out NFL team names.
+            inputs (str | dict | list[str | dict]): String, dictionary, or list of either. For dict inputs, keys list out NFL team names.
             year (int): Current year being processed.
 
         Returns:
@@ -237,7 +237,7 @@ def swap_team_names(year: int, input_var: str | dict, year_threshold: float, bef
 
         Args:
             year (int): Current year being processed.
-            dictionary (dict): Dictionary with keys listing out NFL team names.
+            input_var (str | dict): String containing NFL team name(s) as substrings, or dictionary with keys listing out NFL team names.
             year_threshold (float): Year where name transition occurred. Should be xxxx.5 (e.g. 2021.5) so that "before" and "after" are unambiguous.
             before_name (str): Team Name prior to year_threshold
             after_name (str): Team Name after year_threshold

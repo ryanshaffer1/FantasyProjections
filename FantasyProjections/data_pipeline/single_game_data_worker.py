@@ -34,13 +34,15 @@ class SingleGameDataWorker:
 
     """  # fmt: skip
 
-    def __init__(self, seasonal_data, game_id, **kwargs):
+    def __init__(self, seasonal_data, game_id: str, **kwargs):
         """Constructor for SingleGamePbpParser object.
 
             Args:
                 seasonal_data (SeasonalDataCollector): "Parent" object containing data relating to the NFL season.
                     Not stored as an object attribute.
                 game_id (str): Game ID for specific game, as used by nfl-verse. Format is "{year}_{week}_{awayteam}_{home_team}", ex: "2021_01_ARI_TEN"
+                kwargs (dict):
+                    game_times (list | str, optional): All discrete elapsed game times to collect data at. Defaults to "all" (no sampling of elapsed game times).
 
             Additional Attributes Created during Initialization:
                 year (int): Year of game being processed
@@ -91,7 +93,14 @@ class SingleGameDataWorker:
 
     # PUBLIC METHODS
 
-    def build_baseline_df(self):
+    def build_baseline_df(self) -> pd.DataFrame:
+        """Creates a dataframe with the bare minimum data that must be collected for each player/game/elapsed time.
+
+            Returns:
+                pandas.DataFrame: DataFrame with game/player/elapsed time as the index and other basic information in the columns.
+
+        """  # fmt: skip
+
         # Collect all desired elapsed times for the game
         elapsed_time = subsample_game_time(self.pbp_df, self.game_times).index.to_list()
 
@@ -108,7 +117,7 @@ class SingleGameDataWorker:
 
         return midgame_df
 
-    def single_game_play_by_play(self, pbp_df):
+    def single_game_play_by_play(self, pbp_df: pd.DataFrame) -> pd.DataFrame:
         """Filters and cleans play-by-play data for a specific game; keeps all plays from that game and sorts by increasing elapsed game time.
 
             Args:
