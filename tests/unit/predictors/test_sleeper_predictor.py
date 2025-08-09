@@ -25,7 +25,7 @@ logger = logging.getLogger("log")
 
 
 # Data files config
-test_data_files_config = "tests/_test_files/test_data_files_config.yaml"
+test_data_files_config = "tests/_test_files/config_files/test_data_files_config.yaml"
 add_yaml_constructors()
 
 

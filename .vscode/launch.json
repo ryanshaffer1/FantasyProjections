@@ -13,7 +13,7 @@
             "console": "integratedTerminal",
             "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"},
             "args": [
-                "inputs/barebones_input.yaml"
+                "inputs/test_scenario_input.yaml"
             ]
         },
         {
@@ -22,7 +22,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/FantasyProjections/build_dataset.py",
             "console": "integratedTerminal",
-            "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"}
+            "env": {"PYDEVD_WARN_SLOW_RESOLVE_TIMEOUT": "2"},
+            "args": [
+                "inputs/build_dataset.yaml"
+            ]
         },
         {
             "name": "Current File: Python Debug",
