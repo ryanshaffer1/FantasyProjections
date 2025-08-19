@@ -12,11 +12,13 @@ import logging
 import pandas as pd
 
 from config.player_id_config import PRIMARY_PLAYER_ID, fill_blank_player_ids
+from data_pipeline.features.feature import StatFeature
 from data_pipeline.features.feature_set import FeatureSet
 from data_pipeline.stats_pipeline.scrape_pro_football_reference import scrape_box_score
 from data_pipeline.utils import team_abbreviations as team_abbrs
 from data_pipeline.utils.data_helper_functions import construct_game_id, subsample_game_time
 from misc.manage_files import create_folders
+from misc.stat_utils import stats_to_fantasy_points
 
 # Set up logger
 logger = logging.getLogger("log")
@@ -33,6 +35,7 @@ class StatsFeatureSet(FeatureSet):
 
         Additional Class Attributes:
             thresholds (dict[str, list]): Maps each individual feature in the set to its normalization thresholds
+            weights (dict[str, float]): Maps each individual stat feature to its scoring weight (used for Fantasy Points).
             df_dict (dict): Stores loaded dataframes (including previously-cached dataframes) associated with each data source.
             pbp_df (pandas.DataFrame): Play-by-play data, as collected from data sources.
 
@@ -54,6 +57,7 @@ class StatsFeatureSet(FeatureSet):
 
         super().__init__(features, sources)
         self.pbp_df = None
+        self.weights = {feat.name: feat.scoring_weight for feat in self.features if isinstance(feat, StatFeature)}
 
     def collect_data(
         self,
@@ -171,6 +175,37 @@ class StatsFeatureSet(FeatureSet):
         true_df = true_df.drop(columns=["pfr_id", "Player Name", "Team"])
 
         return true_df
+
+    def generate_roster_filter(self, filter_df, final_stats_df):
+        """Sorts the full player list (roster) based on average Fantasy Points per game, and removes any players with missing stats.
+
+            Args:
+                filter_df (pandas.DataFrame): Dataframe containing the working player roster, which may be modified by this function.
+                final_stats_df (pandas.DataFrame): Dataframe containing the final stats for each player, for each game.
+
+            Returns:
+                pandas.DataFrame: Dataframe matching input filter_df, but sorted by descending average Fantasy Points and potentially removing players with no stats.
+
+        """  # fmt: skip
+
+        # Compute Fantasy Points based on final stats and feature weights
+        stat_configs = {stat_name: {"scoring_weight": val} for stat_name, val in self.weights.items()}
+        fantasy_points = stats_to_fantasy_points(final_stats_df, stat_configs=stat_configs, normalized=False)
+
+        # Track average fantasy points per game for players
+        fantasy_avgs = (
+            fantasy_points.reset_index()
+            .loc[:, [PRIMARY_PLAYER_ID, "Fantasy Points"]]
+            .groupby([PRIMARY_PLAYER_ID])
+            .mean()
+            .rename(columns={"Fantasy Points": "Fantasy Avg"})
+        )
+        filter_df = filter_df.merge(right=fantasy_avgs, on=PRIMARY_PLAYER_ID)
+
+        # Sort by highest average fantasy points
+        filter_df = filter_df.sort_values(by=["Fantasy Avg"], ascending=False).reset_index(drop=True)
+
+        return filter_df
 
     def __midgame_player_stats(self, player_info, game_data_worker):
         """Determines the mid-game stats for one player throughout the game.

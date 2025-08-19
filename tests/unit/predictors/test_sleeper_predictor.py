@@ -96,17 +96,14 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
         self.nonexistent_data_files_config["sleeper_proj_dict_file"] = self.nonexistent_file_2
 
         # Custom stats list (only using a subset of all statistics)
-        self.scoring_weights = {
-            "Pass Yds": 0.04,
-            "Rush Yds": 0.1,
-            "Rec Yds": 0.1,
-        }
         # Custom dataset
         self.dataset = StatsDataset(
             name="dataset",
             id_df=mock_data_predictors.id_df,
             pbp_df=mock_data_predictors.pbp_df,
             boxscore_df=mock_data_predictors.bs_df,
+            x_data_columns=mock_data_predictors.pbp_features,
+            y_data_columns=mock_data_predictors.bs_features,
         )
         # Sleeper Predictor
         self.predictor = SleeperPredictor(
@@ -116,7 +113,7 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
         )
 
     def test_eval_model_gives_correct_results(self):
-        result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
+        result = self.predictor.eval_model(eval_data=self.dataset)
 
         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
 
@@ -125,7 +122,7 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
             name="test",
             data_files_config=self.nonexistent_data_files_config,
         )
-        result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
+        result = self.predictor.eval_model(eval_data=self.dataset)
 
         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
 
@@ -133,32 +130,27 @@ class TestEvalModel_SleeperPredictor(unittest.TestCase):
         self.dataset.id_data["Year"] = (
             self.dataset.id_data["Year"] + 10
         )  # Set the year far in the future so that Sleeper can't find these games
-        result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
+        result = self.predictor.eval_model(eval_data=self.dataset)
 
         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper * 0, check_dtype=False)
 
     def test_player_outside_of_sleeper_data_gives_zeros(self):
         self.dataset.id_data["sleeper_id"] = self.dataset.id_data["sleeper_id"] * 10
-        result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
+        result = self.predictor.eval_model(eval_data=self.dataset)
 
         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper * 0, check_dtype=False)
 
-    def test_improper_fantasy_point_kwargs_gives_error(self):
-        self.scoring_weights["XYZ"] = 100
-        with self.assertRaises(KeyError):
-            self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
-
     def test_input_normalized_false(self):
-        result = self.predictor.eval_model(eval_data=self.dataset, normalized=False, scoring_weights=self.scoring_weights)
+        result = self.predictor.eval_model(eval_data=self.dataset, normalized=False)
 
         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_sleeper, check_dtype=False)
 
     def test_input_normalized_true(self):
-        result = self.predictor.eval_model(eval_data=self.dataset, normalized=True, scoring_weights=self.scoring_weights)
+        result = self.predictor.eval_model(eval_data=self.dataset, normalized=True)
         expected_predicts_normalized_true = stats_to_fantasy_points(
-            mock_data_predictors.expected_predicts_sleeper,
+            mock_data_predictors.expected_predicts_sleeper.drop("Fantasy Points", axis=1),
+            stat_configs=self.dataset.y_data_columns,
             normalized=True,
-            scoring_weights=self.scoring_weights,
         )
 
         pdtest.assert_frame_equal(result.predicts, expected_predicts_normalized_true, check_dtype=False)

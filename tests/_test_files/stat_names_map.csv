@@ -1,0 +1,13 @@
+﻿name,sleeper,pfr,odds
+Pass Att,pass_att,pass_att,player_pass_attempts
+Pass Cmp,pass_cmp,pass_cmp,player_pass_completions
+Pass Yds,pass_yd,pass_yds,player_pass_yds
+Pass TD,pass_td,pass_td,player_pass_tds
+Int,pass_int,pass_int,player_pass_interceptions
+Rush Att,rush_att,rush_att,player_rush_attempts
+Rush Yds,rush_yd,rush_yds,player_rush_yds
+Rush TD,rush_td,rush_td,player_rush_tds
+Rec,rec,rec,player_receptions
+Rec Yds,rec_yd,rec_yds,player_reception_yds
+Rec TD,rec_td,rec_td,player_reception_tds
+Fmb,fum_lost,fumbles_lost,

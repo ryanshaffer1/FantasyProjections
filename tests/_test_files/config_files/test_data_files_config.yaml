@@ -3,8 +3,8 @@
 data_folder: &data_folder "tests/_test_files/"
 
 # Miscellaneous:
-# Feature config file
-feature_config_file: !path [*data_folder, "stats_config.csv"]
+# Map between stat names used by different sites
+stat_names_map: !path [*data_folder, "stat_names_map.csv"]
 # Player ID dictionaries/cross-mapping files
 master_player_id_file: !path [*data_folder, "player_ids.csv"]
 # Sleeper API data

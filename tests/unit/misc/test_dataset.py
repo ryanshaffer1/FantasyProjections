@@ -27,6 +27,8 @@ class TestConstructor_StatsDataset(unittest.TestCase):
         self.id_df = mock_data.id_df
         self.pbp_df = mock_data.pbp_df
         self.bs_df = mock_data.bs_df
+        self.x_data_columns = {col: {} for col in self.pbp_df.columns}
+        self.y_data_columns = {col: {} for col in self.bs_df.columns}
         self.name = "dataset"
 
     def test_basic_attributes_df_input(self):
@@ -34,8 +36,8 @@ class TestConstructor_StatsDataset(unittest.TestCase):
         inputs = ["dataset", self.id_df]
         inputs.append(torch.tensor(self.pbp_df.values))
         inputs.append(torch.tensor(self.bs_df.values))
-        inputs.append(self.pbp_df.columns.to_list())
-        inputs.append(self.bs_df.columns.to_list())
+        inputs.append(self.x_data_columns)
+        inputs.append(self.y_data_columns)
         inputs.append(["weeks", "years", "teams", "player_ids", "elapsed_time"])
 
         # Multiple assertions, oh well
@@ -52,15 +54,15 @@ class TestConstructor_StatsDataset(unittest.TestCase):
             name=self.name,
             id_df=self.id_df,
             x_data=torch.tensor(self.pbp_df.values),
-            x_data_columns=self.pbp_df.columns.to_list(),
+            x_data_columns=self.x_data_columns,
             y_data=torch.tensor(self.bs_df.values),
-            y_data_columns=self.bs_df.columns.to_list(),
+            y_data_columns=self.y_data_columns,
         )
         inputs = ["dataset", self.id_df]
         inputs.append(torch.tensor(self.pbp_df.values))
         inputs.append(torch.tensor(self.bs_df.values))
-        inputs.append(self.pbp_df.columns.to_list())
-        inputs.append(self.bs_df.columns.to_list())
+        inputs.append(self.x_data_columns)
+        inputs.append(self.y_data_columns)
         inputs.append(["weeks", "years", "teams", "player_ids", "elapsed_time"])
 
         # Multiple assertions, oh well
@@ -90,9 +92,9 @@ class TestConstructor_StatsDataset(unittest.TestCase):
                 name=self.name,
                 id_df=self.id_df,
                 x_data=torch.tensor(self.pbp_df.values),
-                x_data_columns=self.pbp_df.columns.to_list(),
+                x_data_columns=self.x_data_columns,
                 y_data=self.bs_df,
-                y_data_columns=self.bs_df.columns.to_list(),
+                y_data_columns=self.y_data_columns,
             )
 
     def test_mixed_df_and_tensor_inputs_gives_correct_result(self):
@@ -100,7 +102,7 @@ class TestConstructor_StatsDataset(unittest.TestCase):
             name=self.name,
             id_df=self.id_df,
             x_data=torch.tensor(self.pbp_df.values),
-            x_data_columns=self.pbp_df.columns.to_list(),
+            x_data_columns=self.x_data_columns,
             boxscore_df=self.bs_df,
         )
         dataset_expected = StatsDataset(name=self.name, id_df=self.id_df, pbp_df=self.pbp_df, boxscore_df=self.bs_df)

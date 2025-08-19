@@ -17,7 +17,6 @@ import pandas as pd
 
 from config.player_id_config import PRIMARY_PLAYER_ID
 from misc.manage_files import create_folders
-from misc.stat_utils import stats_to_fantasy_points
 
 # Type checking imports
 if TYPE_CHECKING:
@@ -94,7 +93,7 @@ class DatasetProcessor:
         self.aux_data_df = aux_data_df
         self.filter = RosterFilter(filter_df=filter_df, **kwargs)
 
-    def generate_roster_filter(self, rosters_df, save_file=None, plot_filter=False):
+    def generate_roster_filter(self, rosters_df, save_file=None):
         """Generates a short list of players to focus data collection on, based on highest average Fantasy Points per game.
 
             Rules
@@ -115,15 +114,11 @@ class DatasetProcessor:
 
         """  # fmt: skip
 
-        # Add Fantasy Points to final stats if not already computed
-        self.final_stats_df = stats_to_fantasy_points(self.final_stats_df)
-
-        # 1. Active players only
-        # Removes 'RET','CUT','DEV', 'TRC' (I think means free agent?)
+        # Perform some basic filtering on the rosters_df
+        # 1. Remove players who are not currently active (drop statuses 'RET','CUT','DEV', 'TRC')
         active_statuses = ["ACT", "INA", "RES", "EXE"]
         rosters_df = rosters_df[rosters_df.apply(lambda x: x["status"] in active_statuses, axis=1)]
-        # 1b. Remove tracking of week-by-week status - only one row per player.
-        # Take the entry from the last week they've played
+        # 2. Initialize a filter_df that contains one row per player, with the most recent week they played in
         last_week_played = rosters_df.loc[:, [PRIMARY_PLAYER_ID, "week"]].groupby([PRIMARY_PLAYER_ID]).max()
         filter_df = rosters_df[
             rosters_df.apply(
@@ -132,24 +127,22 @@ class DatasetProcessor:
                 axis=1,
             )
         ]
-
-        # 2. Add average fantasy points per game to df
-        fantasy_avgs = (
-            self.final_stats_df.reset_index()
-            .loc[:, [PRIMARY_PLAYER_ID, "Fantasy Points"]]
-            .groupby([PRIMARY_PLAYER_ID])
-            .mean()
-            .rename(columns={"Fantasy Points": "Fantasy Avg"})
-        )
-        filter_df = filter_df.merge(right=fantasy_avgs, on=PRIMARY_PLAYER_ID)
-
-        # 3. Count games played - instances of player name
+        # 3. Remove players who are not in the stats dataframe, or did not play the minimum number of games
         game_counts = self.final_stats_df.reset_index()[PRIMARY_PLAYER_ID].value_counts()
-        filter_df = filter_df[filter_df[PRIMARY_PLAYER_ID].apply(lambda x: game_counts[x] >= self.filter.min_games_played)]
+        filter_df = filter_df[
+            filter_df[PRIMARY_PLAYER_ID].apply(
+                lambda x: game_counts[x] >= self.filter.min_games_played if x in game_counts else False,
+            )
+        ]
 
-        # 4a. Sort by max avg fantasy points
-        filter_df = filter_df.sort_values(by=["Fantasy Avg"], ascending=False).reset_index(drop=True)
-        # 4b. Take first x (num_players) players
+        # Sequentially apply filter masks from each feature set
+        for feature_set in self.feature_sets:
+            filter_df = feature_set.generate_roster_filter(
+                filter_df=filter_df,
+                final_stats_df=self.final_stats_df,
+            )
+
+        # Take first x (num_players) players from the filtered, sorted list
         filter_df = filter_df.iloc[0 : self.filter.num_players]
 
         # Clean up df for saving
@@ -174,9 +167,6 @@ class DatasetProcessor:
         logger.info(f"{filter_df['Team'].value_counts()}")
         logger.info("Roster Filter Breakdown by Position:")
         logger.info(f"{filter_df['Position'].value_counts()}")
-
-        if plot_filter:
-            self.__create_filter_plot()
 
         self.filter.filter_df = filter_df
 
@@ -268,41 +258,3 @@ class DatasetProcessor:
         ax.set_title("Play-By-Play Parsing Validation vs. True Statlines")
 
         plt.show(block=False)
-
-    def __create_filter_plot(self):
-        """Plots bar chart of average Fantasy Points for each player in filtered list (sorted in descending order), colored by position.
-
-            Args:
-                filter_df (pandas.DataFrame): List of players included in the filter, along with some additional data like team, position, average Fantasy Points, etc.
-                num_players (int): Number of players to include in list.
-
-        """  # fmt: skip
-        if self.filter.filter_df is None:
-            logger.warning("No filter_df provided. Skipping filter plot creation.")
-            return
-
-        # Plot bar chart of points by rank, colored by position
-        position_colors = {"QB": "tab:blue", "RB": "tab:orange", "WR": "tab:green", "TE": "tab:purple", "Other": "tab:brown"}
-        plot_colors = self.filter.filter_df["Position"].apply(
-            lambda x: position_colors[x] if x in position_colors else position_colors["Other"],
-        )
-        if position_colors["Other"] not in plot_colors:
-            del position_colors["Other"]
-        ax = plt.subplots(1, 1)[1]
-        ax.bar(
-            range(1, self.filter.num_players + 1),
-            self.filter.filter_df["Fantasy Avg"].to_list(),
-            width=1,
-            color=plot_colors,
-            linewidth=0,
-        )
-        plt.xlabel("Rank")
-        plt.ylabel("Avg. Fantasy Score")
-        plt.title("Fantasy Performance of Filtered Player List")
-
-        def lp(i):
-            return ax.plot([], color=position_colors[i], label=i)[0]
-
-        leg_handles = [lp(i) for i in position_colors]
-        plt.legend(handles=leg_handles)
-        plt.show()

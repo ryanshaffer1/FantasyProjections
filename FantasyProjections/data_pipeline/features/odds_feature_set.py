@@ -92,7 +92,7 @@ class OddsFeatureSet(FeatureSet):
         """  # fmt: skip
 
         self.api_manager = OddsAPIManager(data_files_config=data_files_config, surrogate=self.surrogate)
-        self.labels_df_to_odds = pd.read_csv(data_files_config["feature_config_file"], index_col=0)["odds"].dropna().to_dict()
+        self.labels_df_to_odds = pd.read_csv(data_files_config["stat_names_map"], index_col=0)["odds"].dropna().to_dict()
         self.markets = [
             self.labels_df_to_odds[stat] for stat in list({feat.name for feat in self.features} & set(self.labels_df_to_odds))
         ]

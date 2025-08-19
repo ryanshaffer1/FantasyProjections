@@ -3,24 +3,24 @@
     Functions:
         normalize_stat : Converts statistics from true values (i.e. football stats) to normalized values (scaled between 0 and 1).
         unnormalize_stat : Converts statistics from normalized values (scaled between 0 and 1) back to true values (i.e. actual football stats).
-        save_features_config : Creates a file containing all configuration variables for the FeatureSets to be used during later processing and fantasy predictions.
         stats_to_fantasy_points : Calculates Fantasy Points corresponding to an input stat line, based on fantasy scoring rules.
         gen_random_games : Generates random game/player combinations from input dataset, with no repeating.
         linear_regression : Performs Simple Linear Regression on x_data and y_data to determine line of best fit (slope, intercept) and coefficient of determination (r_squared).
 """  # fmt: skip
 
+from __future__ import annotations
+
 import logging
 
 import numpy as np
 import pandas as pd
-
-from config import data_files_config
+import torch
 
 # Set up logger
 logger = logging.getLogger("log")
 
 
-def normalize_stat(data, thresholds=None):
+def normalize_stat(data, thresholds: dict) -> pd.Series | pd.DataFrame:
     """Converts statistics from true values (i.e. football stats) to normalized values (scaled between 0 and 1).
 
         Values are scaled based on notional threshold values set for each statistic, and values outside the thresholds
@@ -30,18 +30,12 @@ def normalize_stat(data, thresholds=None):
             data (pandas.Series | pandas.DataFrame): Series or DataFrame of data.
                 If Series: corresponds to a single football stat, with Series name matching a key in the dictionary "thresholds".
                 If DataFrame: corresponds to multiple football stats, with column names all matching a key in the dictionary "thresholds".
-            thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
-                lie between 0 and 1. Defaults to dictionary "baseline_data_thresholds" defined in configuration files.
+            thresholds (dict): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to lie between 0 and 1.
 
         Returns:
-            pandas.Series: Series of normalized data where each entry in col is mapped between 0 and 1 according to the bounds in thresholds
+            pandas.Series | pd.DataFrame: Normalized data where each entry in col is mapped between 0 and 1 according to the bounds in thresholds
 
     """  # fmt: skip
-
-    # Optional input
-    if not thresholds:
-        stats_config = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)
-        thresholds = stats_config[["threshold_low", "threshold_high"]].dropna().T.to_dict(orient="list")
 
     # Remove empty or improperly formatted thresholds
     thresholds = {k: v for k, v in thresholds.items() if len(v) == 2}  # noqa: PLR2004
@@ -62,7 +56,7 @@ def normalize_stat(data, thresholds=None):
     return data
 
 
-def unnormalize_stat(data, thresholds=None):
+def unnormalize_stat(data, thresholds: dict) -> pd.Series | pd.DataFrame:
     """Converts statistics from normalized values (scaled between 0 and 1) back to true values (i.e. actual football stats).
 
         Args:
@@ -73,14 +67,9 @@ def unnormalize_stat(data, thresholds=None):
                 lie between 0 and 1. Defaults to dictionary "baseline_data_thresholds" defined in configuration files.
 
         Returns:
-            pandas.Series: Series of unnormalized data where each entry in col is scaled up according to the bounds in thresholds
+            pandas.Series | pandas.DataFrame: Unnormalized data where each entry in col is scaled up according to the bounds in thresholds
 
     """  # fmt: skip
-
-    # Optional input
-    if not thresholds:
-        stats_config = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)
-        thresholds = stats_config[["threshold_low", "threshold_high"]].dropna().T.to_dict(orient="list")
 
     # Remove empty or improperly formatted thresholds
     thresholds = {k: v for k, v in thresholds.items() if len(v) == 2}  # noqa: PLR2004
@@ -101,56 +90,23 @@ def unnormalize_stat(data, thresholds=None):
     return data
 
 
-def save_features_config(feature_sets: list) -> None:
-    """Creates a file containing all configuration variables for the FeatureSets to be used during later processing and fantasy predictions.
-
-        Args:
-            feature_sets (list): All FeatureSet objects used in the current dataset.
-
-    """  # fmt: skip
-
-    # Extract all Feature objects from feature_sets
-    stat_feature_objects = [feat for feat_set in feature_sets for feat in feat_set.features]
-    # Convert relevant data from StatFeature into a DataFrame
-    try:
-        stat_feature_df = pd.DataFrame(stat_feature_objects)[["name", "thresholds", "scoring_weight", "site_labels"]]
-    except KeyError:
-        # If missing keys, assume there are no StatFeature objects in feature_sets, and quit early
-        return
-    stat_feature_df[["threshold_low", "threshold_high"]] = pd.DataFrame(
-        stat_feature_df["thresholds"].tolist(),
-        index=stat_feature_df.index,
-    )
-
-    # Convert dict of site labels to individual columns for each site label key
-    site_labels_df = pd.json_normalize(stat_feature_df["site_labels"].tolist())
-    site_labels_df.index = stat_feature_df.index
-    stat_feature_df = pd.concat((stat_feature_df, site_labels_df), axis=1)
-
-    # Format output dataframe
-    stat_feature_df = stat_feature_df.drop(columns=["thresholds", "site_labels"])
-    stat_feature_df = stat_feature_df.set_index("name")
-
-    # Save to csv file
-    stat_feature_df.to_csv(data_files_config.FEATURE_CONFIG_FILE)
-
-
-def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm_thresholds=None, scoring_weights=None):
+def stats_to_fantasy_points(
+    stat_line: pd.Series | pd.DataFrame | torch.Tensor,
+    stat_configs: dict,
+    normalized: bool = False,
+) -> pd.DataFrame:
     """Calculates Fantasy Points corresponding to an input stat line, based on fantasy scoring rules.
 
         Args:
-            stat_line (pandas.Series | pandas.DataFrame | torch.tensor): Stats to use to calculate fantasy points.
+            stat_line (pandas.Series | pandas.DataFrame | torch.Tensor): Stats to use to calculate fantasy points.
                 If 1D data array, each entry is assumed to correspond to a different statistic (e.g. Pass Yds, Pass TD, etc.).
                 If 2D data array, each column is assumed to correspond to a different statistic.
                 Data may be normalized or un-normalized, with input "normalized" set accordingly.
-            stat_indices (list, optional): For data without column headers or row indices, used to determine the order of statistics contained
-                in stat_line. Defaults to None.
+            stat_configs (dict): Metadata for each stat in stat_line, including:
+                - thresholds (list): [min, max] values for the stat, used to un-normalize the stat if necessary.
+                - scoring_weight (float): Fantasy points per unit of the stat.
             normalized (bool, optional): Whether stats in stat_line are already normalized (converted such that all values are between 0 and 1)
                 or un-normalized (in standard football stat ranges). Defaults to False.
-            norm_thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
-                lie between 0 and 1. Defaults to values saved in stats configuration file.
-            scoring_weights (dict, optional): Fantasy points per unit of each statistic (e.g. points per passing yard, points per reception, etc.)
-                Defaults to values saved in stats configuration file.
 
         Returns:
             pandas.DataFrame: stat_line, un-normalized and with column headers corresponding to stat indices, with an additional entry for
@@ -158,52 +114,28 @@ def stats_to_fantasy_points(stat_line, stat_indices=None, normalized=False, norm
 
     """  # fmt: skip
 
-    # Optional inputs
-    if not norm_thresholds or not scoring_weights:
-        stats_config = pd.read_csv(data_files_config.FEATURE_CONFIG_FILE, index_col=0)
-        if not norm_thresholds:
-            # Normalization thresholds used for each stat
-            norm_thresholds = stats_config[["threshold_low", "threshold_high"]].dropna().T.to_dict(orient="list")
-        if not scoring_weights:
-            # Scoring rules in fantasy format
-            scoring_weights = stats_config["scoring_weight"].dropna().to_dict()
-
-    # Throw error for missing stats indices for data types that need it
-    if stat_indices is None and not isinstance(stat_line, (pd.Series, pd.DataFrame)):
-        msg = "stat_indices must be provided for data types that do not have column headers or row indices."
-        raise ValueError(msg)
-
     # Convert stat line to data frame if need be
-    if isinstance(stat_line, pd.Series):
+    if isinstance(stat_line, torch.Tensor):
+        stat_line = pd.DataFrame(stat_line.numpy())
+    elif isinstance(stat_line, pd.Series) or len(stat_line.columns) == 1:
         stat_line = pd.DataFrame(stat_line).T
 
-    # Assign column names if stat indices are provided
-    if stat_indices:
-        stat_line = pd.DataFrame(stat_line)
-        if len(stat_line.columns) == 1:
-            stat_line = stat_line.transpose()
-        try:
-            stat_line.columns = stat_indices
-        except ValueError as e:
-            msg = "Unable to assign stat_indices to stat_line."
-            raise ValueError(msg) from e
+    # Extract the necessary columns, and rename columns if there are no column names
+    try:
+        stat_line = stat_line.loc[:, stat_configs.keys()]
+    except KeyError:
+        stat_line.columns = list(stat_configs.keys())
+
+    # Extract thresholds and scoring weights from stat_configs
+    thresholds = {key: val["thresholds"] for key, val in stat_configs.items() if "thresholds" in val}
+    scoring_weights = {key: val["weight"] for key, val in stat_configs.items() if "weight" in val}
 
     # Un-normalize stats if necessary
     if normalized:
-        stat_line = unnormalize_stat(stat_line, thresholds=norm_thresholds)
-
-    # Trim scoring weights dictionary to only the stats that have non-zero weight
-    scoring_weights_nonzero = {key: val for (key, val) in scoring_weights.items() if val != 0}
+        stat_line = unnormalize_stat(stat_line, thresholds=thresholds)
 
     # Calculate Fantasy Points from stat line and scoring weights
-    try:
-        stat_line["Fantasy Points"] = (stat_line[scoring_weights_nonzero.keys()] * scoring_weights_nonzero).sum(axis=1)
-    except KeyError as e:
-        msg = "Key Error: Missing data in stat_line corresponding to all stats in scoring_weights."
-        raise KeyError(msg) from e
-    except IndexError as e:
-        msg = "Index Error: statistics cannot be matched to weights. stat_indices must be input, or set to 'default'"
-        raise IndexError(msg) from e
+    stat_line["Fantasy Points"] = (stat_line[scoring_weights.keys()] * scoring_weights).sum(axis=1)
 
     return stat_line
 

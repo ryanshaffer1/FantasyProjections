@@ -4,6 +4,8 @@
         PredictionResultGroup : List of PredictionResult objects, used to simultaneously process/visualize their results.
 """  # fmt: skip
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
@@ -25,7 +27,7 @@ class PredictionResultGroup:
     """  # fmt: skip
 
     # CONSTRUCTOR
-    results: list
+    results: list | tuple
 
     def __post_init__(self):
         # Evaluates as part of the Constructor.

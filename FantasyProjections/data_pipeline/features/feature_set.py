@@ -139,3 +139,19 @@ class FeatureSet:
         """  # fmt: skip
 
         return pd.DataFrame()
+
+    def generate_roster_filter(self, filter_df, *_args, **_kwargs):
+        """Creates modifications to the full player list (roster) based on input parameters and the relevant features.
+
+            Modifications may include removing players entirely, or sorting the players by some criteria.
+            Not used by the base FeatureSet class, but may be used by child classes.
+
+            Args:
+                filter_df (pandas.DataFrame): Dataframe containing the working player roster, which may be modified by this function.
+                Any additional args or kwargs - defined by child class's function overload.
+
+            Returns:
+                pandas.DataFrame: Dataframe containing the modified player roster as a result of filtering specific to this feature set.
+
+        """  # fmt: skip
+        return filter_df

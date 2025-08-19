@@ -47,6 +47,18 @@ bs_df = pd.DataFrame(
     ],
     columns=["Pass Yds", "Rush Yds", "Rec Yds"],
 )
+pbp_features = {
+    "Elapsed Time": {"thresholds": [0, 60]},
+    "Field Position": {"thresholds": [0, 100]},
+    "Pass Yds": {"thresholds": [0, 1000], "weight": 0.04},
+    "Rush Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Rec Yds": {"thresholds": [0, 1000], "weight": 0.1},
+}
+bs_features = {
+    "Pass Yds": {"thresholds": [0, 1000], "weight": 0.04},
+    "Rush Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Rec Yds": {"thresholds": [0, 1000], "weight": 0.1},
+}
 
 
 # Hacky way to write a new dataset that can be hardcoded above

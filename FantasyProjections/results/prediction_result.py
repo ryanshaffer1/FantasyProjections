@@ -166,5 +166,5 @@ class PredictionResult:
         kwargs["normalized"] = kwargs.get("normalized", True)  # Note this defaults to True instead of the standard False
 
         # Compute Fantasy Points
-        pbp_df = stats_to_fantasy_points(pbp_df, **kwargs)
+        pbp_df = stats_to_fantasy_points(pbp_df, stat_configs=self.dataset.x_data_columns, **kwargs)
         return pbp_df

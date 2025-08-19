@@ -34,6 +34,8 @@ stat_files:
 # Miscellaneous:
 # Feature config file
 feature_config_file: !path [*misc_folder, "stats_config.csv"]
+# Map between stat names used by different sites
+stat_names_map: !path [*misc_folder, "stat_names_map.csv"]
 # Pro-Football-Reference.com URL intros
 pfr_boxscore_url_intro: "https://www.pro-football-reference.com/boxscores/"
 pfr_player_url_intro: "https://www.pro-football-reference.com/players/"

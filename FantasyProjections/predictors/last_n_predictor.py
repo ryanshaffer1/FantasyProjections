@@ -81,10 +81,10 @@ class LastNPredictor(FantasyPredictor):
         )
         prev_game_stats = torch.tensor(prev_game_stats_df.to_list())
         # List of stats being used to compute fantasy score
-        stat_columns = eval_data.y_data_columns
+        stat_configs = eval_data.y_data_columns
 
         # Un-normalize and compute Fantasy score
-        stat_predicts = stats_to_fantasy_points(prev_game_stats, stat_indices=stat_columns, **kwargs)
+        stat_predicts = stats_to_fantasy_points(prev_game_stats, stat_configs=stat_configs, **kwargs)
         # True stats from eval data
         stat_truths = self.eval_truth(eval_data, **kwargs)
 

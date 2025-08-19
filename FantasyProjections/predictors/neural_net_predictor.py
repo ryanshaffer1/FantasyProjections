@@ -182,19 +182,19 @@ class NeuralNetPredictor(FantasyPredictor):
             eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
 
         # List of stats being used to compute fantasy score
-        stat_columns = eval_dataloader.dataset.y_data_columns  # pyright: ignore[reportAttributeAccessIssue]
+        stat_configs = eval_dataloader.dataset.y_data_columns  # pyright: ignore[reportAttributeAccessIssue]
 
         # Gather all predicted/true outputs for the input dataset
         self.model.eval()
-        pred = torch.empty([0, len(stat_columns)])
-        y_matrix = torch.empty([0, len(stat_columns)])
+        pred = torch.empty([0, len(stat_configs)])
+        y_matrix = torch.empty([0, len(stat_configs)])
         with torch.no_grad():
             for x_matrix, y_vec in eval_dataloader:
                 pred = torch.cat((pred, self.model(x_matrix)))
                 y_matrix = torch.cat((y_matrix, y_vec))
 
         # Convert outputs into un-normalized statistics/fantasy points
-        stat_predicts = stats_to_fantasy_points(pred, stat_indices=stat_columns, **kwargs)
+        stat_predicts = stats_to_fantasy_points(pred, stat_configs=stat_configs, **kwargs)
         stat_truths = self.eval_truth(eval_dataloader.dataset, **kwargs)
         result = self._gen_prediction_result(stat_predicts, stat_truths, eval_dataloader.dataset, **kwargs)
 

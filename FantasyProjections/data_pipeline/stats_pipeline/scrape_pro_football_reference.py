@@ -92,7 +92,7 @@ def scrape_box_score(
         box_score["pfr_id"] = row.find("th", {"data-stat": "player"})["data-append-csv"]
         box_score["Team"] = row.find("td", {"data-stat": "team"}).text
         # Collect all stats
-        labels_df_to_pfr = pd.read_csv(data_files_config["feature_config_file"], index_col=0)["pfr"].dropna().to_dict()
+        labels_df_to_pfr = pd.read_csv(data_files_config["stat_names_map"], index_col=0)["pfr"].dropna().to_dict()
         for key, val in labels_df_to_pfr.items():
             box_score[key] = int(row.find("td", {"data-stat": val}).text)
 

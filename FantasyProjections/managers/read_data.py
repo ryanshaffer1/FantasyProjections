@@ -52,10 +52,42 @@ def read_data_into_dataset(features: dict, data_files_config: dict, log_datafile
     # Pre-process data before creating dataset
     id_df, pbp_df, boxscore_df, misc_df = preprocess_data(pbp_df, boxscore_df, features)
 
+    # Keep track of all features used in the dataset
+    pbp_features = {feat: get_feature_config(features, feat) for feat in pbp_df.columns}
+    boxscore_features = {feat: get_feature_config(features, feat) for feat in boxscore_df.columns}
+
     # Create dataset containing all data from above files
-    all_data = StatsDataset("All", id_df=id_df, pbp_df=pbp_df, boxscore_df=boxscore_df, misc_df=misc_df)
+    all_data = StatsDataset(
+        "All",
+        id_df=id_df,
+        pbp_df=pbp_df,
+        boxscore_df=boxscore_df,
+        misc_df=misc_df,
+        x_data_columns=pbp_features,
+        y_data_columns=boxscore_features,
+    )
 
     return all_data
+
+
+def get_feature_config(features, feature_name: str) -> dict | None:
+    """Gets the configuration for a specific feature from the features dictionary.
+
+        Args:
+            features (dict): Dictionary containing feature definitions.
+            feature_name (str): Name of the feature to retrieve the configuration for.
+
+        Returns:
+            dict: Configuration parameters for the specified feature.
+
+    """  # fmt: skip
+
+    feature_config = {}
+    for group in features.values():
+        for feat in group:
+            if isinstance(feat, dict) and next(iter(feat.keys())) == feature_name:
+                feature_config.update(feat[feature_name])
+    return feature_config
 
 
 def preprocess_data(

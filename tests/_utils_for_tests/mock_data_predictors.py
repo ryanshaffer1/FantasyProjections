@@ -45,6 +45,18 @@ bs_df = pd.DataFrame(
     ],
     columns=["Pass Yds", "Rush Yds", "Rec Yds"],
 )
+pbp_features = {
+    "Elapsed Time": {"thresholds": [0, 60]},
+    "Field Position": {"thresholds": [0, 100]},
+    "Pass Yds": {"thresholds": [0, 1000], "weight": 0.04},
+    "Rush Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Rec Yds": {"thresholds": [0, 1000], "weight": 0.1},
+}
+bs_features = {
+    "Pass Yds": {"thresholds": [0, 1000], "weight": 0.04},
+    "Rush Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Rec Yds": {"thresholds": [0, 1000], "weight": 0.1},
+}
 
 # LastNPredictor variables
 # Must be hard-coded by test dev whenever the above data changes
@@ -132,19 +144,44 @@ pbp_df_neural_net = pd.DataFrame(
 
 expected_predicts_neural_net = pd.DataFrame(
     data=[
-        [407.495331, 453.750183, 517.907776, 113.465609],
-        [422.453644, 463.106079, 499.760620, 113.184816],
-        [423.146149, 460.775421, 514.607178, 114.464106],
-        [421.275543, 462.411255, 515.988831, 114.691030],
-        [443.099182, 512.019958, 486.954285, 117.621392],
-        [447.526672, 482.085144, 490.975586, 115.207140],
-        [447.807587, 482.610718, 495.883850, 115.761760],
-        [448.585663, 481.899109, 488.653625, 114.998700],
-        [447.791290, 475.522644, 496.900452, 115.153961],
+        [435.709839, 479.762085, 540.864502, 119.491052],
+        [449.955841, 488.672455, 523.581543, 119.223633],
+        [450.615387, 486.452789, 537.721069, 120.442001],
+        [448.833862, 488.010742, 539.036987, 120.658127],
+        [469.618256, 535.257080, 511.385010, 123.448939],
+        [473.834930, 506.747772, 515.214844, 121.149659],
+        [474.102478, 507.248291, 519.889343, 121.677863],
+        [474.843506, 506.570587, 513.003479, 120.951147],
+        [474.086945, 500.497772, 520.857544, 121.099009],
     ],
     columns=["Pass Yds", "Rush Yds", "Rec Yds", "Fantasy Points"],
 )
-
+pbp_features_neural_net = {
+    "Elapsed Time": {"thresholds": [0, 60]},
+    "Field Position": {"thresholds": [0, 100]},
+    "Pass Yds": {"thresholds": [0, 1000], "weight": 0.04},
+    "Rush Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Rec Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Position_QB": {},
+    "Position_RB": {},
+    "Position_TE": {},
+    "Player ID_00-0030061": {},
+    "Player ID_00-0033699": {},
+    "Player ID_00-0039910": {},
+    "Team_ARI": {},
+    "Team_WAS": {},
+    "Opponent_CIN": {},
+    "Opponent_CLE": {},
+    "Opponent_LA": {},
+    "Opponent_NYG": {},
+    "Opponent_SF": {},
+    "Opponent_TB": {},
+}
+bs_features_neural_net = {
+    "Pass Yds": {"thresholds": [0, 1000], "weight": 0.04},
+    "Rush Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Rec Yds": {"thresholds": [0, 1000], "weight": 0.1},
+}
 
 # Hacky way to write a new dataset that can be hardcoded above
 if __name__ == "__main__":

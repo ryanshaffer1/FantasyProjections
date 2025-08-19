@@ -34,11 +34,11 @@ class StatsDataset(torch.utils.data.Dataset):
             x_data (torch.Tensor): Tensor (matrix) containing all play-by-play (i.e. midgame) data from the NFL games in question.
                 Corresponds to pre-game/mid-game inputs into a Predictor.
                 The data in x_data must be gathered, parsed, and pre-processed using functions in data_pipeline.
-            x_data_columns (list): Labels for each column of data in x_data
+            x_data_columns (dict): Labels for each column of data in x_data, and optional metadata for each.
             y_data (tensor): Tensor (matrix) containing all boxscore (i.e. final) stats data from the NFL games in question.
                 Corresponds to "true" stats, though in this dataset they are normalized and not true statistics.
                 The data in y_data must be gathered, parsed, and pre-processed using functions in data_pipeline.
-            y_data_columns (list): Labels for each column of data in y_data
+            y_data_columns (dict): Labels for each column of data in y_data, and optional metadata for each.
             id_data (pandas.DataFrame): DataFrame containing all game/player ID data from the NFL games in question.
                 The data in id_data must be gathered, parsed, and pre-processed using functions in data_pipeline.
             misc_df (pd.DataFrame, optional): DataFrame containing miscellaneous data from the NFL games in question.
@@ -62,9 +62,9 @@ class StatsDataset(torch.utils.data.Dataset):
         boxscore_df: pd.DataFrame | None = None,
         misc_df: pd.DataFrame | None = None,
         x_data: torch.Tensor | None = None,
-        x_data_columns: list | None = None,
+        x_data_columns: dict | None = None,
         y_data: torch.Tensor | None = None,
-        y_data_columns: list | None = None,
+        y_data_columns: dict | None = None,
         **kwargs,
     ):
         """Constructor for StatsDataset.
@@ -73,6 +73,8 @@ class StatsDataset(torch.utils.data.Dataset):
                 name (str): name of the StatsDataset object, used for logging/display purposes.
                 id_df (pandas.DataFrame): DataFrame containing all game/player ID data from the NFL games in question.
                     The data in id_df must be gathered, parsed, and pre-processed using functions in data_pipeline.
+                x_data_columns (dict): Labels for each column of data in x_data, and optional metadata for each.
+                y_data_columns (dict): Labels for each column of data in y_data, and optional metadata for each.
             Args (Initialization Option 1):
                 pbp_df (pandas.DataFrame): DataFrame containing all play-by-play (i.e. midgame) data from the NFL games in question.
                     The data in pbp_df must be gathered, parsed, and pre-processed using functions in data_pipeline.
@@ -80,9 +82,7 @@ class StatsDataset(torch.utils.data.Dataset):
                     The data in boxscore_df must be gathered, parsed, and pre-processed using functions in data_pipeline.
             Args (Initialization Option 2):
                 x_data (torch.Tensor): Matrix containing all play-by-play (i.e. midgame) data from the NFL games in question.
-                x_data_columns (list): Labels for each column of data in x_data
                 y_data (torch.Tensor): Matrix containing all boxscore (i.e. final) stats data from the NFL games in question.
-                y_data_columns (list): Labels for each column of data in y_data
 
             Keyword-Args:
                 misc_df (pd.DataFrame, optional): DataFrame containing miscellaneous data from the NFL games in question.
@@ -105,31 +105,35 @@ class StatsDataset(torch.utils.data.Dataset):
         # Other valid kwargs that are not currently initialized to default
         # values: weeks, years, teams, players, elapsed_time
 
+        # Name
+        self.name = name
+
         # Check that ID data is valid
         if not isinstance(id_df, pd.DataFrame):
             msg = "Invalid id_df input type to StatsDataset."
             raise TypeError(msg)
         # Check that x data is valid
-        if not (isinstance(pbp_df, pd.DataFrame) or (isinstance(x_data, torch.Tensor) and isinstance(x_data_columns, list))):
+        if not (isinstance(pbp_df, pd.DataFrame) or isinstance(x_data, torch.Tensor)):
             msg = "Invalid x_data/play-by-play input type to StatsDataset."
             raise TypeError(msg)
         # Check that y data is valid
-        if not (isinstance(boxscore_df, pd.DataFrame) or (isinstance(y_data, torch.Tensor) and isinstance(y_data_columns, list))):
+        if not (isinstance(boxscore_df, pd.DataFrame) or isinstance(y_data, torch.Tensor)):
             msg = "Invalid y_data/boxscore input type to StatsDataset."
             raise TypeError(msg)
-
-        # Name
-        self.name = name
 
         # Process DFs; convert numeric data (inputs "x" and desired
         # outputs "y") to tensors
         if pbp_df is not None:
             x_data = torch.tensor(pbp_df.values)
-            x_data_columns = pbp_df.columns.to_list()
+            if x_data_columns is None:
+                logger.warning(f"Warning: no metadata provided for x_data in StatsDataset {self.name}.")
+                x_data_columns = {col: {} for col in pbp_df.columns.to_list()}
 
         if boxscore_df is not None:
             y_data = torch.tensor(boxscore_df.values)
-            y_data_columns = boxscore_df.columns.to_list()
+            if y_data_columns is None:
+                logger.warning(f"Warning: no metadata provided for y_data in StatsDataset {self.name}.")
+                y_data_columns = {col: {} for col in boxscore_df.columns.to_list()}
 
         # Check that all data has been set)
         if x_data is None or x_data_columns is None or y_data is None or y_data_columns is None or id_df is None:
@@ -272,7 +276,7 @@ class StatsDataset(torch.utils.data.Dataset):
         )
         return new_dataset
 
-    def remove_game_duplicates(self, inplace=False):
+    def remove_game_duplicates(self, inplace: bool = False) -> None | StatsDataset:
         """Filters evaluation data to only contain one entry per unique game/player.
 
             Removes all but the first row in id_data for each Player ID/Year/Week combination. (First row is typically when Elapsed Time = 0).

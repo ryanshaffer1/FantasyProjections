@@ -330,17 +330,13 @@ class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
             "output": 3,
         }
         # Custom stats list (only using a subset of all statistics)
-        self.scoring_weights = {
-            "Pass Yds": 0.04,
-            "Rush Yds": 0.1,
-            "Rec Yds": 0.1,
-        }
-        # Custom dataset
         self.dataset = StatsDataset(
             name="dataset",
             id_df=mock_data_predictors.id_df,
             pbp_df=mock_data_predictors.pbp_df_neural_net,
             boxscore_df=mock_data_predictors.bs_df,
+            x_data_columns=mock_data_predictors.pbp_features_neural_net,
+            y_data_columns=mock_data_predictors.bs_features_neural_net,
         )
         # Custom dataset 2
         pbp_df_modified = mock_data_predictors.pbp_df_neural_net.copy()
@@ -350,24 +346,26 @@ class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
             id_df=mock_data_predictors.id_df,
             pbp_df=pbp_df_modified,
             boxscore_df=mock_data_predictors.bs_df,
+            x_data_columns=mock_data_predictors.pbp_features_neural_net,
+            y_data_columns=mock_data_predictors.bs_features_neural_net,
         )
 
         # Neural Net Predictor
         self.predictor = NeuralNetPredictor(name="test", nn_shape=self.mock_shape, max_epochs=1, n_epochs_to_stop=1)
 
     def test_eval_model_gives_correct_results(self):
-        result = self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
+        result = self.predictor.eval_model(eval_data=self.dataset)
 
         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_neural_net, check_dtype=False)
 
     def test_different_input_dataset_gives_different_result(self):
-        result = self.predictor.eval_model(eval_data=self.dataset2, scoring_weights=self.scoring_weights)
+        result = self.predictor.eval_model(eval_data=self.dataset2)
         with self.assertRaises(AssertionError):
             pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_neural_net, check_dtype=False)
 
     def test_eval_model_with_dataloader_gives_correct_results(self):
         eval_dataloader = DataLoader(self.dataset, shuffle=False)
-        result = self.predictor.eval_model(eval_dataloader=eval_dataloader, scoring_weights=self.scoring_weights)
+        result = self.predictor.eval_model(eval_dataloader=eval_dataloader)
 
         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_neural_net, check_dtype=False)
 
@@ -376,22 +374,16 @@ class TestEvalModel_NeuralNetPredictor(unittest.TestCase):
         result = self.predictor.eval_model(
             eval_data=self.dataset2,
             eval_dataloader=eval_dataloader,
-            scoring_weights=self.scoring_weights,
         )
 
         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_neural_net, check_dtype=False)
 
-    def test_improper_fantasy_point_kwargs_gives_error(self):
-        self.scoring_weights["XYZ"] = 100
-        with self.assertRaises(KeyError):
-            self.predictor.eval_model(eval_data=self.dataset, scoring_weights=self.scoring_weights)
-
     def test_input_normalized_false_raises_error(self):
         with self.assertRaises(ValueError):
-            self.predictor.eval_model(eval_data=self.dataset, normalized=False, scoring_weights=self.scoring_weights)
+            self.predictor.eval_model(eval_data=self.dataset, normalized=False)
 
     def test_input_normalized_true(self):
-        result = self.predictor.eval_model(eval_data=self.dataset, normalized=True, scoring_weights=self.scoring_weights)
+        result = self.predictor.eval_model(eval_data=self.dataset, normalized=True)
 
         pdtest.assert_frame_equal(result.predicts, mock_data_predictors.expected_predicts_neural_net, check_dtype=False)
 
@@ -692,18 +684,14 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             "output": 3,
         }
 
-        # Custom stats list (only using a subset of all statistics)
-        self.scoring_weights = {
-            "Pass Yds": 0.04,
-            "Rush Yds": 0.1,
-            "Rec Yds": 0.1,
-        }
         # Custom dataset
         self.training_data = StatsDataset(
             name="dataset",
             id_df=mock_data_predictors.id_df,
             pbp_df=mock_data_predictors.pbp_df_neural_net,
             boxscore_df=mock_data_predictors.bs_df,
+            x_data_columns=mock_data_predictors.pbp_features_neural_net,
+            y_data_columns=mock_data_predictors.bs_features_neural_net,
         )
         # Custom dataset 2
         pbp_df_modified = mock_data_predictors.pbp_df_neural_net.copy()
@@ -713,6 +701,8 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             id_df=mock_data_predictors.id_df,
             pbp_df=pbp_df_modified,
             boxscore_df=mock_data_predictors.bs_df,
+            x_data_columns=mock_data_predictors.pbp_features_neural_net,
+            y_data_columns=mock_data_predictors.bs_features_neural_net,
         )
         # Hyper-parameters
         self.mini_batch_hp = HyperParameter("mini_batch_size", optimizable=False, value=1000)
@@ -739,14 +729,12 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
         self.predictor.train_and_validate(
             train_dataloader=self.train_dataloader,
             validation_dataloader=self.eval_dataloader,
-            scoring_weights=self.scoring_weights,
         )
 
     def test_input_datasets_runs_no_errors(self):
         self.predictor.train_and_validate(
             training_data=self.training_data,
             validation_data=self.validation_data,
-            scoring_weights=self.scoring_weights,
         )
 
     def test_input_both_dataloaders_and_datasets_runs_no_errors(self):
@@ -755,7 +743,6 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             validation_dataloader=self.eval_dataloader,
             training_data=self.training_data,
             validation_data=self.validation_data,
-            scoring_weights=self.scoring_weights,
         )
 
     def test_input_both_dataloaders_and_datasets_prioritizes_dataloaders(self):
@@ -764,19 +751,17 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             validation_dataloader=self.eval_dataloader,
             training_data=[1, 2, 6],
             validation_data="blah",
-            scoring_weights=self.scoring_weights,
         )
 
     def test_input_no_dataloaders_or_datasets_raises_error(self):
         with self.assertRaises(ValueError):
-            self.predictor.train_and_validate(scoring_weights=self.scoring_weights)
+            self.predictor.train_and_validate()
 
     def test_invalid_dataloaders_raises_error(self):
         with self.assertRaises(AttributeError):
             self.predictor.train_and_validate(
                 train_dataloader=self.training_data,
                 validation_dataloader=self.validation_data,
-                scoring_weights=self.scoring_weights,
             )
 
     def test_invalid_datasets_raises_error(self):
@@ -784,14 +769,12 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             self.predictor.train_and_validate(
                 training_data=self.train_dataloader,
                 validation_data=self.eval_dataloader,
-                scoring_weights=self.scoring_weights,
             )
 
     def test_return_value_types(self):
         final_val_perf, val_perfs = self.predictor.train_and_validate(
             self.train_dataloader,
             self.eval_dataloader,
-            scoring_weights=self.scoring_weights,
         )
         self.assertTrue(isinstance(final_val_perf, float))
         self.assertTrue(isinstance(val_perfs, list))
@@ -800,7 +783,7 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
         # Save model before training
         self.predictor.save()
         # Train model
-        self.predictor.train_and_validate(self.train_dataloader, self.eval_dataloader, scoring_weights=self.scoring_weights)
+        self.predictor.train_and_validate(self.train_dataloader, self.eval_dataloader)
         post_trained_model = self.predictor.model
         # Load model from before training
         pre_trained_model = NeuralNetPredictor(
@@ -827,7 +810,6 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
         _, val_perfs = self.predictor.train_and_validate(
             self.train_dataloader,
             self.eval_dataloader,
-            scoring_weights=self.scoring_weights,
         )
         self.assertEqual(len(val_perfs), n_epochs)
 
@@ -836,7 +818,6 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             train_dataloader=self.train_dataloader,
             validation_dataloader=self.eval_dataloader,
             param_set=self.hp_set,
-            scoring_weights=self.scoring_weights,
         )
 
     def test_empty_hyper_parameter_set_configures_all_correctly(self):
@@ -845,7 +826,6 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             train_dataloader=self.train_dataloader,
             validation_dataloader=self.eval_dataloader,
             param_set=empty_hp_set,
-            scoring_weights=self.scoring_weights,
         )
 
     def test_dict_param_set_configures_all_correctly(self):
@@ -853,7 +833,6 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             train_dataloader=self.train_dataloader,
             validation_dataloader=self.eval_dataloader,
             param_set=self.hp_dict,
-            scoring_weights=self.scoring_weights,
         )
 
     def test_no_param_set_input_configures_all_correctly(self):
@@ -861,7 +840,6 @@ class TestTrainAndValidate_NeuralNetPredictor(unittest.TestCase):
             train_dataloader=self.train_dataloader,
             validation_dataloader=self.eval_dataloader,
             param_set=None,
-            scoring_weights=self.scoring_weights,
         )
 
     def tearDown(self):
