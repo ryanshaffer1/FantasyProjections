@@ -8,7 +8,6 @@ This module is a script to be run alone. Before running, the packages in require
 > pip install -u requirements.txt
 """  # fmt: skip
 
-# fmt: skip
 import argparse
 import logging
 import logging.config
