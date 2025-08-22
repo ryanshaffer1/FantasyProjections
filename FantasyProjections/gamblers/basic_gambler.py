@@ -7,7 +7,6 @@
 import numpy as np
 import pandas as pd
 
-from config import data_files_config
 from gamblers.gambling_plots import plot_earnings_by_week
 
 
@@ -19,8 +18,7 @@ class BasicGambler:
 
         Attributes:
             prediction_result (PredictionResult): object created by a FantasyPredictor that contains predicted player stats, and the true outcomes of past games.
-            odds_file (str, optional): Path to a csv file containing player prop over/under lines from a sportsbook. Defaults to the filepath in data_files_config.
-            odds_df (pandas.DataFrame): Data from odds_file, pre-processed to be used for placing and evaluating bets.
+            odds_df (pandas.DataFrame): Odds data, processed to be used for placing and evaluating bets.
             bets (pandas.DataFrame): DataFrame containing all bets placed on player props in the dataset, as well as their payouts for winning and losing.
             bet_results (pandas.DataFrame): DataFrame containing the results of all bets placed on player props: whether the bet hit, and the earnings (positive or negative).
             earnings (float): Total gambling earnings (or losses, if negative) over the dataset
@@ -35,31 +33,25 @@ class BasicGambler:
 
     """  # fmt: skip
 
-    def __init__(self, prediction_result, odds_file=None):
+    def __init__(self, prediction_result):
         """Constructor for BasicGambler.
 
             Args:
                 prediction_result (PredictionResult): object created by a FantasyPredictor that contains predicted player stats, and the true outcomes of past games.
-                odds_file (str, optional): Path to a csv file containing player prop over/under lines from a sportsbook. Defaults to the filepath in data_files_config.
 
             Additional Class Attributes (generated, not passed as inputs):
-                odds_df (pandas.DataFrame): Data from odds_file, pre-processed to be used for placing and evaluating bets.
+                odds_df (pandas.DataFrame): Odds data, processed to be used for placing and evaluating bets.
                 bets (pandas.DataFrame): DataFrame containing all bets placed on player props in the dataset, as well as their payouts for winning and losing.
                 bet_results (pandas.DataFrame): DataFrame containing the results of all bets placed on player props: whether the bet hit, and the earnings (positive or negative).
                 earnings (float): Total gambling earnings (or losses, if negative) over the dataset
                 accuracy (float): Accuracy, as a fraction of correct bets divided by all bets
 
         """  # fmt: skip
-
-        # Optional input
-        if odds_file is None:
-            odds_file = data_files_config.ODDS_FILE
-
         self.prediction_result = prediction_result
-        self.odds_file = odds_file
 
         # Read and format odds df
         self.odds_df = self.process_odds_df()
+        self.player_props = self.odds_df.columns.get_level_values(0).unique().to_list()
 
         # Compare predicted stats against odds to determine bets to place
         self.bets = self.place_bets()
@@ -78,22 +70,25 @@ class BasicGambler:
         """  # fmt: skip
 
         # Player/game IDs in dataset
-        ids = self.prediction_result.dataset.id_data.copy().set_index(["Player ID", "Year", "Week"])
+        ids = self.prediction_result.dataset.id_data.set_index(["Player ID", "Year", "Week"]).index
 
-        # Read odds CSV
-        odds_df = pd.read_csv(self.odds_file)
+        # Get odds from dataset misc data
+        odds_df = self.prediction_result.dataset.misc_df.filter(like="odds_")
 
-        # Configure dataset of odds that aligns with players/games in prediction result
-        odds_df = odds_df.pivot_table(
-            index=["Player ID", "Year", "Week"],
-            columns="Player Prop Stat",
-            values=["Over Point", "Over Price", "Under Point", "Under Price", "Elapsed Time"],
-        )
-        odds_df = odds_df.swaplevel(axis=1).sort_index(axis=1)
+        # Set index and column labels
+        odds_df.index = ids
+        odds_df.columns = odds_df.columns.str.replace("odds_", "")
 
-        # Add NaNs in odds for any players/games in the dataset that are missing in odds
-        missing_indices = ids.index.difference(odds_df.index)
-        odds_df = pd.concat((odds_df, pd.DataFrame(index=missing_indices))).loc[ids.index]
+        # Configure multi-level columns
+        odds_df.columns = pd.MultiIndex.from_tuples(odds_df.columns.str.split(r"\s+(?=[Over|Under])", regex=True).to_list())
+
+        # Replace any 0 price values with NaN, since these are not valid lines (likely represent missing data)
+        zero_over_price = odds_df.loc[:, (slice(None), "Over Price")] == 0
+        odds_df[zero_over_price] = np.nan
+        odds_df[zero_over_price.rename(columns={"Over Price": "Over Point"})] = np.nan
+        zero_under_price = odds_df.loc[:, (slice(None), "Under Price")] == 0
+        odds_df[zero_under_price] = np.nan
+        odds_df[zero_under_price.rename(columns={"Under Price": "Under Point"})] = np.nan
 
         return odds_df
 
@@ -115,7 +110,7 @@ class BasicGambler:
         # Initialize dataframe holding index values from odds (players/games)
         bets = self.odds_df.index.to_frame(index=False)
 
-        for player_prop in ["Pass Yds", "Rush Yds", "Rec Yds"]:
+        for player_prop in self.player_props:
             # Compute difference between prediction and line(s) (allowing for different lines to be set for over vs under, just in case)
             predict_diff_over_line = (
                 self.prediction_result.predicts[player_prop] - self.odds_df.reset_index()[player_prop, "Over Point"]
@@ -143,7 +138,7 @@ class BasicGambler:
         # Format bets dataframe
         bets = bets.set_index(self.odds_df.index.names)
         bets.columns = pd.MultiIndex.from_product(
-            [["Pass Yds", "Rush Yds", "Rec Yds"], ["Over Units", "Win Earns", "Loss Earns"]],
+            [self.player_props, ["Over Units", "Win Earns", "Loss Earns"]],
         )
 
         return bets
@@ -159,7 +154,7 @@ class BasicGambler:
 
         bet_results = self.bets.index.to_frame(index=False)
 
-        for player_prop in ["Pass Yds", "Rush Yds", "Rec Yds"]:
+        for player_prop in self.player_props:
             # Compare line to actual stat result to determine whether the over or under hit
             over_hit = (self.prediction_result.truths[player_prop] - self.odds_df.reset_index()[player_prop, "Over Point"]) > 0
             under_hit = (self.prediction_result.truths[player_prop] - self.odds_df.reset_index()[player_prop, "Under Point"]) < 0
@@ -179,7 +174,7 @@ class BasicGambler:
 
         # Format bets dataframe
         bet_results = bet_results.set_index(self.bets.index.names)
-        bet_results.columns = pd.MultiIndex.from_product([["Pass Yds", "Rush Yds", "Rec Yds"], ["Hit", "Earnings"]])
+        bet_results.columns = pd.MultiIndex.from_product([self.player_props, ["Hit", "Earnings"]])
 
         # Flatten to a row per bet, and keep only the bets placed (filtering out zeros)
         bet_results = self.__process_bet_results(bet_results_df=bet_results)
@@ -209,7 +204,7 @@ class BasicGambler:
             bet_results_df = self.bet_results
         # Flatten the dataframe, so that each individual bet has its own row, not a row per player/game
         flattened_df = pd.DataFrame()
-        for player_prop in ["Pass Yds", "Rush Yds", "Rec Yds"]:
+        for player_prop in self.player_props:
             prop_df = bet_results_df[player_prop].copy()
             prop_df["Player Prop Stat"] = player_prop
             flattened_df = pd.concat((flattened_df, prop_df))

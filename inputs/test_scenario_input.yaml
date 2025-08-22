@@ -1,6 +1,8 @@
 # Basic inputs
 
 ---
+# Optional: File structure for all input/auxiliary data
+
 # Output Files
 save_options:
   save_directory: models/
@@ -10,24 +12,77 @@ save_options:
   save_plots: true
   save_input_file: true
 
+# Features
+features:
+  input:
+    - Elapsed Time: {thresholds: [0, 60]}
+    - Team Score: {thresholds: [0, 100]}
+    - Opp Score: {thresholds: [0, 100]}
+    - Possession: {thresholds: [0, 1]}
+    - Field Position: {thresholds: [0, 100]}
+    - Pass Att: {thresholds: [0, 100]}
+    - Pass Cmp: {thresholds: [0, 100]}
+    - Pass Yds: {thresholds: [-50, 1000], scoring_weight: 0.04}
+    - Pass TD: {thresholds: [0, 8], scoring_weight: 4}
+    - Int: {thresholds: [0, 8], scoring_weight: -2}
+    - Rush Att: {thresholds: [0, 100]}
+    - Rush Yds: {thresholds: [-50, 1000], scoring_weight: 0.1}
+    - Rush TD: {thresholds: [0, 8], scoring_weight: 6}
+    - Rec: {thresholds: [0, 100], scoring_weight: 1}
+    - Rec Yds: {thresholds: [-50, 1000], scoring_weight: 0.1}
+    - Rec TD: {thresholds: [0, 8], scoring_weight: 6}
+    - Fmb: {thresholds: [0, 8], scoring_weight: -2}
+    - Injury Status: {thresholds: [0, 1]}
+    - Position: {one_hot_encode: true}
+    - Player ID: {one_hot_encode: true} 
+    - Team: {one_hot_encode: true}
+    - Opponent: {one_hot_encode: true}
+  output:
+    - Pass Att
+    - Pass Cmp
+    - Pass Yds
+    - Pass TD
+    - Int
+    - Rush Att
+    - Rush Yds
+    - Rush TD
+    - Rec
+    - Rec Yds
+    - Rec TD
+    - Fmb
+  odds:
+    - Pass Yds Over Point
+    - Pass Yds Over Price
+    - Pass Yds Under Point
+    - Pass Yds Under Price
+    - Rush Yds Over Point
+    - Rush Yds Over Price
+    - Rush Yds Under Point
+    - Rush Yds Under Price
+    - Rec Yds Over Point
+    - Rec Yds Over Price
+    - Rec Yds Under Point
+    - Rec Yds Under Price
+    
+
 # Datasets
 datasets:
   - name: Training
     config:
-      - years: [2021]
-      - years: [2023]
+      - years: [2021, 2022, 2023]
+      - years: [2024]
         weeks: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
   - name: Validation
     config:
-      - years: [2023]
+      - years: [2024]
         weeks: [12, 13, 14]
   - name: Test
     config:
-      - years: [2023]
+      - years: [2024]
         weeks: [15, 16, 17]
   - name: Test (Pre-Game)
     config:
-      - years: [2023]
+      - years: [2024]
         weeks: [15, 16, 17]
         elapsed_time: [0]
   - name: 2024 (Pre-Game)
@@ -70,23 +125,11 @@ predictors:
     type: NeuralNetPredictor
     save_model: true
     config:
-      load_folder: "models/20241126_120555/"
       max_epochs: 1
       n_epochs_to_stop: 5
-      nn_shape:
-        players_input: 300
-        teams_input: 32
-        opps_input: 32
-        stats_input: 29
-        embedding_player: 50
-        embedding_team: 10
-        embedding_opp: 10
-        linear_stack: 300
-        stats_output: 12
   - name: Sleeper
     type: SleeperPredictor
     config:
-      proj_dict_file: "data/misc/sleeper_projections_dict.json"
       update_players: false
   - name: Last 3 Games Predictor
     type: LastNPredictor

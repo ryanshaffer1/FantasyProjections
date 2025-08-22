@@ -27,7 +27,7 @@ class NeuralNetwork(nn.Module):
     """  # fmt: skip
 
     # CONSTRUCTOR
-    def __init__(self, shape=None):
+    def __init__(self, shape: dict):
         """Initializes a NeuralNetwork with a network architecture defined in FantasyProjections project docs.
 
             Args:
@@ -39,64 +39,62 @@ class NeuralNetwork(nn.Module):
         """  # fmt: skip
 
         super().__init__()
+        self.shape = shape
 
-        # Ensure all values are of type int
-        try:
-            shape = {key: int(val) for key, val in shape.items()}
-        except ValueError as e:
-            msg = "Neural Net input with a non-numeric value in shape"
-            raise ValueError(msg) from e
+        # Create embedding layers
+        self.embedding = nn.ModuleDict()
+        for embedding_name, embedding_size in shape.get("embedding", {}).items():
+            input_size = shape["input"][embedding_name]
+            embedding = nn.Sequential(
+                nn.Linear(input_size, embedding_size, dtype=torch.float32),
+                nn.ReLU(),
+            )
+            self.embedding[embedding_name] = embedding
 
-        # Indices of input vector that correspond to each "category" (needed bc they are embedded separately)
-        self.stats_inds = range(shape["stats_input"])
-        self.players_inds = self.__index_range(self.stats_inds, shape["players_input"])
-        self.teams_inds = self.__index_range(self.players_inds, shape["teams_input"])
-        self.opponents_inds = self.__index_range(self.teams_inds, shape["opps_input"])
+        # Create linear stack layers
+        self.linear_stack = nn.Sequential()
+        prev_layer_size = shape["input"]["unembedded"] + sum(shape.get("embedding", {}).values())
+        for layer_stack_size in shape["linear_stack"]:
+            layer_input_size = prev_layer_size
+            self.linear_stack += nn.Sequential(
+                nn.Linear(layer_input_size, layer_stack_size, dtype=torch.float32),
+                nn.ReLU(),
+            )
+            prev_layer_size = layer_stack_size
 
-        self.embedding_player = nn.Sequential(
-            nn.Linear(shape["players_input"], shape["embedding_player"], dtype=float),
-            nn.ReLU(),
-        )
-        self.embedding_team = nn.Sequential(
-            nn.Linear(shape["teams_input"], shape["embedding_team"], dtype=float),
-            nn.ReLU(),
-        )
-        self.embedding_opp = nn.Sequential(
-            nn.Linear(shape["opps_input"], shape["embedding_opp"], dtype=float),
-            nn.ReLU(),
-        )
-        n_input_to_linear_stack = sum(
-            shape[item] for item in ["stats_input", "embedding_player", "embedding_team", "embedding_opp"]
-        )
-        self.linear_stack = nn.Sequential(
-            nn.Linear(n_input_to_linear_stack, shape["linear_stack"], dtype=float),
-            nn.ReLU(),
-            nn.Linear(shape["linear_stack"], shape["stats_output"], dtype=float),
+        # Create output layer
+        self.output = nn.Sequential(
+            nn.Linear(shape["linear_stack"][-1], shape["output"], dtype=torch.float32),
             nn.Sigmoid(),
         )
 
     # PUBLIC METHODS
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Defines the feedforward flow of information through the network, including the embedding and linear stack layers.
 
             Args:
-                x (tensor): input vector into Neural Net
+                x (Tensor): input vector into Neural Net
 
             Returns:
-                tensor: output vector from Neural Net based on provided input
+                Tensor: output vector from Neural Net based on provided input
 
         """  # fmt: skip
 
-        player_embedding = self.embedding_player(x[:, self.players_inds])
-        team_embedding = self.embedding_team(x[:, self.teams_inds])
-        opp_embedding = self.embedding_opp(x[:, self.opponents_inds])
-        x_embedded = torch.cat((x[:, 0 : max(self.stats_inds) + 1], player_embedding, team_embedding, opp_embedding), dim=1)
-        logits = self.linear_stack(x_embedded)
+        # Pass through all non-embedded inputs
+        x_non_embedded = x[:, self.shape["input_indices"]["unembedded"]]
+
+        # Compute all embeddings from inputs
+        post_embeddings = []
+        for e_name in self.embedding:
+            x_embedded_input = x[:, self.shape["input_indices"][e_name]]
+            x_post_embedding = self.embedding[e_name](x_embedded_input)
+            post_embeddings.append(x_post_embedding)
+
+        # Construct inputs vector to linear stack
+        x_post_embeddings = torch.cat([x_non_embedded, *post_embeddings], dim=1)
+
+        # Construct output
+        x_post_stack = self.linear_stack(x_post_embeddings)
+        logits = self.output(x_post_stack)
         return logits
-
-    # PRIVATE METHODS
-
-    def __index_range(self, prev_range, length):
-        # Returns the next range of length "length", starting from the end of a previous range "prev_range"
-        return range(max(prev_range) + 1, max(prev_range) + 1 + length)

@@ -1,0 +1,267 @@
+"""Classes used to perform common processing functions (filtering, final data validation, etc) on the collected dataset.
+
+    Classes:
+        RosterFilter : Class storing configuration for the roster filter, which is a subset of players to collect data for.
+        DatasetProcessor : Class handling some common processing functions on a dataset, including filtering by player and data validation.
+
+"""  # fmt: skip
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+from config.player_id_config import PRIMARY_PLAYER_ID
+from misc.manage_files import create_folders
+
+# Type checking imports
+if TYPE_CHECKING:
+    from data_pipeline.features.feature_set import FeatureSet
+
+# Set up logger
+logger = logging.getLogger("log")
+
+
+@dataclass
+class RosterFilter:
+    """Class storing configuration for the roster filter, which is a subset of players to collect data for.
+
+        Args:
+            filter_df (pandas.DataFrame, optional): DataFrame containing the list of players to include. Defaults to None, which will trigger creation of the list.
+            min_games_played (int): Threshold number of games required for a player to have played in the last season being considered.
+            num_players (int): Number of players to include in the roster filter.
+
+    """  # fmt: skip
+
+    filter_df: pd.DataFrame | None = None
+    min_games_played: int = 3
+    num_players: int = 300
+
+
+class DatasetProcessor:
+    """Class handling some common processing functions on a dataset, including filtering by player and data validation.
+
+        Args:
+            data_files_config (dict): Settings for input and output data - used here to collect/store validation data.
+            feature_sets (list): All FeatureSet objects used to generate the current dataset.
+            midgame_df (pandas.DataFrame): All midgame stats and information collected in the current dataset.
+            final_stats_df (pandas.DataFrame): All final (end of game) stats and information collected in the current dataset.
+            aux_data_df (pandas.DataFrame): Additional game-specific information needed in order to process the dataset.
+            filter_df (pandas.DataFrame, optional): List of players to include in the output dataset. Defaults to None (will generate a new filter).
+
+        Additional Class Attributes:
+            filter (RosterFilter): RosterFilter object used to reduce the number of players being processed.
+
+        Public Methods:
+            generate_roster_filter : Generates a short list of players to focus data collection on, based on highest average Fantasy Points per game.
+            apply_roster_filter : Trims previously-generated NFL stats DataFrames (midgame and final stats) to only include players in a filtered list.
+            validate_final_df :
+
+    """  # fmt: skip
+
+    def __init__(
+        self,
+        data_files_config: dict,
+        feature_sets: list[FeatureSet],
+        midgame_df: pd.DataFrame,
+        final_stats_df: pd.DataFrame,
+        aux_data_df: pd.DataFrame,
+        filter_df: pd.DataFrame | None = None,
+        **kwargs,
+    ):
+        """Constructor for the DatasetProcessor class.
+
+            Args:
+                data_files_config (dict): Settings for input and output data - used here to collect/store validation data.
+                feature_sets (list): All FeatureSet objects used to generate the current dataset.
+                midgame_df (pandas.DataFrame): All midgame stats and information collected in the current dataset.
+                final_stats_df (pandas.DataFrame): All final (end of game) stats and information collected in the current dataset.
+                aux_data_df (pandas.DataFrame): Additional game-specific information needed in order to process the dataset.
+                filter_df (pandas.DataFrame, optional): List of players to include in the output dataset. Defaults to None (will generate a new filter).
+                kwargs (dict): Passed directly to the filter attribute, which is a RosterFilter.
+
+        """  # fmt: skip
+
+        self.data_files_config = data_files_config
+        self.feature_sets = feature_sets
+        self.midgame_df = midgame_df
+        self.final_stats_df = final_stats_df
+        self.aux_data_df = aux_data_df
+        self.filter = RosterFilter(filter_df=filter_df, **kwargs)
+
+    def generate_roster_filter(self, rosters_df, save_file=None):
+        """Generates a short list of players to focus data collection on, based on highest average Fantasy Points per game.
+
+            Rules
+            1. "Currently" active players only (active at some point in the last season being processed)
+            2. Sort by fantasy points per game played
+            3. Player must have played in at least x number of games, where x is set by the RosterFilter.min_games_played attribute
+            4. Take the top num_players number of players per criteria 2
+
+            Saves filtered list of players to a csv file to be used for later data collection.
+
+            Args:
+                rosters_df (pandas.DataFrame): DataFrame containing all weekly NFL rosters for a given series. Loaded from nfl-verse
+                save_file (str, optional): csv file path to save filtered player list. Defaults to None (file is not saved).
+                plot_filter (bool, optional): Whether to visualize the filtered player list by position and average Fantasy Points. Defaults to False.
+
+            Returns:
+                pandas.DataFrame: List of players to include in the filter, along with some additional data like team, position, average Fantasy Points, etc.
+
+        """  # fmt: skip
+
+        # Perform some basic filtering on the rosters_df
+        # 1. Remove players who are not currently active (drop statuses 'RET','CUT','DEV', 'TRC')
+        active_statuses = ["ACT", "INA", "RES", "EXE"]
+        rosters_df = rosters_df[rosters_df.apply(lambda x: x["status"] in active_statuses, axis=1)]
+        # 2. Initialize a filter_df that contains one row per player, with the most recent week they played in
+        last_week_played = rosters_df.loc[:, [PRIMARY_PLAYER_ID, "week"]].groupby([PRIMARY_PLAYER_ID]).max()
+        filter_df = rosters_df[
+            rosters_df.apply(
+                lambda x: (x[PRIMARY_PLAYER_ID] in last_week_played.index.to_list())
+                & (x["week"] == last_week_played.loc[x[PRIMARY_PLAYER_ID], "week"]),
+                axis=1,
+            )
+        ]
+        # 3. Remove players who are not in the stats dataframe, or did not play the minimum number of games
+        game_counts = self.final_stats_df.reset_index()[PRIMARY_PLAYER_ID].value_counts()
+        filter_df = filter_df[
+            filter_df[PRIMARY_PLAYER_ID].apply(
+                lambda x: game_counts[x] >= self.filter.min_games_played if x in game_counts else False,
+            )
+        ]
+
+        # Sequentially apply filter masks from each feature set
+        for feature_set in self.feature_sets:
+            filter_df = feature_set.generate_roster_filter(
+                filter_df=filter_df,
+                final_stats_df=self.final_stats_df,
+            )
+
+        # Take first x (num_players) players from the filtered, sorted list
+        filter_df = filter_df.iloc[0 : self.filter.num_players]
+
+        # Clean up df for saving
+        filter_df = filter_df[[PRIMARY_PLAYER_ID, "full_name", "Fantasy Avg", "team", "position", "jersey_number"]]
+        filter_df = filter_df.rename(
+            columns={
+                "team": "Team",
+                "position": "Position",
+                "jersey_number": "Number",
+                "full_name": "Name",
+                PRIMARY_PLAYER_ID: "Player ID",
+            },
+        )
+
+        # Save
+        if save_file:
+            filter_df.to_csv(save_file)
+            logger.info(f"Saved Roster Filter to {save_file}")
+
+        # Print data and breakdown by team/position
+        logger.info("Roster Filter Breakdown by Team:")
+        logger.info(f"{filter_df['Team'].value_counts()}")
+        logger.info("Roster Filter Breakdown by Position:")
+        logger.info(f"{filter_df['Position'].value_counts()}")
+
+        self.filter.filter_df = filter_df
+
+    def apply_roster_filter(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Trims previously-generated NFL stats DataFrames (midgame and final stats) to only include players in a filtered list.
+
+            Returns:
+                pandas.DataFrame: midgame_df, trimmed to only include the players in filter_df.
+                pandas.DataFrame: final_stats_df, trimmed to only include the players in filter_df.
+
+        """  # fmt: skip
+        if self.filter.filter_df is None:
+            logger.warning("No filter_df provided. Skipping roster filter application.")
+            return self.midgame_df, self.final_stats_df
+
+        filter_ids = self.filter.filter_df["Player ID"].to_list()
+        self.midgame_df = self.midgame_df[self.midgame_df.index.to_frame()[PRIMARY_PLAYER_ID].apply(lambda x: x in filter_ids)]
+        self.final_stats_df = self.final_stats_df[self.final_stats_df.apply(lambda x: x.name[0] in filter_ids, axis=1)]
+
+        return self.midgame_df, self.final_stats_df
+
+    def validate_final_df(self, **kwargs):
+        """Compares collected data in the final stats DataFrame against external info sources where applicable.
+
+            Keyword-Arguments:
+                save_data (bool, optional): Whether to save the data comparison. Defaults to False.
+
+        """  # fmt: skip
+
+        # Optional input to save data
+        save_data = kwargs.get("save_data", False)
+
+        # Collect truth data from feature sets
+        all_truth_data = pd.DataFrame()
+        all_truth_columns = []
+        for feature_set in self.feature_sets:
+            val_df = feature_set.collect_validation_data(
+                data_files_config=self.data_files_config,
+                final_stats_df=self.final_stats_df,
+                aux_data_df=self.aux_data_df,
+                **kwargs,
+            )
+            all_truth_data = pd.concat((all_truth_data, val_df))
+            all_truth_columns.extend(val_df.columns.tolist())
+
+        # Check that some validation data was actually collected
+        if all_truth_data.shape[0] == 0:
+            logger.warning("No validation data collected. Skipping validation.")
+            return
+
+        # Perform comparison of the two dataframes
+        diff_df = self.__compare_dfs(all_truth_data, self.final_stats_df, all_truth_columns)
+
+        # Log comparison performance
+        self.__print_validation_comparison(diff_df, all_truth_columns)
+
+        # Save validation results to file if requested
+        if save_data:
+            create_folders(self.data_files_config["parsing_validation_file"])
+            diff_df.to_csv(self.data_files_config["parsing_validation_file"])
+
+        # Plot differences in numerical values
+        self.__plot_validation_comparison(diff_df, all_truth_columns)
+
+    def __compare_dfs(self, true_df, final_stats_df, columns):
+        # Merge dataframes and compute differences in statistics
+        merged_df = true_df.merge(final_stats_df, how="inner", left_index=True, right_index=True)
+        for col in columns:
+            merged_df[f"{col}_diff"] = merged_df[f"{col}_y"] - merged_df[f"{col}_x"]  # Estimated minus truth
+        diff_df = merged_df[["Player Name"] + [col + "_diff" for col in columns]]
+        return diff_df
+
+    def __print_validation_comparison(self, diff_df, columns):
+        # Log comparison performance
+        col_diffs = diff_df[[col + "_diff" for col in columns]]
+        avg_diffs = col_diffs.mean()
+        num_nonzero = col_diffs.astype(bool).sum()
+        logger.info(
+            f"Number of differences between parsed and true data: {num_nonzero.sum()} ({100 * num_nonzero.sum() / col_diffs.size:.2f}%)",
+        )
+        logger.debug(f"Number of differences by stat: \n{num_nonzero}")
+        logger.debug(f"Average difference by stat: \n{avg_diffs}")
+
+    def __plot_validation_comparison(self, diff_df, columns):
+        # Create a scatterplot of differences in values for each info category (data column).
+        x = [list(range(len(columns))) for _ in range(diff_df.shape[0])]
+        y = diff_df[[s + "_diff" for s in columns]].stack()
+
+        _, ax = plt.subplots(1, 1)
+        ax.scatter(x, y)
+        ax.set_ylabel("Difference, Truth - Parsed Data")
+        ax.set_xticks(range(len(columns)))
+        ax.set_xticklabels(columns)
+        for label in ax.get_xticklabels():
+            label.set(rotation=45, horizontalalignment="right")
+        ax.set_title("Play-By-Play Parsing Validation vs. True Statlines")
+
+        plt.show(block=False)

@@ -63,7 +63,7 @@ class FantasyPredictor:
         # Override any necessary keyword argument values
         kwargs["normalized"] = kwargs.get("normalized", True)
 
-        stat_truths = stats_to_fantasy_points(eval_data.y_data, stat_indices=eval_data.y_data_columns, **kwargs)
+        stat_truths = stats_to_fantasy_points(eval_data.y_data, stat_configs=eval_data.y_data_columns, **kwargs)
         return stat_truths
 
     # PROTECTED METHODS

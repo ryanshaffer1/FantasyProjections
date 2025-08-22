@@ -1,57 +1,36 @@
-"""Functions and classes used to manipulate user inputs into the FantasyProjections scenario.
+"""Classes and functions used to manipulate user inputs into the FantasyProjections scenario.
+
+    Classes:
+        InputParameters : Data structure used to store and manipulate all inputs passed into the scenario.
 
     Functions:
         parse_inputs : Reads input YAML file into InputParameters object, normalizes, and optionally saves.
         recursive_dict_merge : Fills in any missing values in input_struct based on the values in defaults.
 
-    Classes:
-        InputParameters : Data structure used to store and manipulate all inputs passed into the scenario.
 
 """  # fmt:skip
 
+from __future__ import annotations
+
 import logging
 import os
+from typing import TYPE_CHECKING
 
 import yaml
 
+from misc.dataset import StatsDataset
 from misc.manage_files import create_folders, name_save_folder
+from misc.yaml_constructor import add_yaml_constructors
+
+if TYPE_CHECKING:
+    from misc.dataset import StatsDataset
+
 
 default_filename = "FantasyProjections/config/default_inputs.yaml"
 
 
 # Set up logger
 logger = logging.getLogger("log")
-
-
-def parse_inputs(input_filename):
-    """Reads input YAML file into InputParameters object, normalizes, and optionally saves.
-
-        Normalization: replacing any missing, required inputs with inputs from the default input file.
-
-        Args:
-            input_filename (str): YAML input file for current scenario
-
-        Returns:
-            InputParameters: Parsed and normalized inputs.
-
-    """  # fmt: skip
-
-    with open(input_filename) as stream:
-        inputs = InputParameters(yaml.safe_load(stream))
-
-    with open(default_filename) as stream:
-        default_inputs = InputParameters(yaml.safe_load(stream))
-
-    inputs.normalize(default_inputs)
-
-    # Generate save directory
-    inputs.save_options["save_directory"] = name_save_folder(inputs.save_options)
-
-    # Save a copy of the input parameters if specified
-    if inputs.save_options["save_input_file"]:
-        inputs.save()
-
-    return inputs
 
 
 class InputParameters:
@@ -76,7 +55,7 @@ class InputParameters:
 
     """  # fmt: skip
 
-    def __init__(self, input_dict):
+    def __init__(self, input_dict: dict):
         """Constructor for InputParameters.
 
             Args:
@@ -97,8 +76,9 @@ class InputParameters:
                 Any omitted fields are initialized as an empty dict or empty list, depending on the input type.
 
         """  # fmt: skip
-
+        self.data_files_config = input_dict.get("data_files_config", {})
         self.save_options = input_dict.get("save_options", {})
+        self.features = input_dict.get("features", {})
         self.datasets = input_dict.get("datasets", [])
         self.hyperparameters = input_dict.get("hyperparameters", {})
         self.predictors = input_dict.get("predictors", [])
@@ -119,7 +99,9 @@ class InputParameters:
 
         # Merge dictionaries, with self taking precedence over default_inputs in the case of matching keys
         # Note that though the recursive_dict_merge returns a value, it does not need to be assigned due to the memory persistence of dicts
+        recursive_dict_merge(self.data_files_config, default_inputs.data_files_config, add_if_empty=True)
         recursive_dict_merge(self.save_options, default_inputs.save_options, add_if_empty=True)
+        recursive_dict_merge(self.features, default_inputs.features, add_if_empty=True)
         recursive_dict_merge(self.datasets, default_inputs.datasets, add_if_empty=True)
         recursive_dict_merge(self.hyperparameters, default_inputs.hyperparameters, add_if_empty=True)
         recursive_dict_merge(self.predictors, default_inputs.predictors, add_if_empty=True)
@@ -130,7 +112,7 @@ class InputParameters:
         recursive_dict_merge(self.gamblers, default_inputs.gamblers, add_if_empty=False)
         recursive_dict_merge(self.plot_groups, default_inputs.plot_groups, add_if_empty=False)
 
-    def save(self, save_file=None):
+    def save(self, save_file: str | None = None):
         """Generates YAML file from the InputParameters object.
 
             Args:
@@ -150,9 +132,87 @@ class InputParameters:
         with open(save_file, "w") as file:
             yaml.dump(self, file)
 
+    def update_params_based_on_features(self, all_data: StatsDataset) -> None:
+        """Updates input parameters after features have been loaded and a StatsDataset created.
+
+            Primary function is to modify any Neural Net Predictor objects to align with the input/output features.
+
+            Args:
+                all_data (StatsDataset): Dataset containing all input and output columns based on the features listed in the input parameters.
+
+        """  # fmt: skip
+
+        # Update NeuralNetwork shape based on input/output features
+        for pred in self.predictors:
+            if pred.get("type") == "NeuralNetPredictor":
+                nn_shape = pred["config"]["nn_shape"]
+
+                # Get number of inputs to each embedding layer
+                embedding_inputs = {}
+                embedding_indices = {}
+                for e_name, e_layer in nn_shape["embedding"].items():
+                    col_indices = [i for i, col in enumerate(all_data.x_data_columns) if col.startswith(f"{e_layer['feature']}_")]
+                    embedding_inputs[e_name] = len(col_indices)
+                    embedding_indices[e_name] = col_indices
+
+                # Build inputs
+                nn_shape["input"] = {}
+                nn_shape["input"]["unembedded"] = len(all_data.x_data_columns) - sum(embedding_inputs.values())
+                nn_shape["input"].update(embedding_inputs)
+
+                # Track input indices in the nn_shape
+                all_embedded_indices = {x for ind_list in embedding_indices.values() for x in ind_list}
+                nn_shape["input_indices"] = {}
+                nn_shape["input_indices"]["unembedded"] = [
+                    x for x in range(len(all_data.x_data_columns)) if x not in all_embedded_indices
+                ]
+                nn_shape["input_indices"].update(embedding_indices)
+
+                # Reformat embedding layers to just the sizes
+                nn_shape["embedding"] = {e_name: e_layer["n"] for e_name, e_layer in nn_shape["embedding"].items()}
+
+                # Set output size
+                nn_shape["output"] = len(all_data.y_data_columns)
+
+
+def parse_inputs(input_filename: str) -> InputParameters:
+    """Reads input YAML file into InputParameters object, normalizes, and optionally saves.
+
+        Normalization: replacing any missing, required inputs with inputs from the default input file.
+
+        Args:
+            input_filename (str): YAML input file for current scenario
+
+        Returns:
+            InputParameters: Parsed and normalized inputs.
+
+    """  # fmt: skip
+    add_yaml_constructors()
+
+    with open(input_filename) as stream:
+        inputs = InputParameters(yaml.safe_load(stream))
+
+    with open(default_filename) as stream:
+        default_inputs = InputParameters(yaml.safe_load(stream))
+
+    inputs.normalize(default_inputs)
+
+    # Generate save directory
+    inputs.save_options["save_directory"] = name_save_folder(inputs.save_options)
+
+    # Save a copy of the input parameters if specified
+    if inputs.save_options["save_input_file"]:
+        inputs.save()
+
+    return inputs
+
 
 # ruff: noqa: PLR0912
-def recursive_dict_merge(input_struct, defaults, add_if_empty=True):
+def recursive_dict_merge(
+    input_struct: dict | list | tuple,
+    defaults: dict | list | tuple,
+    add_if_empty: bool = True,
+) -> dict | list | tuple:
     """Fills in any missing values in input_struct based on the values in defaults.
 
         Calls recursively so that nested dicts/lists/tuples are also filled with default values.
@@ -169,13 +229,13 @@ def recursive_dict_merge(input_struct, defaults, add_if_empty=True):
             dict | list | tuple: input_struct, with any missing fields filled in with the corresponding values in defaults.
 
     """  # fmt: skip
-    # Do nothing if the input_struct is empty and add_if_empty is False
-    if len(input_struct) == 0 and not add_if_empty:
-        return input_struct
-
     # Do nothing if the input or the default is not a searchable/mergeable data type
     mergeable_types = dict | list | tuple
     if not (isinstance(input_struct, mergeable_types) and isinstance(defaults, mergeable_types)):
+        return input_struct
+
+    # Do nothing if the input_struct is empty and add_if_empty is False
+    if len(input_struct) == 0 and not add_if_empty:
         return input_struct
 
     # If input is a list, run the dict merge for each entry in the list
@@ -186,7 +246,7 @@ def recursive_dict_merge(input_struct, defaults, add_if_empty=True):
 
     # If "type" is a key for the input, then must match to the correct typed default
     if "type" in input_struct:
-        defaults = _recursive_find_dict_of_matching_type(input_struct, defaults)
+        defaults = _recursive_find_dict_of_matching_type(input_struct, defaults)  # type: ignore[reportAssignmentType]
         if defaults is None:
             # Default dict with the same type could not be found - cannot merge
             logger.warning(f"No default inputs found for input of type {input_struct['type']}")
@@ -215,7 +275,7 @@ def recursive_dict_merge(input_struct, defaults, add_if_empty=True):
     return input_struct
 
 
-def _recursive_find_dict_of_matching_type(input_dict, defaults):
+def _recursive_find_dict_of_matching_type(input_dict: dict, defaults: dict | list | tuple) -> dict | None:
     # If input_dict has key "type", then it likely has type-specific inputs (and default values).
     # Search for a data structure in defaults (may be nested) that has the same type as input_dict.
 

@@ -1,0 +1,148 @@
+# File structure for all input/output/auxiliary data
+data_files_config: &data_files_config !DataFilesConfig {config_file: "tests/_test_files/config_files/test_data_files_config.yaml"}
+
+# Flags to configure the dataset build process
+flags:
+  !Flags
+    save_data: False  # Saves data in .csv's (output files specified below)
+    process_to_nn: True  # After saving human-readable data, creates data formatted for Neural Network usage
+    filter_roster: True  # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
+    update_filter: True  # Forces re-evaluation of filtered list of players
+    validate_parsing: False  # Gathers true box scores from the internet to confirm logic in play-by-play parsing is correct
+    scrape_missing: False  # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
+
+# Dataset Inputs
+dataset_options:
+  !DatasetOptions
+    team_names: ["Washington Commanders"]  # All team names
+    years: !range [2023, 2025]  # All years to process data for
+    weeks: !range [1, 2]  # All weeks to process data for (applies this set to all years in YEARS)
+    game_times: !range [76]  # Alternates: 'all', list of numbers
+
+# Processor configuration (optional)
+processor_config:
+  min_games_played: 1
+
+# Features
+feature_sets:
+  - !GameContextFeatureSet
+    features:
+    - !Feature {name: "Team", thresholds: [], outputs: ["id","midgame"], one_hot_encode: true}
+    - !Feature {name: "Opponent", thresholds: [], outputs: ["id","midgame"], one_hot_encode: true}
+    - !Feature {name: "Team Score", thresholds: [0, 100], outputs: ["midgame"]}
+    - !Feature {name: "Opp Score", thresholds: [0, 100], outputs: ["midgame"]}
+    - !Feature {name: "Possession", thresholds: [0, 1], outputs: ["midgame"]}
+    - !Feature {name: "Field Position", thresholds: [0, 100], outputs: ["midgame"]}
+    - !Feature {name: "Site", thresholds: [0, 1], outputs: ["midgame"]}
+    - !Feature {name: "Team Wins", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Team Losses", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Team Ties", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Opp Wins", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Opp Losses", thresholds: [0, 18], outputs: ["midgame"]}
+    - !Feature {name: "Opp Ties", thresholds: [0, 18], outputs: ["midgame"]}
+    sources:
+      online: !concat [!config_var [*data_files_config, online_url_nflverse], "pbp/play_by_play_{0}.csv"]
+      local: !path [!config_var [*data_files_config, input_folder], "play_by_play/play_by_play_{0}.csv"]
+
+  - !StatsFeatureSet
+    features:
+    - !StatFeature 
+      name: "Pass Att"
+      thresholds: [0, 100]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0
+      site_labels: {"sleeper": "pass_att", "pfr": "pass_att", "odds": "player_pass_attempts"}
+    - !StatFeature
+      name: "Pass Cmp"
+      thresholds: [0, 100]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0
+      site_labels: {"sleeper": "pass_cmp", "pfr": "pass_cmp", "odds": "player_pass_completions"}
+    - !StatFeature
+      name: "Pass Yds"
+      thresholds: [-50, 1000]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0.04
+      site_labels: {"sleeper": "pass_yd", "pfr": "pass_yds", "odds": "player_pass_yds"}
+    - !StatFeature
+      name: "Pass TD"
+      thresholds: [0, 8]
+      outputs: ["midgame", "final"]
+      scoring_weight: 4
+      site_labels: {"sleeper": "pass_td", "pfr": "pass_td", "odds": "player_pass_tds"}
+    - !StatFeature
+      name: "Int"
+      thresholds: [0, 8]
+      outputs: ["midgame", "final"]
+      scoring_weight: -2
+      site_labels: {"sleeper": "pass_int", "pfr": "pass_int", "odds": "player_pass_interceptions"}
+    - !StatFeature
+      name: "Rush Att"
+      thresholds: [0, 100]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0
+      site_labels: {"sleeper": "rush_att", "pfr": "rush_att", "odds": "player_rush_attempts"}
+    - !StatFeature
+      name: "Rush Yds"
+      thresholds: [-50, 1000]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0.1
+      site_labels: {"sleeper": "rush_yd", "pfr": "rush_yds", "odds": "player_rush_yds"}
+    - !StatFeature
+      name: "Rush TD"
+      thresholds: [0, 8]
+      outputs: ["midgame", "final"]
+      scoring_weight: 6
+      site_labels: {"sleeper": "rush_td", "pfr": "rush_td", "odds": "player_rush_tds"}
+    - !StatFeature
+      name: "Rec"
+      thresholds: [0, 100]
+      outputs: ["midgame", "final"]
+      scoring_weight: 1
+      site_labels: {"sleeper": "rec", "pfr": "rec", "odds": "player_receptions"}
+    - !StatFeature
+      name: "Rec Yds"
+      thresholds: [-50, 1000]
+      outputs: ["midgame", "final"]
+      scoring_weight: 0.1
+      site_labels: {"sleeper": "rec_yd", "pfr": "rec_yds", "odds": "player_reception_yds"}
+    - !StatFeature
+      name: "Rec TD"
+      thresholds: [0, 8]
+      outputs: ["midgame", "final"]
+      scoring_weight: 6
+      site_labels: {"sleeper": "rec_td", "pfr": "rec_td", "odds": "player_reception_tds"}
+    - !StatFeature
+      name: "Fmb"
+      thresholds: [0, 8]
+      outputs: ["midgame", "final"]
+      scoring_weight: -2
+      site_labels: {"sleeper": "fum_lost", "pfr": "fumbles_lost"}
+    sources:
+      online: !conFeaturecat [!config_var [*data_files_config, online_url_nflverse], "pbp/play_by_play_{0}.csv"]
+      local: !path [!config_var [*data_files_config, input_folder], "play_by_play/play_by_play_{0}.csv"]
+
+  - !PlayerInfoFeatureSet
+    features:
+    - !Feature {name: "Position", thresholds: [], outputs: ["id","midgame"], one_hot_encode: true}
+    - !Feature {name: "Age", thresholds: [0, 60], outputs: ["midgame"]}
+    sources:
+      online: !concat [!config_var [*data_files_config, online_url_nflverse], "weekly_rosters/roster_weekly_{0}.csv"]
+      local: !path [!config_var [*data_files_config, input_folder], "rosters/roster_weekly_{0}.csv"]
+
+  - !InjuryFeatureSet
+    features:
+      - !Feature {name: "Injury Status", thresholds: [0,1], outputs: ["midgame"]}
+    sources:
+      online: !concat [!config_var [*data_files_config, online_url_nflverse], "injuries/injuries_{0}.csv"]
+      local: !path [!config_var [*data_files_config, input_folder], "injuries/injuries_{0}.csv"]
+
+  - !OddsFeatureSet
+    features:
+    - !MultiColumnFeature {name: "Pass Yds", thresholds: [], outputs: ["midgame"], sub_columns: ["Over Point", "Over Price", "Under Point", "Under Price"]}
+    - !MultiColumnFeature {name: "Rush Yds", thresholds: [], outputs: ["midgame"], sub_columns: ["Over Point", "Over Price", "Under Point", "Under Price"]}
+    - !MultiColumnFeature {name: "Rec Yds", thresholds: [], outputs: ["midgame"], sub_columns: ["Over Point", "Over Price", "Under Point", "Under Price"]}
+    sources:
+      local: !path [!config_var [*data_files_config, input_folder], "odds/odds_api_requests.json"]
+    surrogate: true
+    game_times: [0]

@@ -10,15 +10,19 @@
         update_master_player_ids : Adds potentially new players to the master Player IDs file, and optionally searches for matches to missing IDs in the file.
 """  # fmt: skip
 
+from __future__ import annotations
+
 import json
 import logging
 import logging.config
+import os
 
 import pandas as pd
 
 from config.log_config import LOGGING_CONFIG
-from data_pipeline.stats_pipeline.scrape_pro_football_reference import search_for_missing_pfr_id
-from data_pipeline.utils.name_matching import find_matching_name_ind
+from misc.manage_files import create_folders
+from misc.name_matching import find_matching_name_ind
+from misc.scrape_pro_football_reference import search_for_missing_pfr_id
 
 # Define constants for ID systems being used and tracked throughout the program
 PRIMARY_PLAYER_ID = "gsis_id"
@@ -33,10 +37,19 @@ logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger("log")
 
 
-def fill_blank_player_ids(players_df, master_id_file=None, pfr_id_filename=None, *, add_missing_pfr=False, update_master=False):
+def fill_blank_player_ids(
+    players_df: pd.DataFrame,
+    pfr_player_url_intro: str,
+    master_id_file: str | None = None,
+    pfr_id_filename: str | None = None,
+    *,
+    add_missing_pfr: bool = False,
+    update_master: bool = False,
+):
     """Attempts to add missing alternate player IDs to a DataFrame of players, using a master list and other resources to search for the correct player IDs.
 
         Args:
+            pfr_player_url_intro (str): Base URL of the Pro-Football-Reference player pages (unique player IDs are appended to this URL).
             players_df (pandas.DataFrame): DataFrame listing out players and their IDs. Must have the following columns:
                 Player Name, all PLAYER_IDS. The ALT_PLAYER_IDS columns will be modified; the df is otherwise unmodified.
             master_id_file (str, optional): Filename to master list of players and their different ID formats. Defaults to None.
@@ -63,13 +76,13 @@ def fill_blank_player_ids(players_df, master_id_file=None, pfr_id_filename=None,
     )
 
     # Optionally search for missing data points
-    if add_missing_pfr:
+    if add_missing_pfr or (isinstance(pfr_id_filename, str) and not os.path.exists(pfr_id_filename)):
         # Log size of the array and number of missing data points
         logger.info(f"Number of Players in Roster: {len(players_df)}")
         logger.info(f"Number of Missing Player IDs: \n{players_df.loc[:, PLAYER_IDS].isna().sum()}")
 
         # Add missing PFR IDs to id_df
-        players_df = __add_missing_pfr_ids(players_df, pfr_id_filename)
+        players_df = __add_missing_pfr_ids(pfr_player_url_intro, players_df, pfr_id_filename)
 
         # Log number of missing data points again after updating
         logger.info(f"Number of Missing IDs Remaining: \n{players_df.loc[:, PLAYER_IDS].isna().sum()}")
@@ -77,6 +90,7 @@ def fill_blank_player_ids(players_df, master_id_file=None, pfr_id_filename=None,
     # Optionally update the master player ID map and save it to file
     if update_master:
         update_master_player_ids(
+            pfr_player_url_intro=pfr_player_url_intro,
             addl_players_df=players_df,
             master_id_file=master_id_file,
             pfr_id_filename=pfr_id_filename,
@@ -92,15 +106,17 @@ def fill_blank_player_ids(players_df, master_id_file=None, pfr_id_filename=None,
 
 def update_master_player_ids(
     *,
-    addl_players_df=None,
-    master_id_file=None,
-    pfr_id_filename=None,
-    add_missing_pfr=False,
-    save_data=False,
+    pfr_player_url_intro: str,
+    addl_players_df: pd.DataFrame | None = None,
+    master_id_file: str | None = None,
+    pfr_id_filename: str | None = None,
+    add_missing_pfr: bool = False,
+    save_data: bool = False,
 ):
     """Adds potentially new players to the master Player IDs file, and optionally searches for matches to missing IDs in the file.
 
         Args:
+            pfr_player_url_intro (str): Base URL for Pro-Football-Reference stats, with game-specific IDs appended to this base.
             addl_players_df (pandas.DataFrame, optional): DataFrame listing out players that may not be in the master file. Defaults to None.
             master_id_file (str, optional): Filename to master list of players and their different ID formats. Defaults to None.
             pfr_id_filename (str, optional): Filename to pro-football-reference name to ID dictionary. Defaults to None.
@@ -121,25 +137,29 @@ def update_master_player_ids(
     # Optionally search for missing data points
     if add_missing_pfr:
         # Add missing PFR IDs to id_df
-        id_df = __add_missing_pfr_ids(id_df, pfr_id_filename)
+        id_df = __add_missing_pfr_ids(pfr_player_url_intro, id_df, pfr_id_filename)
 
         # Log number of missing data points again after updating
         logger.info(f"Number of Missing IDs Remaining: \n{id_df.isna().sum()}")
 
     # Save updated map to file
-    if save_data:
+    if save_data and master_id_file is not None:
+        create_folders(master_id_file)
         id_df.to_csv(master_id_file, index=False)
 
     return id_df
 
 
-def __setup_master_id_df(master_id_file, addl_players_df=None):
+def __setup_master_id_df(master_id_file: str | None, addl_players_df: pd.DataFrame | None = None):
     # DataFrame tracking only player names and IDs
-    try:
-        id_df = pd.read_csv(master_id_file)
-        logger.debug(f"Read Player ID file from {master_id_file}")
-    except (FileNotFoundError, ValueError):
-        logger.warning("Master Player ID file not found during load process.")
+    if master_id_file is not None:
+        try:
+            id_df = pd.read_csv(master_id_file)
+            logger.debug(f"Read Player ID file from {master_id_file}")
+        except (FileNotFoundError, ValueError):
+            logger.warning("Master Player ID file not found during load process.")
+            id_df = pd.DataFrame()
+    else:
         id_df = pd.DataFrame()
 
     # Add all player names and IDs from input roster
@@ -155,19 +175,29 @@ def __setup_master_id_df(master_id_file, addl_players_df=None):
     return id_df
 
 
-def __add_missing_pfr_ids(id_df, pfr_id_filename=None):
+def __add_missing_pfr_ids(pfr_player_url_intro: str, id_df: pd.DataFrame, pfr_id_filename: str | None = None):
     # Search for Missing PFR IDs in two places (in search order):
     # 1. In the locally-saved json file given by pfr_id_filename
     # 2. On pro-football-reference.com
     # Adds any PFR IDs that match the player name to id_df, and updates the local json file.
 
     # Load previously-found pairs of player names and PFR IDs
-    try:
-        with open(pfr_id_filename, encoding="utf-8") as file:
-            pfr_id_name_dict = json.load(file)
-    except (FileNotFoundError, TypeError):
-        logger.warning("PFR ID dictionary file not found during load process.")
+    if pfr_id_filename is not None:
+        try:
+            with open(pfr_id_filename, encoding="utf-8") as file:
+                pfr_id_name_dict = json.load(file)
+        except FileNotFoundError:
+            logger.warning("PFR ID dictionary file not found during load process.")
+            pfr_id_name_dict = {}
+    else:
         pfr_id_name_dict = {}
+
+    # Update the dict with any IDs already in the id_df
+    ids_in_df_but_not_dict = id_df.loc[
+        ~id_df["pfr_id"].isin(pfr_id_name_dict.values()) & id_df["pfr_id"].notna(),
+        ["Player Name", "pfr_id"],
+    ]
+    pfr_id_name_dict.update(dict(zip(ids_in_df_but_not_dict["Player Name"], ids_in_df_but_not_dict["pfr_id"])))
 
     pfr_ids_found = []
     n_missing = id_df["pfr_id"].isna().sum()
@@ -176,15 +206,17 @@ def __add_missing_pfr_ids(id_df, pfr_id_filename=None):
         logger.info(f"({ind + 1} of {n_missing}): {player_name}")
         try:
             # Look for player name in dict of names/IDs already searched
-            pfr_ids_found.append(list(pfr_id_name_dict.values())[find_matching_name_ind(player_name, pfr_id_name_dict)])
+            pfr_ids_found.append(list(pfr_id_name_dict.values())[find_matching_name_ind(player_name, pfr_id_name_dict)])  # type: ignore[reportArgumentType]
             logger.debug("id found in json file")
         except TypeError:
             # Search for the ID online
             try:
-                pfr_id, new_dict_entries = search_for_missing_pfr_id(player_name)
+                pfr_id, new_dict_entries = search_for_missing_pfr_id(pfr_player_url_intro, player_name)
             except Exception:
-                with open(pfr_id_filename, "w", encoding="utf-8") as file:
-                    json.dump(pfr_id_name_dict, file)
+                # If an error occurs, save the current state of the dict before raising it
+                if pfr_id_filename is not None:
+                    with open(pfr_id_filename, "w", encoding="utf-8") as file:
+                        json.dump(pfr_id_name_dict, file)
                 raise
             pfr_ids_found.append(pfr_id)
             # Include latest searched name/ID pairs in dict
@@ -197,10 +229,11 @@ def __add_missing_pfr_ids(id_df, pfr_id_filename=None):
     id_df.loc[id_df["pfr_id"].isna(), "pfr_id"] = pfr_ids_found
 
     # Update dict file
-    try:
-        with open(pfr_id_filename, "w", encoding="utf-8") as file:
-            json.dump(pfr_id_name_dict, file)
-    except (FileNotFoundError, TypeError):
-        logger.warning("PFR ID dictionary file not found during save process.")
+    if pfr_id_filename is not None:
+        try:
+            with open(pfr_id_filename, "w", encoding="utf-8") as file:
+                json.dump(pfr_id_name_dict, file)
+        except FileNotFoundError:
+            logger.warning("PFR ID dictionary file not found during save process.")
 
     return id_df
