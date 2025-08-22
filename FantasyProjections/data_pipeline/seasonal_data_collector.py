@@ -14,8 +14,8 @@ import pandas as pd
 
 from config.player_id_config import PLAYER_IDS, PRIMARY_PLAYER_ID, fill_blank_player_ids
 from data_pipeline.single_game_data_worker import SingleGameDataWorker
-from data_pipeline.utils import team_abbreviations as team_abbrs
-from data_pipeline.utils.data_helper_functions import (
+from misc import team_abbreviations as team_abbrs
+from misc.data_helper_functions import (
     clean_team_names,
     compute_team_record,
 )
@@ -287,7 +287,7 @@ class SeasonalDataCollector:
             master_id_file=self.data_files_config["master_player_id_file"],
             pfr_id_filename=self.data_files_config["pfr_id_filename"],
             add_missing_pfr=False,
-            update_master=False,
+            update_master=True,
         )
 
         return all_rosters_df

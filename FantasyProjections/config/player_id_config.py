@@ -15,12 +15,14 @@ from __future__ import annotations
 import json
 import logging
 import logging.config
+import os
 
 import pandas as pd
 
 from config.log_config import LOGGING_CONFIG
-from data_pipeline.stats_pipeline.scrape_pro_football_reference import search_for_missing_pfr_id
-from data_pipeline.utils.name_matching import find_matching_name_ind
+from misc.manage_files import create_folders
+from misc.name_matching import find_matching_name_ind
+from misc.scrape_pro_football_reference import search_for_missing_pfr_id
 
 # Define constants for ID systems being used and tracked throughout the program
 PRIMARY_PLAYER_ID = "gsis_id"
@@ -74,7 +76,7 @@ def fill_blank_player_ids(
     )
 
     # Optionally search for missing data points
-    if add_missing_pfr:
+    if add_missing_pfr or (isinstance(pfr_id_filename, str) and not os.path.exists(pfr_id_filename)):
         # Log size of the array and number of missing data points
         logger.info(f"Number of Players in Roster: {len(players_df)}")
         logger.info(f"Number of Missing Player IDs: \n{players_df.loc[:, PLAYER_IDS].isna().sum()}")
@@ -141,7 +143,8 @@ def update_master_player_ids(
         logger.info(f"Number of Missing IDs Remaining: \n{id_df.isna().sum()}")
 
     # Save updated map to file
-    if save_data:
+    if save_data and master_id_file is not None:
+        create_folders(master_id_file)
         id_df.to_csv(master_id_file, index=False)
 
     return id_df
@@ -188,6 +191,13 @@ def __add_missing_pfr_ids(pfr_player_url_intro: str, id_df: pd.DataFrame, pfr_id
             pfr_id_name_dict = {}
     else:
         pfr_id_name_dict = {}
+
+    # Update the dict with any IDs already in the id_df
+    ids_in_df_but_not_dict = id_df.loc[
+        ~id_df["pfr_id"].isin(pfr_id_name_dict.values()) & id_df["pfr_id"].notna(),
+        ["Player Name", "pfr_id"],
+    ]
+    pfr_id_name_dict.update(dict(zip(ids_in_df_but_not_dict["Player Name"], ids_in_df_but_not_dict["pfr_id"])))
 
     pfr_ids_found = []
     n_missing = id_df["pfr_id"].isna().sum()

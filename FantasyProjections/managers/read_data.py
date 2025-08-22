@@ -37,8 +37,8 @@ def read_data_into_dataset(features: dict, data_files_config: dict, log_datafile
 
     """  # fmt: skip
 
-    pbp_datafile = data_files_config["stat_files"]["midgame"]
-    boxscore_datafile = data_files_config["stat_files"]["final"]
+    pbp_datafile = data_files_config["output_file_final_stats"]
+    boxscore_datafile = data_files_config["output_file_midgame"]
 
     # Read data files
     pbp_df = pd.read_csv(pbp_datafile, engine="pyarrow")
@@ -94,7 +94,7 @@ def preprocess_data(
     pbp_df: pd.DataFrame,
     final_stats_df: pd.DataFrame,
     features: dict,
-):
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Converts stats data from raw statistics to a Neural Network-readable format.
 
         Main steps:
@@ -175,9 +175,9 @@ def preprocess_data(
             columns_from_features(features, criteria="thresholds", return_key="thresholds"),
         ),
     )
-    pbp_df = normalize_stat(pbp_df, feature_thresholds)
-    final_stats_df = normalize_stat(final_stats_df, feature_thresholds)
-    misc_df = normalize_stat(misc_df, feature_thresholds)
+    pbp_df = pd.DataFrame(normalize_stat(pbp_df, feature_thresholds))
+    final_stats_df = pd.DataFrame(normalize_stat(final_stats_df, feature_thresholds))
+    misc_df = pd.DataFrame(normalize_stat(misc_df, feature_thresholds))
 
     # Name columns of the df
     for group_name, columns in misc_columns.items():

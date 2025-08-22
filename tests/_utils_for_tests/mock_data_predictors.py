@@ -48,14 +48,14 @@ bs_df = pd.DataFrame(
 pbp_features = {
     "Elapsed Time": {"thresholds": [0, 60]},
     "Field Position": {"thresholds": [0, 100]},
-    "Pass Yds": {"thresholds": [0, 1000], "weight": 0.04},
-    "Rush Yds": {"thresholds": [0, 1000], "weight": 0.1},
-    "Rec Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Pass Yds": {"thresholds": [0, 1000], "scoring_weight": 0.04},
+    "Rush Yds": {"thresholds": [0, 1000], "scoring_weight": 0.1},
+    "Rec Yds": {"thresholds": [0, 1000], "scoring_weight": 0.1},
 }
 bs_features = {
-    "Pass Yds": {"thresholds": [0, 1000], "weight": 0.04},
-    "Rush Yds": {"thresholds": [0, 1000], "weight": 0.1},
-    "Rec Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Pass Yds": {"thresholds": [0, 1000], "scoring_weight": 0.04},
+    "Rush Yds": {"thresholds": [0, 1000], "scoring_weight": 0.1},
+    "Rec Yds": {"thresholds": [0, 1000], "scoring_weight": 0.1},
 }
 
 # LastNPredictor variables
@@ -159,9 +159,9 @@ expected_predicts_neural_net = pd.DataFrame(
 pbp_features_neural_net = {
     "Elapsed Time": {"thresholds": [0, 60]},
     "Field Position": {"thresholds": [0, 100]},
-    "Pass Yds": {"thresholds": [0, 1000], "weight": 0.04},
-    "Rush Yds": {"thresholds": [0, 1000], "weight": 0.1},
-    "Rec Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Pass Yds": {"thresholds": [0, 1000], "scoring_weight": 0.04},
+    "Rush Yds": {"thresholds": [0, 1000], "scoring_weight": 0.1},
+    "Rec Yds": {"thresholds": [0, 1000], "scoring_weight": 0.1},
     "Position_QB": {},
     "Position_RB": {},
     "Position_TE": {},
@@ -178,9 +178,9 @@ pbp_features_neural_net = {
     "Opponent_TB": {},
 }
 bs_features_neural_net = {
-    "Pass Yds": {"thresholds": [0, 1000], "weight": 0.04},
-    "Rush Yds": {"thresholds": [0, 1000], "weight": 0.1},
-    "Rec Yds": {"thresholds": [0, 1000], "weight": 0.1},
+    "Pass Yds": {"thresholds": [0, 1000], "scoring_weight": 0.04},
+    "Rush Yds": {"thresholds": [0, 1000], "scoring_weight": 0.1},
+    "Rec Yds": {"thresholds": [0, 1000], "scoring_weight": 0.1},
 }
 
 # Hacky way to write a new dataset that can be hardcoded above

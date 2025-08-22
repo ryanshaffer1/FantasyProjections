@@ -4,24 +4,23 @@ data_files_config: &data_files_config !DataFilesConfig {config_file: "FantasyPro
 # Flags to configure the dataset build process
 flags:
   !Flags
-    save_data: True  # Saves data in .csv's (output files specified below)
-    process_to_nn: True  # After saving human-readable data, creates data formatted for Neural Network usage
+    save_data: False  # Saves data in .csv's (output files specified below)
     filter_roster: True  # Toggle whether to use filtered list of "relevant" players, vs full rosters for each game
     update_filter: True  # Forces re-evaluation of filtered list of players
-    validate_parsing: False  # Gathers true box scores from the internet to confirm logic in play-by-play parsing is correct
+    validate_parsing: True  # Gathers true box scores from the internet to confirm logic in play-by-play parsing is correct
     scrape_missing: False  # Scrapes Pro-Football-Reference.com to gather true player stats for any missing players
 
 # Dataset Inputs
 dataset_options:
   !DatasetOptions
     team_names: "all"  # All team names
-    years: !range [2023, 2025]  # All years to process data for
-    weeks: !range [1, 2]  # All weeks to process data for (applies this set to all years in YEARS)
+    years: !range [2024, 2025]  # All years to process data for
+    weeks: !range [1, 18]  # All weeks to process data for (applies this set to all years in YEARS)
     game_times: !range [76]  # Alternates: 'all', list of numbers
 
 # Processor configuration (optional)
 processor_config:
-  min_games_played: 1
+  min_games_played: 3
 
 # Features
 feature_sets:

@@ -20,7 +20,7 @@ import torch
 logger = logging.getLogger("log")
 
 
-def normalize_stat(data, thresholds: dict) -> pd.Series | pd.DataFrame:
+def normalize_stat(data: pd.Series | pd.DataFrame, thresholds: dict) -> pd.Series | pd.DataFrame:
     """Converts statistics from true values (i.e. football stats) to normalized values (scaled between 0 and 1).
 
         Values are scaled based on notional threshold values set for each statistic, and values outside the thresholds
@@ -122,20 +122,21 @@ def stats_to_fantasy_points(
 
     # Extract the necessary columns, and rename columns if there are no column names
     try:
-        stat_line = stat_line.loc[:, stat_configs.keys()]
+        stat_line = stat_line.loc[:, list(stat_configs)]
     except KeyError:
-        stat_line.columns = list(stat_configs.keys())
+        stat_line.columns = list(stat_configs)
 
     # Extract thresholds and scoring weights from stat_configs
     thresholds = {key: val["thresholds"] for key, val in stat_configs.items() if "thresholds" in val}
-    scoring_weights = {key: val["weight"] for key, val in stat_configs.items() if "weight" in val}
+    scoring_weights = {key: val["scoring_weight"] for key, val in stat_configs.items() if "scoring_weight" in val}
 
     # Un-normalize stats if necessary
     if normalized:
         stat_line = unnormalize_stat(stat_line, thresholds=thresholds)
+        stat_line = pd.DataFrame(stat_line)  # Ensure output is a DataFrame (it always will be, but this helps the type checker)
 
     # Calculate Fantasy Points from stat line and scoring weights
-    stat_line["Fantasy Points"] = (stat_line[scoring_weights.keys()] * scoring_weights).sum(axis=1)
+    stat_line["Fantasy Points"] = (stat_line.loc[:, list(scoring_weights)] * scoring_weights).sum(axis=1)
 
     return stat_line
 

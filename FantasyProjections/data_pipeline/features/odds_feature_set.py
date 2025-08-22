@@ -20,10 +20,10 @@ import requests
 
 from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.features.feature_set import FeatureSet
-from data_pipeline.utils import team_abbreviations as team_abbrs
-from data_pipeline.utils.data_helper_functions import construct_game_id
-from data_pipeline.utils.name_matching import find_matching_name_ind
-from data_pipeline.utils.time_helper_functions import date_to_nfl_week, find_prev_time_index, week_to_date_range
+from misc import team_abbreviations as team_abbrs
+from misc.data_helper_functions import construct_game_id
+from misc.name_matching import find_matching_name_ind
+from misc.time_helper_functions import date_to_nfl_week, find_prev_time_index, week_to_date_range
 
 if TYPE_CHECKING:
     from data_pipeline.single_game_data_worker import SingleGameDataWorker

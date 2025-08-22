@@ -144,13 +144,15 @@ class TestStatsToFantasyPoints(unittest.TestCase):
     # Set Up
     def setUp(self):
         self.stat_configs = {
-            "StatA": {"weight": 5, "thresholds": [-1, 1]},
-            "StatB": {"weight": -2, "thresholds": [0, 200]},
-            "StatC": {"weight": 0, "thresholds": [-50, 10000]},
+            "StatA": {"scoring_weight": 5, "thresholds": [-1, 1]},
+            "StatB": {"scoring_weight": -2, "thresholds": [0, 200]},
+            "StatC": {"scoring_weight": 0, "thresholds": [-50, 10000]},
         }
         self.stat_names = list(self.stat_configs.keys())
         self.thresholds = {stat: config["thresholds"] for stat, config in self.stat_configs.items() if "thresholds" in config}
-        self.weights = {stat: config["weight"] for stat, config in self.stat_configs.items() if "weight" in config}
+        self.weights = {
+            stat: config["scoring_weight"] for stat, config in self.stat_configs.items() if "scoring_weight" in config
+        }
         self.sum_of_weights = sum(self.weights.values())
 
         # Common inputs for various test methods

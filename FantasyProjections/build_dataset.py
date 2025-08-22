@@ -20,9 +20,12 @@ import yaml
 from config.log_config import LOGGING_CONFIG
 from data_pipeline.dataset_processor import DatasetProcessor
 from data_pipeline.seasonal_data_collector import SeasonalDataCollector
-from data_pipeline.stats_pipeline.preprocess_nn_data import preprocess_nn_data
 from misc.manage_files import collect_roster_filter, create_folders, move_logfile, save_plots
 from misc.yaml_constructor import add_yaml_constructors
+
+# Set up logger
+logging.config.dictConfig(LOGGING_CONFIG)
+logger = logging.getLogger("log")
 
 
 def main(parameter_file: str):
@@ -43,13 +46,7 @@ def main(parameter_file: str):
     flags = inputs["flags"]
     dataset_opts = inputs["dataset_options"]
     feature_sets = inputs["feature_sets"]
-
-    # Data files configuration (where to save/load data)
     data_files_config = inputs["data_files_config"]
-
-    # Set up logger
-    logging.config.dictConfig(LOGGING_CONFIG)
-    logger = logging.getLogger("log")
 
     # Start
     start_time = datetime.now().astimezone()
@@ -57,11 +54,9 @@ def main(parameter_file: str):
 
     # Log user inputs
     logger.debug(
-        f"FLAGS: \nSAVE_DATA={flags.save_data} \nPROCESS_TO_NN={flags.process_to_nn} \nFILTER_ROSTER={flags.filter_roster} \nUPDATE_FILTER={flags.update_filter}\
-                \nVALIDATE_PARSING={flags.validate_parsing} \nSCRAPE_MISSING={flags.scrape_missing}",
-    )
-    logger.debug(
-        f"DATA INPUTS: \nTEAM_NAMES={dataset_opts.team_names} \nYEARS={dataset_opts.years} \nWEEKS={dataset_opts.weeks} \nGAME_TIMES={dataset_opts.game_times}",
+        f"""FLAGS: \nSAVE_DATA={flags.save_data} \nPROCESS_TO_NN={flags.process_to_nn} \nFILTER_ROSTER={flags.filter_roster} \nUPDATE_FILTER={flags.update_filter}\
+                \nVALIDATE_PARSING={flags.validate_parsing} \nSCRAPE_MISSING={flags.scrape_missing},
+        DATA INPUTS: \nTEAM_NAMES={dataset_opts.team_names} \nYEARS={dataset_opts.years} \nWEEKS={dataset_opts.weeks} \nGAME_TIMES={dataset_opts.game_times}""",
     )
 
     # Check inputs
@@ -70,17 +65,14 @@ def main(parameter_file: str):
         logger.error(msg)
         raise ValueError(msg)
 
-    # Files to optionally load/save
-    roster_filter_file = data_files_config["roster_filter_file"] if flags.filter_roster else None
-    roster_save_file = roster_filter_file if flags.save_data else None
-    pre_process_folder = data_files_config["pre_process_folder"] if flags.save_data else None
-
     # Huge output data arrays
     midgame_df = pd.DataFrame()
     final_stats_df = pd.DataFrame()
     aux_data_df = pd.DataFrame()
 
-    # Load optional roster filter
+    # Load/prepare optional roster filter
+    roster_filter_file = data_files_config["roster_filter_file"] if flags.filter_roster else None
+    roster_save_file = roster_filter_file if flags.save_data else None
     filter_df, filter_load_success = collect_roster_filter(flags.filter_roster, flags.update_filter, roster_filter_file)
     logger.info(f"Filter Load Success: {filter_load_success}; Filter file: {roster_filter_file}")
 
@@ -109,8 +101,8 @@ def main(parameter_file: str):
         aux_data_df = pd.concat((aux_data_df, seasonal_data.all_game_info_df))
 
         logger.info(f"{year} processing complete.")
-    logger.info("Data collection complete.")
-    logger.info(f"Total midgame data rows: {midgame_df.shape[0]}")
+    logger.info(f"""Data collection complete.
+                Total midgame data rows: {midgame_df.shape[0]}""")
 
     # Create dataset processor with all collected data
     processor = DatasetProcessor(
@@ -127,30 +119,19 @@ def main(parameter_file: str):
     if flags.filter_roster and ((not filter_load_success) or flags.update_filter):
         logger.info("Generating new filter.")
         processor.generate_roster_filter(seasonal_data.raw_rosters_df, save_file=roster_save_file)
-        processor.apply_roster_filter()
+        midgame_df, final_stats_df = processor.apply_roster_filter()
 
     # Optionally validate that parsed data matches data found from secondary sources (e.g. Pro-Football-Reference.com)
     if flags.validate_parsing:
         processor.validate_final_df(scrape_missing=flags.scrape_missing, save_data=flags.save_data)
 
-    # Save raw data
+    # Save collected data
     if flags.save_data:
         create_folders(data_files_config["output_folder"])
         midgame_df.to_csv(data_files_config["output_file_midgame"])
         logger.info(f"Saved midgame stats to {data_files_config['output_file_midgame']}.")
         final_stats_df.to_csv(data_files_config["output_file_final_stats"])
         logger.info(f"Saved final stats to {data_files_config['output_file_final_stats']}.")
-
-    # Generate/save data in a format readable into the Neural Net
-    if flags.process_to_nn:
-        logger.info("Pre-processing data for use in Neural Net.")
-        preprocess_nn_data(
-            data_files_config=data_files_config,
-            midgame_input=midgame_df,
-            final_stats_input=final_stats_df,
-            feature_sets=feature_sets,
-            save_folder=pre_process_folder,
-        )
 
     # Save plots
     if flags.save_data:

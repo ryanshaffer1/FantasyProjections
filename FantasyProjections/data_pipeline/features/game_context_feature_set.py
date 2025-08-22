@@ -13,7 +13,7 @@ import pandas as pd
 
 from config.player_id_config import PRIMARY_PLAYER_ID
 from data_pipeline.features.feature_set import FeatureSet
-from data_pipeline.utils.data_helper_functions import subsample_game_time
+from misc.data_helper_functions import subsample_game_time
 
 if TYPE_CHECKING:
     from data_pipeline.features import Feature

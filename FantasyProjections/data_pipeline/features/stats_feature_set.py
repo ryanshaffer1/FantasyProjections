@@ -14,10 +14,10 @@ import pandas as pd
 from config.player_id_config import PRIMARY_PLAYER_ID, fill_blank_player_ids
 from data_pipeline.features.feature import StatFeature
 from data_pipeline.features.feature_set import FeatureSet
-from data_pipeline.stats_pipeline.scrape_pro_football_reference import scrape_box_score
-from data_pipeline.utils import team_abbreviations as team_abbrs
-from data_pipeline.utils.data_helper_functions import construct_game_id, subsample_game_time
+from misc import team_abbreviations as team_abbrs
+from misc.data_helper_functions import construct_game_id, subsample_game_time
 from misc.manage_files import create_folders
+from misc.scrape_pro_football_reference import scrape_box_score
 from misc.stat_utils import stats_to_fantasy_points
 
 # Set up logger
@@ -131,8 +131,14 @@ class StatsFeatureSet(FeatureSet):
         try:
             true_df = pd.read_csv(true_data_file).set_index([PRIMARY_PLAYER_ID, "Year", "Week"])
         except FileNotFoundError:
-            logger.warning("True Stats data file not found! Building from scratch.")
-            true_df = pd.DataFrame()
+            # Either allow building from scratch, or skip validation if there's no way to gather missing data
+            if scrape_missing:
+                logger.warning("True Stats data file not found! Building from scratch.")
+                true_df = pd.DataFrame()
+            else:
+                logger.warning("True Stats data file not found! Skipping validation.")
+                return pd.DataFrame()
+
         # Compare saved truth data to input data to determine whether any saved truth data is missing
         missing_games, _ = self.__identify_missing_games(final_stats_df, true_df, fill_missing_data=False)
 

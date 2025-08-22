@@ -16,7 +16,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from data_pipeline.utils import team_abbreviations as team_abbrs
+from misc import team_abbreviations as team_abbrs
 
 # Set up logger
 logger = logging.getLogger("log")

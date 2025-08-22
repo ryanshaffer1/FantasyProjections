@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from config.player_id_config import ALT_PLAYER_IDS, PRIMARY_PLAYER_ID
-from data_pipeline.utils.data_helper_functions import calc_game_time_elapsed, subsample_game_time
+from misc.data_helper_functions import calc_game_time_elapsed, subsample_game_time
 
 
 class SingleGameDataWorker:

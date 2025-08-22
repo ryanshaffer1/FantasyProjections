@@ -170,7 +170,7 @@ class DatasetProcessor:
 
         self.filter.filter_df = filter_df
 
-    def apply_roster_filter(self):
+    def apply_roster_filter(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         """Trims previously-generated NFL stats DataFrames (midgame and final stats) to only include players in a filtered list.
 
             Returns:
@@ -180,11 +180,13 @@ class DatasetProcessor:
         """  # fmt: skip
         if self.filter.filter_df is None:
             logger.warning("No filter_df provided. Skipping roster filter application.")
-            return
+            return self.midgame_df, self.final_stats_df
 
         filter_ids = self.filter.filter_df["Player ID"].to_list()
         self.midgame_df = self.midgame_df[self.midgame_df.index.to_frame()[PRIMARY_PLAYER_ID].apply(lambda x: x in filter_ids)]
         self.final_stats_df = self.final_stats_df[self.final_stats_df.apply(lambda x: x.name[0] in filter_ids, axis=1)]
+
+        return self.midgame_df, self.final_stats_df
 
     def validate_final_df(self, **kwargs):
         """Compares collected data in the final stats DataFrame against external info sources where applicable.
@@ -209,6 +211,11 @@ class DatasetProcessor:
             )
             all_truth_data = pd.concat((all_truth_data, val_df))
             all_truth_columns.extend(val_df.columns.tolist())
+
+        # Check that some validation data was actually collected
+        if all_truth_data.shape[0] == 0:
+            logger.warning("No validation data collected. Skipping validation.")
+            return
 
         # Perform comparison of the two dataframes
         diff_df = self.__compare_dfs(all_truth_data, self.final_stats_df, all_truth_columns)

@@ -16,12 +16,12 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from data_pipeline.utils.name_matching import drop_name_frills, fuzzy_match
+from misc.name_matching import drop_name_frills, fuzzy_match
 
 # Set up logger
 logger = logging.getLogger("log")
 
-REQ_WAIT_TIME = 6  # seconds between web scraper HTTP requests to avoid rate-limiting lockout by pro-football-reference
+REQ_WAIT_TIME = 2  # seconds between web scraper HTTP requests to avoid rate-limiting lockout by pro-football-reference
 # Source: https://www.sports-reference.com/bot-traffic.html
 
 

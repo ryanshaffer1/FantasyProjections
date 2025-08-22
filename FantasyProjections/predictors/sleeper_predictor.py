@@ -21,7 +21,8 @@ import torch
 from sleeper_wrapper import Players, Stats
 
 from config.player_id_config import PRIMARY_PLAYER_ID
-from data_pipeline.utils.name_matching import find_matching_name_ind
+from misc.manage_files import create_folders
+from misc.name_matching import find_matching_name_ind
 from misc.stat_utils import stats_to_fantasy_points
 from predictors import FantasyPredictor
 
@@ -73,7 +74,7 @@ class SleeperPredictor(FantasyPredictor):
         self.proj_dict_file = self.data_files_config.get("sleeper_proj_dict_file")
 
         # If no player dict file is input, player list must be updated from Sleeper API
-        if self.player_id_file is None:
+        if self.player_id_file is None or (not os.path.exists(self.player_id_file)):
             self.update_players = True
 
         # Retrieve/update dataframe of players with their sleeper IDs
@@ -178,6 +179,7 @@ class SleeperPredictor(FantasyPredictor):
 
         # Save data to master list
         if save_data and self.player_id_file is not None:
+            create_folders(self.player_id_file)
             player_id_df.to_csv(self.player_id_file)
 
         return player_id_df
@@ -216,7 +218,7 @@ class SleeperPredictor(FantasyPredictor):
             try:
                 with open(self.proj_dict_file, encoding="utf-8") as file:
                     all_proj_dict = json.load(file)
-            except (FileNotFoundError, TypeError):
+            except (FileNotFoundError, json.decoder.JSONDecodeError, TypeError):
                 logger.warning("Sleeper projection dictionary file not found during load process.")
                 all_proj_dict = {}
         else:
@@ -229,9 +231,10 @@ class SleeperPredictor(FantasyPredictor):
             # Save projection dictionary to JSON file for use next time
             if self.proj_dict_file is not None:
                 try:
+                    create_folders(self.proj_dict_file)
                     with open(self.proj_dict_file, "w", encoding="utf-8") as file:
                         json.dump(all_proj_dict, file)
-                except (FileNotFoundError, TypeError):
+                except TypeError:
                     logger.warning("Sleeper projection dictionary file not found during save process.")
 
         return all_proj_dict

@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 # Module under test
-from data_pipeline.utils.data_helper_functions import calc_game_time_elapsed
+from misc.data_helper_functions import calc_game_time_elapsed
 
 
 # Test calc_game_time_elapsed

@@ -5,9 +5,8 @@ input_folder: &input_folder !path [*data_folder,  "inputs/"]
 output_folder: &output_folder !path [*data_folder, "stats/"]
 misc_folder: &misc_folder !path [*data_folder, "misc/"]
 validation_folder: &validation_folder !path [*data_folder, "validation/"]
-pre_process_folder: !path [*data_folder, "to_nn/"]
 
-# Files
+# Files generated during dataset build
 output_file_final_stats: !path [*output_folder, "statlines.csv"]
 output_file_midgame: !path [*output_folder, "pbp_stats.csv"]
 roster_filter_file: !path [*input_folder, "Filtered Player List.csv"]
@@ -21,21 +20,9 @@ local_file_paths:
     pbp: !path [*input_folder, "play_by_play/play_by_play_{0}.csv"]
     roster: !path [*input_folder, "rosters/roster_weekly_{0}.csv"]
 
-# Neural Net processed stats files
-nn_stat_files: 
-  midgame: "midgame_data_to_nn.csv"
-  final: "final_stats_to_nn.csv"
-  id: "data_ids.csv"
-stat_files:
-  midgame: !path [*output_folder, "pbp_stats.csv"]
-  final: !path [*output_folder, "statlines.csv"]
-
-
 # Miscellaneous:
-# Feature config file
-feature_config_file: !path [*misc_folder, "stats_config.csv"]
 # Map between stat names used by different sites
-stat_names_map: !path [*misc_folder, "stat_names_map.csv"]
+stat_names_map: !path ["FantasyProjections/config/stat_names_map.csv"]
 # Pro-Football-Reference.com URL intros
 pfr_boxscore_url_intro: "https://www.pro-football-reference.com/boxscores/"
 pfr_player_url_intro: "https://www.pro-football-reference.com/players/"
@@ -49,4 +36,4 @@ sleeper_proj_dict_file: !path [*misc_folder, "sleeper_projections_dict.json"]
 # Odds data
 odds_requests_file: !path [*input_folder, "odds/odds_api_requests.json"]
 # Private configuration data (e.g. API Keys)
-odds_api_key_file: "FantasyProjections/config/private/odds_api_key.txt"
+odds_api_key_file: !path ["FantasyProjections/config/private/odds_api_key.txt"]
