@@ -63,8 +63,8 @@ def unnormalize_stat(data, thresholds: dict) -> pd.Series | pd.DataFrame:
             data (pandas.Series | pandas.DataFrame): Series or DataFrame of normalized data.
                 If Series: corresponds to a single normalized football stat, with Series name matching a key in the dictionary "thresholds".
                 If DataFrame: corresponds to multiple normalized football stats, with column names all matching a key in the dictionary "thresholds".
-            thresholds (dict, optional): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
-                lie between 0 and 1. Defaults to dictionary "baseline_data_thresholds" defined in configuration files.
+            thresholds (dict): Maps stat names (e.g. "Pass Yds") to their min and max expected values, in order to scale statistics to
+                lie between 0 and 1.
 
         Returns:
             pandas.Series | pandas.DataFrame: Unnormalized data where each entry in col is scaled up according to the bounds in thresholds

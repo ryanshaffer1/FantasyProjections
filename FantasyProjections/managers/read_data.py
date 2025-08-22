@@ -37,8 +37,8 @@ def read_data_into_dataset(features: dict, data_files_config: dict, log_datafile
 
     """  # fmt: skip
 
-    pbp_datafile = data_files_config["output_file_final_stats"]
-    boxscore_datafile = data_files_config["output_file_midgame"]
+    pbp_datafile = data_files_config["output_file_midgame"]
+    boxscore_datafile = data_files_config["output_file_final_stats"]
 
     # Read data files
     pbp_df = pd.read_csv(pbp_datafile, engine="pyarrow")

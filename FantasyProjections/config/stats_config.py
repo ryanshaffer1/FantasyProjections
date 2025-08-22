@@ -5,14 +5,4 @@
 
 from config.player_id_config import ALT_PLAYER_IDS
 
-baseline_data_outputs = {
-    "id": ["Player ID", *ALT_PLAYER_IDS, "Player Name", "Year", "Week", "Elapsed Time"],
-    "midgame": ["Elapsed Time"],
-    "final": [],
-}
-
-baseline_data_thresholds = {"Elapsed Time": [0, 60]}
-
-baseline_one_hot_columns = ["Player ID"]
-
-baseline_id_columns = ["Player ID", *ALT_PLAYER_IDS, "Player Name", "Year", "Week", "Elapsed Time"]
+baseline_id_columns = ["Player ID", *ALT_PLAYER_IDS, "Player Name", "Year", "Week", "EpWeeks", "Elapsed Time"]

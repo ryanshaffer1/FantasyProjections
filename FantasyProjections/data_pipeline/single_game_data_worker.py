@@ -9,6 +9,7 @@ import pandas as pd
 
 from config.player_id_config import ALT_PLAYER_IDS, PRIMARY_PLAYER_ID
 from misc.data_helper_functions import calc_game_time_elapsed, subsample_game_time
+from misc.time_helper_functions import calc_weeks_from_epoch
 
 
 class SingleGameDataWorker:
@@ -111,6 +112,7 @@ class SingleGameDataWorker:
         # Add baseline data into new dataframe and set indices
         midgame_df["Year"] = self.year
         midgame_df["Week"] = self.week
+        midgame_df["EpWeeks"] = calc_weeks_from_epoch(self.year, self.week)
         for col in [*ALT_PLAYER_IDS, "Player Name"]:
             midgame_df[col] = midgame_df.index.get_level_values(PRIMARY_PLAYER_ID).map(self.roster_df[col])
         midgame_df = midgame_df.reset_index().set_index(["Year", "Week", PRIMARY_PLAYER_ID, "Elapsed Time"])

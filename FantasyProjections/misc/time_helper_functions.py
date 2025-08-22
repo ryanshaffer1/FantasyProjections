@@ -30,6 +30,8 @@ WEEK_1_DATESTRS: dict[int, str] = {
 }
 WEEK_1_DATES: dict[int, dt.datetime] = {key: dateparse.parse(val) for key, val in WEEK_1_DATESTRS.items()}
 
+EPOCH_WEEK = [2018, 1]  # First week of NFL data collection (used as a reference point for elapsed weeks)
+
 
 def week_to_date_range(year: int, week: int) -> list[dt.datetime]:
     """Returns the start and end dates of a given NFL week.
@@ -109,3 +111,38 @@ def find_prev_time_index(time: float | str, other_times_series: pd.Series) -> in
         index = np.argmin(np.where(time_deltas < dt.timedelta(0), big_timedelta, time_deltas))  # type: ignore[reportArgumentType]
 
     return int(index)
+
+
+def calc_weeks_from_epoch(year: int, week: int) -> int:
+    """Calculates the number of NFL weeks elapsed from Week 1 of the 2018 season to the given year and week.
+
+        Before 2021, each season has 17 weeks. From 2021 onward, each season has 18 weeks.
+
+        Args:
+            year (int): The NFL season year (e.g., 2018, 2022).
+            week (int): The week number in the given season (1-based).
+
+        Returns:
+            int: The total number of weeks elapsed since 2018 Week 1.
+
+    """  # fmt: skip
+
+    # Check that input week is valid and after the epoch
+    if year < EPOCH_WEEK[0] or week < 1:
+        msg = f"Year must be >= {EPOCH_WEEK[0]} and week must be >= 1."
+        raise ValueError(msg)
+
+    # For simplicity, enforce that epoch week is week 1
+    if EPOCH_WEEK[1] != 1:
+        msg = f"Epoch week must be week 1. Current epoch week is {EPOCH_WEEK[1]}."
+        raise ValueError(msg)
+
+    # Sum weeks for all full seasons between 2018 and the input year
+    total_weeks = 0
+    for y in range(2018, year):
+        weeks_in_season = 17 if y < 2021 else 18  # noqa: PLR2004
+        total_weeks += weeks_in_season
+
+    # Add weeks in the current season up to the input week
+    total_weeks += week - 1  # Subtract 1 since weeks are 1-indexed
+    return total_weeks
