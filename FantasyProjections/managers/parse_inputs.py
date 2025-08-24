@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 import yaml
 
+import predictors
 from misc.dataset import StatsDataset
 from misc.manage_files import create_folders, name_save_folder
 from misc.yaml_constructor import add_yaml_constructors
@@ -144,9 +145,13 @@ class InputParameters:
 
         # Update NeuralNetwork shape based on input/output features
         for pred in self.predictors:
-            if pred.get("type") == "NeuralNetPredictor":
+            # Find out if this predictor is a NeuralNetPredictor (or subclass)
+            try:
+                predictor_class = getattr(predictors, pred.get("type"))
+            except (AttributeError, TypeError):
+                continue
+            if issubclass(predictor_class, predictors.NeuralNetPredictor):
                 nn_shape = pred["config"]["nn_shape"]
-
                 # Get number of inputs to each embedding layer
                 embedding_inputs = {}
                 embedding_indices = {}
