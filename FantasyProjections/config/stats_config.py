@@ -5,4 +5,4 @@
 
 from config.player_id_config import ALT_PLAYER_IDS
 
-baseline_id_columns = ["Player ID", *ALT_PLAYER_IDS, "Player Name", "Year", "Week", "EpWeeks", "Elapsed Time"]
+baseline_id_columns = ["Player ID", *ALT_PLAYER_IDS, "Player Name", "Year", "Week", "EpWeek", "Elapsed Time"]

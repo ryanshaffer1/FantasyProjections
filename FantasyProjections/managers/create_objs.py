@@ -12,6 +12,7 @@ import logging
 
 from gamblers import BasicGambler
 from misc.dataset import StatsDataset
+from misc.marching_dataset import MarchingDataset
 from predictors import LastNPredictor, NeuralNetPredictor, PerfectPredictor, SleeperPredictor
 from results import PredictionResult, PredictionResultGroup
 from tuners import GridSearchTuner, RandomSearchTuner, RecursiveRandomSearchTuner
@@ -37,12 +38,22 @@ def create_datasets(dataset_params: list[dict], all_data: StatsDataset):
 
     # Create datasets one-by-one
     for dataset_ipt in dataset_params:
-        # Slice dataset rows based on input configuration criteria
-        for i, configuration in enumerate(dataset_ipt.get("config", {})):
-            if i == 0:
-                dataset = all_data.slice_by_criteria(inplace=False, **configuration)
-            else:
-                dataset.concat(all_data.slice_by_criteria(inplace=False, **configuration))
+        dataset_type = dataset_ipt.get("type", "StatsDataset")
+        # Handle standard StatsDataset inputs
+        match dataset_type:
+            case "StatsDataset":
+                # Slice dataset rows based on input configuration criteria
+                for i, configuration in enumerate(dataset_ipt.get("config", {})):
+                    if i == 0:
+                        dataset = all_data.slice_by_criteria(inplace=False, **configuration)
+                    else:
+                        dataset.concat(all_data.slice_by_criteria(inplace=False, **configuration))
+            case "MarchingDataset":
+                dataset = MarchingDataset(all_data=all_data, **dataset_ipt)
+            case _:
+                msg = f"Dataset type {dataset_type} not recognized."
+                logger.error(msg)
+                raise ValueError(msg)
 
         # Name dataset and add to datasets dict
         name = dataset_ipt.get("name", "dataset")
@@ -51,7 +62,8 @@ def create_datasets(dataset_params: list[dict], all_data: StatsDataset):
 
     # Log dataset info (size)
     for dataset in datasets.values():
-        logger.info(f"{dataset.name} Dataset size: {dataset.x_data.shape[0]}")
+        if hasattr(dataset, "x_data"):
+            logger.info(f"{dataset.name} Dataset size: {dataset.x_data.shape[0]}")
 
     return datasets
 

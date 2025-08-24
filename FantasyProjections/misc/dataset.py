@@ -92,6 +92,7 @@ class StatsDataset(torch.utils.data.Dataset):
                     Defaults to None (end of DataFrame).
                 shuffle (bool, optional): Whether to shuffle the rows of the DataFrames when generating. Defaults to False.
                 weeks (list, optional): Week numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
+                epweeks (list, optional): EpWeek numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 years (list, optional): Year numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 teams (list, optional): Team names from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 player_ids (list, optional): Player IDs from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
@@ -103,7 +104,7 @@ class StatsDataset(torch.utils.data.Dataset):
         end_index = kwargs.get("end_index")  # Default ends at the end of the array
         shuffle = kwargs.get("shuffle", False)
         # Other valid kwargs that are not currently initialized to default
-        # values: weeks, years, teams, players, elapsed_time
+        # values: weeks, years, epweeks, teams, players, elapsed_time
 
         # Name
         self.name = name
@@ -150,8 +151,8 @@ class StatsDataset(torch.utils.data.Dataset):
         self.misc_df = misc_df
 
         # Trim to only the desired data, according to multiple possible methods:
-        # 1. Weeks, Years, Teams, Player IDs, and/or Elapsed Time specified
-        self.valid_criteria = ["weeks", "years", "teams", "player_ids", "elapsed_time"]
+        # 1. Weeks, Years, EpWeeks, Teams, Player IDs, and/or Elapsed Time specified
+        self.valid_criteria = ["weeks", "years", "epweeks", "teams", "player_ids", "elapsed_time"]
         if len(set(self.valid_criteria) & set(kwargs)) > 0:
             self.slice_by_criteria(**kwargs)
 
@@ -231,6 +232,7 @@ class StatsDataset(torch.utils.data.Dataset):
             Args:
                 inplace (bool, optional): If True, self is modified in-place; if False, a new StatsDataset is returned. Defaults to True.
                 kwargs:
+                    epweeks (list, optional): EpWeek numbers (absolute count of weeks from Epoch) from the DataFrames to include in the StatsDataset. If not passed, ignored.
                     weeks (list, optional): Week numbers from the DataFrames to include in the StatsDataset. If not passed, ignored.
                     years (list, optional): Year numbers from the DataFrames to include in the StatsDataset. If not passed, ignored.
                     teams (list, optional): Team names from the DataFrames to include in the StatsDataset. If not passed, ignored.
@@ -243,6 +245,7 @@ class StatsDataset(torch.utils.data.Dataset):
         """  # fmt: skip
 
         criteria_var_to_col = {
+            "epweeks": "EpWeek",
             "weeks": "Week",
             "years": "Year",
             "teams": "Team",

@@ -235,7 +235,7 @@ def recursive_dict_merge(
 
     """  # fmt: skip
     # Do nothing if the input or the default is not a searchable/mergeable data type
-    mergeable_types = dict | list | tuple
+    mergeable_types = (dict, list, tuple)
     if not (isinstance(input_struct, mergeable_types) and isinstance(defaults, mergeable_types)):
         return input_struct
 

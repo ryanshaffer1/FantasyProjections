@@ -112,7 +112,7 @@ class SingleGameDataWorker:
         # Add baseline data into new dataframe and set indices
         midgame_df["Year"] = self.year
         midgame_df["Week"] = self.week
-        midgame_df["EpWeeks"] = calc_weeks_from_epoch(self.year, self.week)
+        midgame_df["EpWeek"] = calc_weeks_from_epoch(self.year, self.week)
         for col in [*ALT_PLAYER_IDS, "Player Name"]:
             midgame_df[col] = midgame_df.index.get_level_values(PRIMARY_PLAYER_ID).map(self.roster_df[col])
         midgame_df = midgame_df.reset_index().set_index(["Year", "Week", PRIMARY_PLAYER_ID, "Elapsed Time"])
