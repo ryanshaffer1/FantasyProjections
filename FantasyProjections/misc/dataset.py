@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import logging.config
 import random
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -18,6 +19,9 @@ import torch
 import torch.utils.data
 
 from config.log_config import LOGGING_CONFIG
+
+if TYPE_CHECKING:
+    from misc.marching_dataset import MarchingDataset
 
 # Set up logger
 logging.config.dictConfig(LOGGING_CONFIG)
@@ -42,6 +46,7 @@ class StatsDataset(torch.utils.data.Dataset):
             id_data (pandas.DataFrame): DataFrame containing all game/player ID data from the NFL games in question.
                 The data in id_data must be gathered, parsed, and pre-processed using functions in data_pipeline.
             misc_df (pd.DataFrame, optional): DataFrame containing miscellaneous data from the NFL games in question.
+            manager (str, optional): Name of a scenario object which can be used to modify or manage the StatsDataset.
 
         Public Methods:
             concat : Append two StatsDatasets into one larger StatsDataset, either in-place or returning a new StatsDataset.
@@ -61,6 +66,7 @@ class StatsDataset(torch.utils.data.Dataset):
         pbp_df: pd.DataFrame | None = None,
         boxscore_df: pd.DataFrame | None = None,
         misc_df: pd.DataFrame | None = None,
+        manager: MarchingDataset | None = None,
         x_data: torch.Tensor | None = None,
         x_data_columns: dict | None = None,
         y_data: torch.Tensor | None = None,
@@ -91,6 +97,7 @@ class StatsDataset(torch.utils.data.Dataset):
                 end_index (int, optional): First index to exclude from DataFrames (if taking consecutive data from the DataFrames).
                     Defaults to None (end of DataFrame).
                 shuffle (bool, optional): Whether to shuffle the rows of the DataFrames when generating. Defaults to False.
+                manager (str, optional): Name of a scenario object which can be used to modify or manage the StatsDataset.
                 weeks (list, optional): Week numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 epweeks (list, optional): EpWeek numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
                 years (list, optional): Year numbers from the DataFrames to include in the StatsDataset (if slicing Dataset by criteria). If not passed, ignored.
@@ -106,8 +113,9 @@ class StatsDataset(torch.utils.data.Dataset):
         # Other valid kwargs that are not currently initialized to default
         # values: weeks, years, epweeks, teams, players, elapsed_time
 
-        # Name
+        # Basic attribute assignments
         self.name = name
+        self.manager = manager
 
         # Check that ID data is valid
         if not isinstance(id_df, pd.DataFrame):
@@ -173,7 +181,7 @@ class StatsDataset(torch.utils.data.Dataset):
 
     # PUBLIC METHODS
 
-    def concat(self, other: StatsDataset, inplace: bool = True):
+    def concat(self, other: StatsDataset, inplace: bool = True) -> StatsDataset | None:
         """Appends two StatsDatasets into one larger StatsDataset, either in-place or returning a new StatsDataset.
 
             Args:
@@ -206,12 +214,14 @@ class StatsDataset(torch.utils.data.Dataset):
         joined_x_data = torch.cat((self.x_data, other.x_data))
         joined_y_data = torch.cat((self.y_data, other.y_data))
         joined_id_data = pd.concat((self.id_data, other.id_data)).reset_index(drop=True)
+        joined_misc_df = pd.concat((self.misc_df, other.misc_df)).reset_index(drop=True)
 
         # Return in place (modify self)
         if inplace:
             self.x_data = joined_x_data
             self.y_data = joined_y_data
             self.id_data = joined_id_data
+            self.misc_df = joined_misc_df
 
         # Return new object
         else:
@@ -222,6 +232,7 @@ class StatsDataset(torch.utils.data.Dataset):
                 x_data_columns=self.x_data_columns,
                 y_data=joined_y_data,
                 y_data_columns=self.y_data_columns,
+                misc_df=joined_misc_df,
             )
             return new_dataset
         return None

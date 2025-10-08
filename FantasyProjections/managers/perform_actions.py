@@ -30,7 +30,11 @@ def perform_tunings(tuning_params, scenario, save_folder):
         predictor = predictors[tuning_process["predictor"]]
 
         # Function names that may be entered as strings and used as predictor methods
-        predictor_funcs = {"train_and_validate": predictor.train_and_validate, "save": predictor.save, "load": predictor.load}
+        predictor_funcs = {
+            "manage_training_and_validation": predictor.manage_training_and_validation,
+            "save": predictor.save,
+            "load": predictor.load,
+        }
         # Replace names of functions with actual handles for eval, save, and reset functions
         functions = {k: predictor_funcs[tuning_process[k]] for k in ["eval_function", "save_function", "reset_function"]}
 
@@ -82,7 +86,7 @@ def perform_trainings(training_params, scenario):
         eval_args = {k: scenario.get_obj_by_name(v) for k, v in eval_args.items()}
 
         # Perform training process
-        predictor.train_and_validate(
+        predictor.manage_training_and_validation(
             **eval_args,
             param_set=hyperparameters,
         )

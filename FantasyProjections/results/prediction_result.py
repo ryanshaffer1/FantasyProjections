@@ -4,11 +4,18 @@
         PredictionResult : Class containing a set of NFL games/players being evaluated, a prediction of their stats, and their true stats.
 """  # fmt: skip
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pandas as pd
 
 from misc.stat_utils import gen_random_games, stats_to_fantasy_points
 
 from .result_plots import gen_scatterplots, plot_error_histogram, plot_game_timeline
+
+if TYPE_CHECKING:
+    from misc.dataset import StatsDataset
 
 
 class PredictionResult:
@@ -31,7 +38,14 @@ class PredictionResult:
     """  # fmt: skip
 
     # CONSTRUCTOR
-    def __init__(self, dataset, predicts, truths, predictor_name=None, **kwargs):
+    def __init__(
+        self,
+        dataset: StatsDataset,
+        predicts: pd.DataFrame,
+        truths: pd.DataFrame,
+        predictor_name: str | None = None,
+        **kwargs,
+    ):
         """Constructor for PredictionResult.
 
             Args:
@@ -66,6 +80,14 @@ class PredictionResult:
         self.pbp_df = self.__pbp_with_fantasy_points(**kwargs)
 
     # PUBLIC METHODS
+
+    def append(self, other: PredictionResult) -> PredictionResult:
+        combined_dataset = self.dataset.concat(other.dataset, inplace=False)
+        combined_predicts = pd.concat((self.predicts, other.predicts)).reset_index(drop=True)
+        combined_truths = pd.concat((self.truths, other.truths)).reset_index(drop=True)
+        combined_predictor_name = self.predictor_name if self.predictor_name == other.predictor_name else "Combined"
+
+        return PredictionResult(combined_dataset, combined_predicts, combined_truths, predictor_name=combined_predictor_name)  # type: ignore[reportArgumentType]
 
     def diff_pred_vs_truth(self, absolute=False):
         """Calculates the average (signed or absolute) difference between predicted and true Fantasy Points in dataset.
@@ -160,7 +182,7 @@ class PredictionResult:
         # - normalized defaults to True in this implementation.
 
         # Make copy of dataset
-        pbp_df = pd.DataFrame(data=self.dataset.x_data, columns=self.dataset.x_data_columns)
+        pbp_df = pd.DataFrame(data=self.dataset.x_data.numpy(), columns=list(self.dataset.x_data_columns))
 
         # Extract any necessary keyword argument values
         kwargs["normalized"] = kwargs.get("normalized", True)  # Note this defaults to True instead of the standard False

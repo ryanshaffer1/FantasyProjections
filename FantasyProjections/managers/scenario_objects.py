@@ -35,16 +35,17 @@ class ScenarioObjects:
     """  # fmt: skip
 
     # CONSTRUCTOR
-    save_options: dict = None  # Not currently used
-    datasets: dict = None
-    hyperparameters: HyperParameterSet = None
-    predictors: dict = None
-    tuners: dict = None
-    tunings: dict = None  # Not currently used
-    trainings: dict = None  # Not currently used
-    evaluations: dict = None
-    gamblers: dict = None  # Not currently used
-    plot_groups: dict = None  # Not currently used
+    save_options: dict | None = None
+    datasets: dict | None = None
+    marchers: dict | None = None
+    hyperparameters: HyperParameterSet | None = None
+    predictors: dict | None = None
+    tuners: dict | None = None
+    tunings: dict | None = None
+    trainings: dict | None = None
+    evaluations: dict | None = None
+    gamblers: dict | None = None
+    plot_groups: dict | None = None
 
     def get_obj_by_name(self, name, category=None):
         """Finds an object (e.g. a StatsDataset, FantasyPredictor, etc.) in the ScenarioObjects which matches an input name.

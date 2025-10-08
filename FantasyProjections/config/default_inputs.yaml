@@ -120,14 +120,21 @@ predictors:
       load_folder: null
       max_epochs: 30
       n_epochs_to_stop: 5
-      nn_shape:
+      nn_shape: &nn_shape
         embedding:
           player: {n: 50, feature: Player ID}
           team: {n: 10, feature: Team}
           opp: {n: 10, feature: Opponent}
         linear_stack:
           - 300
-
+  - name: default
+    type: MarchingNeuralNetPredictor
+    save_model: true
+    config:
+      load_folder: null
+      max_epochs: 30
+      n_epochs_to_stop: 5
+      nn_shape: *nn_shape
   - name: default
     type: SleeperPredictor
     config:

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -149,6 +150,30 @@ class NeuralNetPredictor(FantasyPredictor):
     def eval_model(self, eval_data: StatsDataset | None = None, eval_dataloader: DataLoader | None = None, **kwargs):
         """Generates predicted stats for an input evaluation dataset, as computed by the NeuralNetwork.
 
+            Used as a common interface method - all functionality is contained within the evaluate method.
+
+            Either eval_data or eval_dataloader must be input.
+            If both are input, eval_dataloader will be used.
+
+            Args:
+                eval_data (StatsDataset, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
+                eval_dataloader (DataLoader, optional): data to use for Neural Net evaluation (e.g. validation or test data). Defaults to None.
+                kwargs:
+                    All keyword arguments are passed to the function stats_to_fantasy_points and to the PredictionResult constructor.
+                    See the related documentation for descriptions and valid inputs.
+                    All keyword arguments are optional.
+
+            Returns:
+                PredictionResult: Object packaging the predicted and true stats together, which can be used for plotting,
+                    performance assessments, etc.
+
+        """  # fmt: skip
+        result = self.evaluate(eval_data, eval_dataloader, **kwargs)
+        return result
+
+    def evaluate(self, eval_data: StatsDataset | None = None, eval_dataloader: DataLoader | None = None, **kwargs):
+        """Generates predicted stats for an input evaluation dataset, as computed by the NeuralNetwork.
+
             Either eval_data or eval_dataloader must be input.
             If both are input, eval_dataloader will be used.
 
@@ -182,7 +207,7 @@ class NeuralNetPredictor(FantasyPredictor):
             eval_dataloader = DataLoader(eval_data, batch_size=int(eval_data.x_data.shape[0]), shuffle=False)
 
         # List of stats being used to compute fantasy score
-        stat_configs = eval_dataloader.dataset.y_data_columns  # pyright: ignore[reportAttributeAccessIssue]
+        stat_configs = eval_dataloader.dataset.y_data_columns  # type: ignore[reportAttributeAccessIssue]
 
         # Gather all predicted/true outputs for the input dataset
         self.model.eval()
@@ -200,14 +225,13 @@ class NeuralNetPredictor(FantasyPredictor):
 
         return result
 
-    def load(self, model_folder: str, print_loaded_model: bool = True):
+    def load(self, folder: str, model_file: str | None = None, opt_file: str | None = None, print_loaded_model: bool = True):
         """Initializes a NeuralNetwork and optimizer using specifications saved to file.
 
-            Assumes the file name for the model is "model.pth"
-            And the file name for the optimizer is "opt.pth"
-
             Args:
-                model_folder (str): path where "model.pth" and "optimizer.pth" are located
+                folder (str): path where "model.pth" and "optimizer.pth" are located
+                model_file (str, optional): Filename (NOT including path) to save the NeuralNetwork model. Defaults to "model.pth".
+                opt_file (str, optional): Filename (NOT including path) to save the Optimizer. Defaults to "opt.pth".
                 print_loaded_model (bool, optional): displays Neural Network model architecture to console or a logger.
                     Defaults to True.
 
@@ -220,8 +244,12 @@ class NeuralNetPredictor(FantasyPredictor):
 
         """  # fmt: skip
 
-        model_file = model_folder + "model.pth"
-        opt_file = model_folder + "opt.pth"
+        # Optional inputs
+        model_filename = model_file if model_file is not None else "model.pth"
+        opt_filename = opt_file if opt_file is not None else "opt.pth"
+
+        model_file = os.path.join(folder, model_filename)
+        opt_file = os.path.join(folder, opt_filename)
         # Establish shape of the model based on data within file
         state_dict = torch.load(model_file, weights_only=True)
         self.nn_shape = self.__build_shape_from_state_dict(state_dict)
@@ -309,12 +337,15 @@ class NeuralNetPredictor(FantasyPredictor):
             print(model)
             print(f"Total tunable parameters: {total_params}")
 
-    def save(self):
+    def save(self, model_file: str | None = None, opt_file: str | None = None):
         """Stores NeuralNetwork and optimizer specifications to file.
 
             The folder to use is specified by the NeuralNetPredictor's save_folder attribute.
-            The NeuralNet model is always saved as "model.pth".
-            The optimizer is always saved as "opt.pth"
+
+            Args:
+                model_file (str, optional): Filename (NOT including path) to save the NeuralNetwork model. Defaults to "model.pth".
+                opt_file (str, optional): Filename (NOT including path) to save the Optimizer. Defaults to "opt.pth".
+
         """  # fmt: skip
 
         if self.save_folder is None:
@@ -322,21 +353,38 @@ class NeuralNetPredictor(FantasyPredictor):
             logger.exception(msg)
             raise ValueError(msg)
 
+        # Optional inputs
+        model_filename = model_file if model_file is not None else "model.pth"
+        opt_filename = opt_file if opt_file is not None else "opt.pth"
+
         # Check that folder exists, and set filenames
         create_folders(self.save_folder)
-        model_save_file = self.save_folder + "model.pth"
-        opt_save_file = self.save_folder + "opt.pth"
+        model_save_file = self.save_folder + model_filename
+        opt_save_file = self.save_folder + opt_filename
         # Save Neural Net model and optimizer
         torch.save(self.model.state_dict(), model_save_file)
         torch.save(self.optimizer.state_dict(), opt_save_file)
-        logger.info(f"Saved PyTorch Model State to {model_save_file}")
+        logger.debug(f"Saved PyTorch Model State to {model_save_file}")
+
+    def manage_training_and_validation(
+        self,
+        training_data: StatsDataset,
+        validation_data: StatsDataset,
+        param_set: HyperParameterSet | dict | None = None,
+        **kwargs,
+    ):
+        val_perf, all_val_perfs = self.train_and_validate(
+            training_data=training_data,
+            validation_data=validation_data,
+            param_set=param_set,
+            **kwargs,
+        )
+        return val_perf, all_val_perfs
 
     def train_and_validate(
         self,
-        train_dataloader: DataLoader | None = None,
-        validation_dataloader: DataLoader | None = None,
-        training_data: StatsDataset | None = None,
-        validation_data: StatsDataset | None = None,
+        training_data: StatsDataset,
+        validation_data: StatsDataset,
         param_set: HyperParameterSet | dict | None = None,
         **kwargs,
     ):
@@ -349,8 +397,6 @@ class NeuralNetPredictor(FantasyPredictor):
             improving) condition are met.
 
             Args:
-                train_dataloader (DataLoader): data to use for Neural Net training.
-                validation_dataloader (DataLoader): data to use for Neural Net validation.
                 training_data (StatsDataset): data to use for Neural Net training.
                 validation_data (StatsDataset): data to use for Neural Net validation.
                 param_set (HyperParameterSet | dict, optional): set of hyper-parameters used in Neural Network training.
@@ -372,14 +418,11 @@ class NeuralNetPredictor(FantasyPredictor):
         if param_set:
             self.modify_hyper_parameter_values(param_set)
 
-        # Configure neural net and dataloaders for training
-        if (train_dataloader is None) or (validation_dataloader is None):
-            if training_data is None or validation_data is None:
-                msg = f"{self.name}, train_and_validate: missing training or validation data"
-                logger.exception(msg)
-                raise ValueError(msg)
-            train_dataloader = self.configure_dataloader(training_data, mini_batch=True, shuffle=True)
-            validation_dataloader = self.configure_dataloader(validation_data, mini_batch=False, shuffle=False)
+        # Set up dataloaders
+        train_dataloader = self.configure_dataloader(training_data, mini_batch=True, shuffle=True)
+        validation_dataloader = self.configure_dataloader(validation_data, mini_batch=False, shuffle=False)
+
+        # Configure neural net for training
         if not self.__model_and_optimizer_up_to_date():
             self.configure_model_and_optimizer()
 
@@ -391,7 +434,7 @@ class NeuralNetPredictor(FantasyPredictor):
             self.__train(train_dataloader, self.loss_fn)
 
             # Validation
-            val_result = self.eval_model(eval_dataloader=validation_dataloader, **kwargs)
+            val_result = self.evaluate(eval_dataloader=validation_dataloader, **kwargs)
             val_perfs.append(np.mean(val_result.diff_pred_vs_truth(absolute=True)))
 
             # Check stopping condition
@@ -502,7 +545,7 @@ class NeuralNetPredictor(FantasyPredictor):
                 logger.exception(msg)
                 raise KeyError(msg) from e
 
-        size = len(dataloader.dataset)  # pyright: ignore[reportArgumentType]
+        size = len(dataloader.dataset)  # type: ignore[reportArgumentType]
         batch_size = dataloader.batch_size if dataloader.batch_size is not None else 1
         num_batches = int(np.ceil(size / batch_size))
         self.model.train()

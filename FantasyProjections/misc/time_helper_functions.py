@@ -114,9 +114,9 @@ def find_prev_time_index(time: float | str, other_times_series: pd.Series) -> in
 
 
 def calc_weeks_from_epoch(year: int, week: int) -> int:
-    """Calculates the number of NFL weeks elapsed from Week 1 of the 2018 season to the given year and week.
+    """Calculates the number of NFL weeks elapsed from the predefined "Epoch" week to the given year and week.
 
-        Before 2021, each season has 17 weeks. From 2021 onward, each season has 18 weeks.
+        Note: Before 2021, each season has 17 weeks. From 2021 onward, each season has 18 weeks.
 
         Args:
             year (int): The NFL season year (e.g., 2018, 2022).
@@ -146,3 +146,33 @@ def calc_weeks_from_epoch(year: int, week: int) -> int:
     # Add weeks in the current season up to the input week
     total_weeks += week - 1  # Subtract 1 since weeks are 1-indexed
     return total_weeks
+
+
+def year_week_from_epweek(epweek: int) -> tuple[int, int]:
+    """Calculates the year and week number of an NFL week based on the elapsed from the predefined "Epoch" week.
+
+        Note: Before 2021, each season has 17 weeks. From 2021 onward, each season has 18 weeks.
+
+        Args:
+            epweek (int): The total number of weeks elapsed since 2018 Week 1.
+
+        Returns:
+            int: The NFL season year (e.g., 2018, 2022).
+            int: The week number in the given season (1-based).
+
+    """  # fmt: skip
+
+    # For simplicity, enforce that only week after the epoch are allowed
+    if epweek < 0:
+        msg = f"Attempting to calculate year/week for a week prior to epoch ({EPOCH_WEEK[0]} Week {EPOCH_WEEK[1]})."
+        raise ValueError(msg)
+
+    # Loop through all seasons, subtracting the number of weeks in each season until the input epweek is within the current season
+    year = EPOCH_WEEK[0]
+    while True:
+        weeks_in_season = 17 if year < 2021 else 18  # noqa: PLR2004
+        if epweek < weeks_in_season:
+            week = epweek + 1  # Week 1 is epoch
+            return (year, week)
+        epweek -= weeks_in_season
+        year += 1

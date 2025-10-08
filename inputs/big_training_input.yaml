@@ -89,7 +89,7 @@ tuners:
 tunings:
   - hp_tuner: Tuner1
     predictor: Neural Net
-    eval_fn: train_and_validate
+    eval_fn: manage_training_and_validation
     save_fn: save
     reset_fn: load
     eval_arguments:

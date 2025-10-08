@@ -10,10 +10,10 @@
 
 import logging
 
+import predictors
 from gamblers import BasicGambler
 from misc.dataset import StatsDataset
 from misc.marching_dataset import MarchingDataset
-from predictors import LastNPredictor, NeuralNetPredictor, PerfectPredictor, SleeperPredictor
 from results import PredictionResult, PredictionResultGroup
 from tuners import GridSearchTuner, RandomSearchTuner, RecursiveRandomSearchTuner
 
@@ -33,8 +33,9 @@ def create_datasets(dataset_params: list[dict], all_data: StatsDataset):
 
     """  # fmt:skip
 
-    # Initialize dict of datasets
+    # Initialize dict of datasets and dict of MarchingDatasets
     datasets = {}
+    marchers = {}
 
     # Create datasets one-by-one
     for dataset_ipt in dataset_params:
@@ -48,24 +49,26 @@ def create_datasets(dataset_params: list[dict], all_data: StatsDataset):
                         dataset = all_data.slice_by_criteria(inplace=False, **configuration)
                     else:
                         dataset.concat(all_data.slice_by_criteria(inplace=False, **configuration))
+                # Name dataset and add to datasets dict
+                name = dataset_ipt.get("name", "dataset")
+                dataset.name = name
+                datasets[name] = dataset
             case "MarchingDataset":
-                dataset = MarchingDataset(all_data=all_data, **dataset_ipt)
+                # Create a MarchingDataset object, which manages multiple datasets over a range of weeks
+                marcher = MarchingDataset(all_data=all_data, **dataset_ipt)
+                marchers[marcher.name] = marcher
+                # Add all datasets within the MarchingDataset to the datasets dict
+                datasets.update(marcher.create_datasets())
             case _:
                 msg = f"Dataset type {dataset_type} not recognized."
                 logger.error(msg)
                 raise ValueError(msg)
 
-        # Name dataset and add to datasets dict
-        name = dataset_ipt.get("name", "dataset")
-        dataset.name = name
-        datasets[name] = dataset
-
     # Log dataset info (size)
     for dataset in datasets.values():
-        if hasattr(dataset, "x_data"):
-            logger.info(f"{dataset.name} Dataset size: {dataset.x_data.shape[0]}")
+        logger.info(f"{dataset.name} Dataset size: {dataset.x_data.shape[0]}")
 
-    return datasets
+    return datasets, marchers
 
 
 def create_predictors(predictor_params, save_folder):
@@ -82,10 +85,11 @@ def create_predictors(predictor_params, save_folder):
 
     # Valid types that may be entered as strings and used as FantasyPredictor classes
     type_map = {
-        "NeuralNetPredictor": NeuralNetPredictor,
-        "SleeperPredictor": SleeperPredictor,
-        "LastNPredictor": LastNPredictor,
-        "PerfectPredictor": PerfectPredictor,
+        "LastNPredictor": predictors.LastNPredictor,
+        "MarchingNeuralNetPredictor": predictors.MarchingNeuralNetPredictor,
+        "NeuralNetPredictor": predictors.NeuralNetPredictor,
+        "PerfectPredictor": predictors.PerfectPredictor,
+        "SleeperPredictor": predictors.SleeperPredictor,
     }
 
     # Initialize dict of predictors
@@ -99,8 +103,13 @@ def create_predictors(predictor_params, save_folder):
         config = predictor_ipts.get("config", {})
 
         # Special case for a Neural Net setting. TODO: should change the NeuralNetPredictor constructor to make this OBE
-        if predictor_ipts.get("type") == "NeuralNetPredictor":
-            config["save_folder"] = save_folder if predictor_ipts.get("save_model", False) else None
+        try:
+            predictor_class = getattr(predictors, predictor_ipts.get("type"))
+        except (AttributeError, TypeError):
+            pass
+        else:
+            if issubclass(predictor_class, predictors.NeuralNetPredictor):
+                config["save_folder"] = save_folder if predictor_ipts.get("save_model", False) else None
 
         # Create the FantasyPredictor of the correct type with the config settings input
         predictor = type_map[predictor_ipts.get("type")](name=name, **config)

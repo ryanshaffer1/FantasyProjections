@@ -33,30 +33,33 @@ class MarchingDataset:
         else:
             self.march["start"] = calc_weeks_from_epoch(self.march["start"]["year"], self.march["start"]["week"])
             self.march["end"] = calc_weeks_from_epoch(self.march["end"]["year"], self.march["end"]["week"])
+        self.all_epweeks = list(range(self.march["start"], self.march["end"] + 1))
 
         # Set dataset state to the start of the march
         self.current_week = self.march["start"]
 
         # Convert the window of each subset to weeks before the end of the march state
-        full_window_min = min(min(subset["window"]) for subset in self.subsets)
-        full_window_max = max(max(subset["window"]) for subset in self.subsets)
-        window_offset = full_window_max - full_window_min
+        max_window_week = max(max(subset["window"]) for subset in self.subsets)
         for subset in self.subsets:
             # Convert window from a min, max to an enumerated range
-            if len(subset["window"]) == 2 and subset["window"][1] - subset["window"][0] > 1:
+            if len(subset["window"]) == 2 and subset["window"][1] - subset["window"][0] > 1:  # noqa: PLR2004
                 subset["window"] = list(range(subset["window"][0], subset["window"][1] + 1))
             # Convert window to be relative to the end of the march
-            subset["window"] = [week - window_offset for week in subset["window"]]
+            subset["window"] = [week - max_window_week for week in subset["window"]]
 
-        # Create datasets for the start of the march
-        self.datasets = self.create_datasets()
+        self.generate_epweek_lists()
 
         # Track the initial epweek for any subsets with accumulation
         for subset in self.subsets:
             if subset.get("accumulate", False):
                 subset["initial_epweek"] = min(subset["config"]["epweeks"])
 
-    def create_datasets(self):
+    def generate_epweek_lists(self):
+        """Generates the list of epweeks for each subset based on the current week and the subset's window.
+
+            This is called during initialization and whenever the current week is updated.
+        """  # fmt: skip
+
         # Create config listing epweeks for each subset to use at the current march week
         for subset in self.subsets:
             subset_epweeks = [self.current_week + week for week in subset["window"]]
@@ -68,20 +71,30 @@ class MarchingDataset:
                     )
                     + subset_epweeks
                 )
-            subset["config"] = {"epweeks": subset_epweeks}
+            if subset.get("config"):
+                subset["config"].update({"epweeks": subset_epweeks})
+            else:
+                subset["config"] = {"epweeks": subset_epweeks}
+
+    def create_datasets(self, pregenerated_config: bool = False):
+        if not pregenerated_config:
+            # Generate list of weeks to use for each subset
+            self.generate_epweek_lists()
 
         # Create StatsDataset objects for each subset
-        datasets = []
+        datasets = {}
         for j, subset in enumerate(self.subsets):
             # Slice dataset rows based on input configuration criteria
             for i, configuration in enumerate(self.config):
+                configuration = configuration.copy()
                 configuration.update(subset["config"])
                 if i == 0:
                     dataset = self.all_data.slice_by_criteria(inplace=False, **configuration)
                 else:
                     dataset.concat(self.all_data.slice_by_criteria(inplace=False, **configuration))
             dataset.name = subset.get("name", f"subset_{j}")
-            datasets.append(dataset)
+            dataset.manager = self
+            datasets[dataset.name] = dataset
 
         return datasets
 
@@ -98,10 +111,10 @@ class MarchingDataset:
             msg = "Cannot advance week beyond the end of the march."
             raise ValueError(msg)
 
-        # Set dataset windows based on accumulation
-
         # Update datasets based on current week
-        self.datasets = self.create_datasets()
+        datasets = self.create_datasets()
+
+        return datasets
 
     def set_to_week(self, epweek: int | None = None, year: int | None = None, week: int | None = None):
         """Sets the current week of the marching dataset to the specified epweek or year/week, and updates the datasets accordingly.
@@ -130,4 +143,29 @@ class MarchingDataset:
             raise ValueError(msg)
 
         self.current_week = new_week
-        self.datasets = self.create_datasets()
+        datasets = self.create_datasets()
+
+        return datasets
+
+    def show_full_dataset(self):
+        """Generates the full dataset containing all data points within the march range.
+
+            Returns:
+                dict: Maps name of each dataset to the corresponding StatsDataset object containing all data points within the march range.
+
+        """  # fmt: skip
+
+        # Create config listing all epweeks for each subset
+        for subset in self.subsets:
+            all_subset_epweeks = list(
+                range(min(subset["window"]) + self.march["start"], max(subset["window"]) + self.march["end"] + 1),
+            )
+            subset["config"] = {"epweeks": all_subset_epweeks}
+
+        # Generate the full datasets
+        datasets = self.create_datasets(pregenerated_config=True)
+
+        # Reset the subset configs
+        self.generate_epweek_lists()
+
+        return datasets
