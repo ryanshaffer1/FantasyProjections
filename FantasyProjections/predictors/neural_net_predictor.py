@@ -270,6 +270,10 @@ class NeuralNetPredictor(FantasyPredictor):
             logger.info(f"Loaded model from file {model_file}")
             self.print(self.model, log=True)
 
+    def load_optimized(self, *args, **kwargs):
+        """Interfaces with HyperTuner to load the optimized model after hyper-parameter tuning."""
+        self.load(*args, **kwargs)
+
     def modify_hyper_parameter_values(self, param_set: HyperParameterSet | dict | None):
         """Configures the neural net's hyper-parameters based on an input parameter set.
 
@@ -337,6 +341,23 @@ class NeuralNetPredictor(FantasyPredictor):
             print(model)
             print(f"Total tunable parameters: {total_params}")
 
+    def get_save_folder(self) -> str:
+        """Ensures that the save_folder attribute is not None, and that the folder exists.
+
+            Raises:
+                ValueError: if the save_folder attribute is None.
+
+            Returns:
+                str: save_folder attribute.
+
+        """  # fmt: skip
+        if self.save_folder is None:
+            msg = f"Cannot save model {self.name}: no save folder provided."
+            logger.exception(msg)
+            raise ValueError(msg)
+
+        return self.save_folder
+
     def save(self, model_file: str | None = None, opt_file: str | None = None):
         """Stores NeuralNetwork and optimizer specifications to file.
 
@@ -347,11 +368,7 @@ class NeuralNetPredictor(FantasyPredictor):
                 opt_file (str, optional): Filename (NOT including path) to save the Optimizer. Defaults to "opt.pth".
 
         """  # fmt: skip
-
-        if self.save_folder is None:
-            msg = f"Cannot save model {self.name}: no save folder provided."
-            logger.exception(msg)
-            raise ValueError(msg)
+        save_folder = self.get_save_folder()
 
         # Optional inputs
         model_filename = model_file if model_file is not None else "model.pth"
@@ -359,12 +376,16 @@ class NeuralNetPredictor(FantasyPredictor):
 
         # Check that folder exists, and set filenames
         create_folders(self.save_folder)
-        model_save_file = self.save_folder + model_filename
-        opt_save_file = self.save_folder + opt_filename
+        model_save_file = save_folder + model_filename
+        opt_save_file = save_folder + opt_filename
         # Save Neural Net model and optimizer
         torch.save(self.model.state_dict(), model_save_file)
         torch.save(self.optimizer.state_dict(), opt_save_file)
         logger.debug(f"Saved PyTorch Model State to {model_save_file}")
+
+    def save_optimized(self, *args, **kwargs):
+        """Interfaces with HyperTuner to save the optimized model after hyper-parameter tuning."""
+        self.save(*args, **kwargs)
 
     def manage_training_and_validation(
         self,

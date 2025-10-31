@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from misc.manage_files import rename_files_by_patterns
 from misc.time_helper_functions import year_week_from_epweek
 from predictors import NeuralNetPredictor
 
@@ -156,7 +157,15 @@ class MarchingNeuralNetPredictor(NeuralNetPredictor):
         model_file = f"model_{epweek}.pth"
         super().load(model_folder, model_file=model_file, print_loaded_model=print_loaded_model)
 
-    def save(self, epweek: int) -> None:
+    def load_optimized(self, model_folder: str) -> None:
+        """Manages renaming of pre-saved model files after hyper-parameter optimization process."""
+
+        # Don't need to load models here, just rename files to be ready to load
+        old_pattern = r"model_(?P<epweek>\d+)_best.pth"
+        new_pattern = r"model_\g<epweek>.pth"
+        rename_files_by_patterns(folder=model_folder, old_pattern=old_pattern, new_pattern=new_pattern)
+
+    def save_epweek(self, epweek: int) -> None:
         """Stores NeuralNetwork and optimizer specifications to file.
 
             The folder to use is specified by the NeuralNetPredictor's save_folder attribute.
@@ -167,9 +176,34 @@ class MarchingNeuralNetPredictor(NeuralNetPredictor):
                 epweek (int): current epoch week, used to label the model file.
 
         """  # fmt: skip
-
-        model_file = f"model_{epweek}.pth"
+        # Save the model for this epweek
+        model_file = self.gen_model_name(epweek)
         super().save(model_file=model_file)
+
+    def save_optimized(self):
+        """Manages renaming of pre-saved model files after hyper-parameter optimization process."""
+        # Ensure save folder exists
+        save_folder = self.get_save_folder()
+
+        # Model for every epweek has already been saved, just rename
+        old_pattern = r"model_(?P<epweek>\d+).pth"
+        new_pattern = r"model_\g<epweek>_best.pth"
+        rename_files_by_patterns(folder=save_folder, old_pattern=old_pattern, new_pattern=new_pattern)  # type: ignore[reportArgumentType]
+
+    def gen_model_name(self, epweek: int | str, suffix: str | None = None) -> str:
+        """Generates the file name to use when saving the model for a given epweek.
+
+            Args:
+                epweek (int): current epoch week, used to label the model file.
+                suffix (str): suffix to append to the model file name.
+
+            Returns:
+                str: file name to use when saving the model for the given epweek.
+
+        """  # fmt: skip
+        model_file = f"model_{epweek}_{suffix}.pth" if suffix else f"model_{epweek}.pth"
+
+        return model_file
 
     def manage_training_and_validation(
         self,
@@ -218,7 +252,7 @@ class MarchingNeuralNetPredictor(NeuralNetPredictor):
             # Save model after each week's training, using the last week of the training dataset
             last_training_epweek = max(training_data.id_data["EpWeek"])
             if self.save_folder is not None:
-                self.save(last_training_epweek)
+                self.save_epweek(last_training_epweek)
 
         # Average validation performance over all weeks is the figure of merit
         val_perf = float(np.mean(val_perfs))

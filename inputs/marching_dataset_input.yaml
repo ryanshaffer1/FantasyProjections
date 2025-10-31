@@ -84,7 +84,7 @@ datasets:
           elapsed_time: [0]
     march:
       start: {year: 2024, week: 1}
-      end: {year: 2024, week: 18}
+      end: {year: 2024, week: 2}
   - name: 2024 (Pre-Game)
     config:
       - years: [2024]
@@ -125,8 +125,17 @@ predictors:
     type: MarchingNeuralNetPredictor
     save_model: true
     config:
-      max_epochs: 30
+      max_epochs: 1
       n_epochs_to_stop: 5
+      nn_shape:
+        embedding:
+          player: {n: 100, feature: Player ID}
+          team: {n: 20, feature: Team}
+          opp: {n: 20, feature: Opponent}
+        linear_stack:
+          - 500
+          - 500
+
   - name: Sleeper
     type: SleeperPredictor
     config:
@@ -153,12 +162,25 @@ tuners:
       save_file: rr_search.csv
 
 # Processes
-trainings:
-  - predictor: Neural Net
+# trainings:
+#   - predictor: Neural Net
+#     eval_arguments:
+#       training_data: Training
+#       validation_data: Validation
+#     param_set: hyperparameters
+
+tunings:
+  - hp_tuner: Tuner1
+    predictor: Neural Net
+    eval_function: manage_training_and_validation
+    save_function: save
+    reset_function: load
     eval_arguments:
       training_data: Training
       validation_data: Validation
-    param_set: hyperparameters
+    save_arguments:
+    reset_arguments:
+      model_folder: save_folder
 
 evaluations:
   - name: NN_Result
@@ -173,13 +195,13 @@ evaluations:
 
 # Gamblers
 gamblers:
-  - name: Gambler1
-    type: BasicGambler
-    evaluation: NN_Test_PG_Result
-    plot_earnings: true
   - name: SleeperGambler
     type: BasicGambler
     evaluation: Sleeper_PG_Result
+    plot_earnings: true
+  - name: Gambler1
+    type: BasicGambler
+    evaluation: NN_Test_PG_Result
     plot_earnings: true
 
 # Plots

@@ -32,8 +32,8 @@ def perform_tunings(tuning_params, scenario, save_folder):
         # Function names that may be entered as strings and used as predictor methods
         predictor_funcs = {
             "manage_training_and_validation": predictor.manage_training_and_validation,
-            "save": predictor.save,
-            "load": predictor.load,
+            "save": predictor.save_optimized,
+            "load": predictor.load_optimized,
         }
         # Replace names of functions with actual handles for eval, save, and reset functions
         functions = {k: predictor_funcs[tuning_process[k]] for k in ["eval_function", "save_function", "reset_function"]}

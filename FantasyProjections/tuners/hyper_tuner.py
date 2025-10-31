@@ -175,7 +175,7 @@ class HyperParamTuner:
 
         # Optionally log optimal performance
         # Print out optimal performance
-        if log_name is not None:
+        if log_name is not None and optimal_ind is not None:
             logger.info(f"{log_name} Complete. Optimal performance: {self.perf_list[optimal_ind]}. Hyper-parameters used: ")
             self.param_set.print_values()
 

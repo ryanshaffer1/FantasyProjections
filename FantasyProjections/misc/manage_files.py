@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 from datetime import datetime
 
@@ -48,6 +49,24 @@ def create_folders(folders):
         if not os.path.exists(folder):
             os.makedirs(folder)
             logger.info(f"Created folder {folder}")
+
+
+def rename_files_by_patterns(folder: str, old_pattern: str, new_pattern: str) -> None:
+    """Renames all files in a folder matching an old pattern to a new pattern.
+
+        Args:
+            folder (str): folder containing files to rename
+            old_pattern (str): regex pattern matching files to rename
+            new_pattern (str): regex pattern to rename files to
+
+        """  # fmt: skip
+    # Find all files in the folder matching the old name pattern
+    for model_filename in [f for f in os.listdir(folder) if re.search(old_pattern, f)]:
+        # Rename each file of the old pattern to the new pattern
+        new_filename = re.sub(old_pattern, new_pattern, model_filename)
+
+        # Replace old file with new file
+        os.replace(os.path.join(folder, model_filename), os.path.join(folder, new_filename))
 
 
 def collect_input_dfs(

@@ -76,12 +76,17 @@ features:
 # Datasets
 datasets:
   - name: default
+    type: StatsDataset
     config:
       - years: null
         weeks: null
         teams: null
         players: null
         elapsed_time: null
+  - name: default_marcher
+    type: MarchingDataset
+    subsets:
+    march:
 
 # Hyper-Parameters
 hyperparameters:
