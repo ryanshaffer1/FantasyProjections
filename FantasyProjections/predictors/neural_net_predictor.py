@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
+import torch_directml
 from torch import nn
 from torch.optim.sgd import SGD
 from torch.utils.data import DataLoader
@@ -119,7 +120,7 @@ class NeuralNetPredictor(FantasyPredictor):
         batch_size = int(self.mini_batch_size) if mini_batch else dataset.x_data.shape[0]
 
         # Create and return dataloader
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, pin_memory=True)
         return dataloader
 
     def configure_model_and_optimizer(self, **kwargs):
@@ -215,7 +216,8 @@ class NeuralNetPredictor(FantasyPredictor):
         y_matrix = torch.empty([0, len(stat_configs)])
         with torch.no_grad():
             for x_matrix, y_vec in eval_dataloader:
-                pred = torch.cat((pred, self.model(x_matrix)))
+                x_matrix = x_matrix.to(self.device)
+                pred = torch.cat((pred, self.model(x_matrix).to("cpu")))
                 y_matrix = torch.cat((y_matrix, y_vec))
 
         # Convert outputs into un-normalized statistics/fantasy points
@@ -251,7 +253,7 @@ class NeuralNetPredictor(FantasyPredictor):
         model_file = os.path.join(folder, model_filename)
         opt_file = os.path.join(folder, opt_filename)
         # Establish shape of the model based on data within file
-        state_dict = torch.load(model_file, weights_only=True)
+        state_dict = torch.load(model_file, weights_only=False)
         self.nn_shape = self.__build_shape_from_state_dict(state_dict)
 
         # Create Neural Network model with shape determined above
@@ -313,12 +315,14 @@ class NeuralNetPredictor(FantasyPredictor):
         self.loss_fn = param_set.get("loss_fn", self.loss_fn)
         # Fold network-shape hyper-parameters into nn_shape attribute
         for layer_name, layer in self.nn_shape.items():
+            if layer_name == "input_indices":
+                continue
             if isinstance(layer, dict):
-                for shape_param in layer:
-                    layer[shape_param] = param_set.get(shape_param, layer[shape_param])
+                for shape_param, layer_shape in layer.items():
+                    layer_shape = param_set.get(shape_param, layer_shape)
             elif isinstance(layer, list):
-                layer = param_set.get(layer_name, layer)
-                layer = [layer] if isinstance(layer, int) else layer  # Ensure layer is a list
+                for i, layer_shape in enumerate(layer):
+                    layer[i] = int(param_set.get(layer_name, layer_shape))
             self.nn_shape[layer_name] = layer
 
     def print(self, model: NeuralNetwork, log: bool = False):
@@ -470,7 +474,15 @@ class NeuralNetPredictor(FantasyPredictor):
 
     def __assign_device(self, print_device: bool = True):
         # Get cpu, gpu or mps device for training.
-        device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+        if torch.cuda.is_available():
+            device = "cuda"
+        elif torch.backends.mps.is_available():
+            device = "mps"
+        elif torch_directml.is_available():
+            device = torch_directml.device()
+        else:
+            device = "cpu"
+
         if print_device:
             logger.info(f"Using {device} device")
 
