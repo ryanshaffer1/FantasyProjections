@@ -1,0 +1,247 @@
+# Basic inputs
+
+---
+# Optional: File structure for all input/auxiliary data
+
+# Output Files
+save_options:
+  save_directory: models/
+  save_folder_timestamp: true
+  save_folder_prefix: ""
+  save_log: true
+  save_plots: true
+  save_input_file: true
+
+# Features
+features:
+  input:
+    - Elapsed Time: {thresholds: [0, 60]}
+    - EpWeek: {thresholds: [0, 200]}
+    - Team Score: {thresholds: [0, 100]}
+    - Opp Score: {thresholds: [0, 100]}
+    - Possession: {thresholds: [0, 1]}
+    - Field Position: {thresholds: [0, 100]}
+    - Pass Att: {thresholds: [0, 100]}
+    - Pass Cmp: {thresholds: [0, 100]}
+    - Pass Yds: {thresholds: [-50, 1000], scoring_weight: 0.04}
+    - Pass TD: {thresholds: [0, 8], scoring_weight: 4}
+    - Int: {thresholds: [0, 8], scoring_weight: -2}
+    - Rush Att: {thresholds: [0, 100]}
+    - Rush Yds: {thresholds: [-50, 1000], scoring_weight: 0.1}
+    - Rush TD: {thresholds: [0, 8], scoring_weight: 6}
+    - Rec: {thresholds: [0, 100], scoring_weight: 1}
+    - Rec Yds: {thresholds: [-50, 1000], scoring_weight: 0.1}
+    - Rec TD: {thresholds: [0, 8], scoring_weight: 6}
+    - Fmb: {thresholds: [0, 8], scoring_weight: -2}
+    - Injury Status: {thresholds: [0, 1]}
+    - Position: {one_hot_encode: true}
+    - Player ID: {one_hot_encode: true} 
+    - Team: {one_hot_encode: true}
+    - Opponent: {one_hot_encode: true}
+  output:
+    - Pass Att
+    - Pass Cmp
+    - Pass Yds
+    - Pass TD
+    - Int
+    - Rush Att
+    - Rush Yds
+    - Rush TD
+    - Rec
+    - Rec Yds
+    - Rec TD
+    - Fmb
+  odds:
+    - Pass Yds Over Point
+    - Pass Yds Over Price
+    - Pass Yds Under Point
+    - Pass Yds Under Price
+    - Rush Yds Over Point
+    - Rush Yds Over Price
+    - Rush Yds Under Point
+    - Rush Yds Under Price
+    - Rec Yds Over Point
+    - Rec Yds Over Price
+    - Rec Yds Under Point
+    - Rec Yds Under Price
+    
+
+# Datasets
+datasets:
+  - name: Marcher
+    type: MarchingDataset
+    subsets:
+      - name: Training
+        window: [0, 14] # inclusive
+        accumulate: true
+      - name: Validation
+        window: [15, 17]
+      - name: Test
+        window: [18]
+      - name: Test Pre-Game
+        window: [18]
+        config:
+          elapsed_time: [0]
+    march:
+      start: {year: 2024, week: 1}
+      end: {year: 2024, week: 18}
+  - name: 2024 (Pre-Game)
+    config:
+      - years: [2024]
+        elapsed_time: [0]
+
+
+# Hyper-Parameters
+hyperparameters:
+  mini_batch_size:
+    value: 172
+    optimizable: true
+    val_range: [100, 10000]
+    val_scale: log
+  learning_rate:
+    value: 16.1
+    optimizable: true
+    val_range: [0.01, 100]
+    val_scale: log
+  lmbda:
+    value: 2.208e-6
+    optimizable: true
+    val_range: [0.0000001, 0.001]
+    val_scale: log
+  linear_stack:
+    value: 463
+    optimizable: true
+    val_range: [300, 1000]
+    val_scale: linear
+  loss_fn: 
+    value: nn.MSELoss()
+    optimizable: false
+    val_range: [nn.MSELoss(), nn.CrossEntropyLoss()]
+    val_scale: selection
+
+# Predictors
+predictors:
+  - name: Neural Net
+    type: MarchingNeuralNetPredictor
+    save_model: true
+    config:
+      max_epochs: 50
+      n_epochs_to_stop: 10
+      nn_shape:
+        embedding:
+          player: {n: 100, feature: Player ID}
+          team: {n: 20, feature: Team}
+          opp: {n: 20, feature: Opponent}
+        linear_stack:
+          - 500
+          - 500
+
+  - name: Sleeper
+    type: SleeperPredictor
+    config:
+      update_players: false
+
+# Tuners
+tuners:
+  - name: Tuner1
+    type: GridSearchTuner
+    settings: 
+      optimize_hypers: true
+      hyper_tuner_layers: 2
+      hyper_tuner_steps_per_dim: 2
+      plot_tuning_results: true
+      save_file: grid_search.csv
+  - name: Tuner2
+    type: RecursiveRandomSearchTuner
+    settings:
+      optimize_hypers: true
+      max_samples: 200
+      r_percentile: 0.1
+      v_expect_imp: 0.1
+      plot_tuning_results: true
+      save_file: rr_search.csv
+
+# Processes
+trainings:
+  - predictor: Neural Net
+    eval_arguments:
+      training_data: Training
+      validation_data: Validation
+    param_set: hyperparameters
+
+# tunings:
+#   - hp_tuner: Tuner2
+#     predictor: Neural Net
+#     eval_function: manage_training_and_validation
+#     save_function: save
+#     reset_function: load
+#     eval_arguments:
+#       training_data: Training
+#       validation_data: Validation
+#     save_arguments:
+#     reset_arguments:
+#       model_folder: save_folder
+
+evaluations:
+  - name: NN_Result
+    predictor: Neural Net
+    dataset: Test
+  - name: Sleeper_PG_Result
+    predictor: Sleeper
+    dataset: Test Pre-Game
+  - name: NN_Test_PG_Result
+    predictor: Neural Net
+    dataset: Test Pre-Game
+
+# Gamblers
+gamblers:
+  - name: SleeperGambler
+    type: BasicGambler
+    evaluation: Sleeper_PG_Result
+    plot_earnings: true
+  - name: Gambler1
+    type: BasicGambler
+    evaluation: NN_Test_PG_Result
+    plot_earnings: true
+
+# Plots
+# plot_groups:
+#   - results:
+#       - NN_Result
+#       - Perfect_Result
+#     plots:
+#       - type: error_dist
+#         settings:
+#           together: true
+#           absolute: true
+#       - type: single_games
+#         settings:
+#           n_random: 0
+#       - type: scatters
+#         settings:
+#           all_plot_settings:
+#           - columns: [Pass Att, Pass Cmp, Pass Yds, Pass TD, Int]
+#             slice:
+#               Position: [QB]
+#             subtitle: Passing Stats
+#             histograms: true
+#           - columns: [Pass Att, Pass Cmp, Pass Yds, Pass TD]
+#             legend_slice:
+#               Position:
+#                 - QB
+#                 - [RB, WR, TE]
+#             subtitle: Passing Stats
+#           - columns: [Rush Att, Rush Yds, Rush TD, Fmb]
+#             subtitle: Rushing Stats
+#             histogram: true
+#           - columns: [Rec, Rec Yds, Rec TD]
+#             legend_slice:
+#               Position:
+#                 - [RB, WR, TE]
+#                 - QB
+#             subtitle: Receiving Stats
+#           - columns: [Fantasy Points]
+#             subtitle: Fantasy Points
+#             histograms: true
+
+...
